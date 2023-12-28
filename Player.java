@@ -1,0 +1,52 @@
+import java.util.Random;
+import java.util.ArrayList;
+
+public abstract class Player {
+	private String questionAsked;
+	private ArrayList<Question> questionsAsked = new ArrayList<Question>();
+	private Character selectedCharacter;
+	private Board gameBoard;
+	private String questionResult;
+	private String guess;
+	private boolean isTurn;
+	public Player(String defaultState, String defaultGuess) throws Exception{
+		guess = defaultGuess;
+		gameBoard = new Board();
+		Random rand = new Random();
+		selectedCharacter = gameBoard.getCharacters().get(rand.nextInt(24));
+	}
+	public boolean guessCharacter(User opponent) {
+		if (guess.equals(opponent.getSelectedCharacter().getName())) {
+			return true;
+		}
+		return false;
+	}
+	public Character getSelectedCharacter() {
+		return selectedCharacter;
+	}
+	public void setSelectedCharacter(Character newCharacter) {
+		selectedCharacter = newCharacter;
+	}
+	public void setGuess(String newGuess) {
+		guess = newGuess;
+	}
+	public boolean getIsTurn() {
+		return isTurn;
+	}
+	public void setIsTurn(boolean newTurn) {
+		isTurn = newTurn;
+	}
+	public String getQuestionAsked() {
+		return questionAsked;
+	}
+	public void setQuestionAsked(String newQuestionAsked) {
+		questionAsked = newQuestionAsked;
+		questionsAsked.add(gameBoard.findQuestion(newQuestionAsked));
+	}
+	public String getQuestionResult() {
+		return questionResult;
+	}
+	public void setQuestionResult(String newQuestionResult) {
+		questionResult = newQuestionResult;
+	}
+}

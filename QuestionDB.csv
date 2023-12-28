@@ -1,0 +1,19 @@
+Is your character's eye colour blue?,eyeColour,Blue
+Is your character's eye colour brown?,eyeColour,Brown
+Is your character's eye colour green?,eyeColour,Green
+Is your character a male?,gender,TRUE
+Does your character have a light skin tone?,skinTone,TRUE
+Is your character's hair colour black?,hairColour,Black
+Is your character's hair colour brown?,hairColour,Brown
+Is your character's hair colour ginger?,hairColour,Ginger
+Is your character's hair colour brown?,hairColour,Brown
+Is your character's hair colour white?,hairColour,White
+Does your character have facial hair?,facialHair,TRUE
+Does your character wear glasses?,glasses,TRUE
+Does the person have visible teeth?,teethVisibility,TRUE
+Is the person wearing a hat?,wearingHat,TRUE
+Does the person have short hair?,hairLength,Short
+Does the person have long hair?,hairLength,Long
+Does the person have their hair tied up?,hairLength,Tied Up
+Is the person bald?,hairLength,Bald
+Does the person have an ear piercing?,isPiercings,TRUE
