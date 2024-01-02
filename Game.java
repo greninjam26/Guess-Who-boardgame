@@ -13,6 +13,7 @@ public class Game {
 	private String username2;
 	private int birthday2;
 	private User user2;
+	private ComputerPlayer AI;
 	private Scanner sc = new Scanner(System.in);
 	public Game() {
 		state = "Starting";
@@ -35,18 +36,74 @@ public class Game {
 	}
 	public void playerVsComputer() throws Exception {
 		Random rand = new Random();
+		System.out.println("Please enter your username: ");
 		username1 = sc.next();
+		System.out.println("Please enter your birthday(yyyymmdd): ");
 		birthday1 = sc.nextInt();
 		user1 = new User(0, "", "", birthday1, username1);
-		ComputerPlayer player2 = new ComputerPlayer("", "");
-		int choice = rand.nextInt(2);
+		System.out.println("Please select the defficultly of the NPC you want to play against(enter a number): 1. easy 2. medium 3. hard");
+		int choice = sc.nextInt();
+		state = "AI";
+		AI = new ComputerPlayer("easy", "", "");
+		if (choice == 2) {
+			AI = new ComputerPlayer("medium", "", "");
+			state = "AI";
+		}
+		else if (choice == 3) {
+			AI = new ComputerPlayer("hard", "", "");
+			state = "AI";
+		}
+		choice = rand.nextInt(2);
 		if (choice == 1) {
 			user1.setIsTurn(true);
-			player2.setIsTurn(false);
+			AI.setIsTurn(false);
 		}
 		else {
 			user1.setIsTurn(false);
-			player2.setIsTurn(true);
+			AI.setIsTurn(true);
+		}
+		while (state.equals("AI")) {
+			if (user1.getIsTurn()) {
+				System.out.println("Please enter your choice: 1. ask question. 2. guess the character: ");
+				System.out.println("+++++++++");
+				choice = sc.nextInt();
+				if (choice == 1) {
+					AskAI();
+				}
+				else {
+					guessAI();
+					state = "finished";
+				}
+				user1.setIsTurn(false);
+				AI.setIsTurn(true);
+			}
+			else {
+				state = AI.play(user1);
+				System.out.println("\\\\\\\\\\");
+				user1.setIsTurn(true);
+				AI.setIsTurn(false);
+			}
+		}
+	}
+	private void AskAI() {
+		System.out.println(user1.getUsername() + ", please enter your selected question: ");
+		String newQuestion = sc.next();
+		user1.setQuestionAsked(newQuestion);
+		if (AI.answerQuestion(newQuestion)) {
+			System.out.println("yes");
+		}
+		else {
+			System.out.println("no");
+		}
+	}
+	private void guessAI() {
+		System.out.println(user1.getUsername() + ", please enter your guess: ");
+		String guess = sc.next();
+		if (guess.equals(AI.getSelectedCharacter().getName())) {
+			System.out.println("Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!");
+		}
+		else {
+			System.out.println("Sorry, " + user1.getUsername() + " you guessed the wrong character, you lost.");
 		}
 	}
 	public void playerVsPlayer() throws Exception{
@@ -147,7 +204,7 @@ public class Game {
 			System.out.println("Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!");
 		}
 		else {
-			System.out.println("Congraulation, " + user2.getUsername() + ". " + user2.getUsername() + "you guessed the wrong character, you won!!!!");
+			System.out.println("Congraulation, " + user2.getUsername() + ", you won!!!! \nBecause " + user1.getUsername() + " you guessed the wrong character");
 		}
 		state = "finished";
 	}

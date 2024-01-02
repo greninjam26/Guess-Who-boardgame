@@ -2,7 +2,7 @@ import java.util.Random;
 import java.util.ArrayList;
 
 public abstract class Player {
-	private String questionAsked;
+	private Question questionAsked;
 	private ArrayList<Question> questionsAsked = new ArrayList<Question>();
 	private Character selectedCharacter;
 	private Board gameBoard;
@@ -36,17 +36,20 @@ public abstract class Player {
 	public void setIsTurn(boolean newTurn) {
 		isTurn = newTurn;
 	}
-	public String getQuestionAsked() {
+	public Question getQuestionAsked() {
 		return questionAsked;
 	}
 	public void setQuestionAsked(String newQuestionAsked) {
-		questionAsked = newQuestionAsked;
-		questionsAsked.add(gameBoard.findQuestion(newQuestionAsked));
+		questionAsked = gameBoard.findQuestion(newQuestionAsked);
+		questionsAsked.add(questionAsked);
 	}
 	public String getQuestionResult() {
 		return questionResult;
 	}
 	public void setQuestionResult(String newQuestionResult) {
 		questionResult = newQuestionResult;
+	}
+	public Board getGameBoard() {
+		return gameBoard;
 	}
 }

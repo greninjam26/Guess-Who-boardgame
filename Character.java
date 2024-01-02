@@ -1,4 +1,5 @@
 public class Character {
+	private int characterIndex;
 	private String name;
 	private String eyeColour;
 	private boolean isMale;
@@ -10,10 +11,12 @@ public class Character {
 	private boolean isHat;
 	private String hairLength;
 	private boolean isPiercing;
-	public Character(String defaultName, String defaultEyeColour, boolean defaultIsMale, 
+	private boolean isActive;
+	public Character(int defaultCharacterIndex, String defaultName, String defaultEyeColour, boolean defaultIsMale, 
 			boolean defaultIsLight, String defaultHairColour, boolean defaultIsFacialHair, 
 			boolean defaultIsGlasses, boolean defaultIsTeethVisible, boolean defaultIsHat, 
 			String defaultHairLength, boolean defaultIsPiercing) {
+		characterIndex = defaultCharacterIndex;
 		name = defaultName;
 		eyeColour = defaultEyeColour;
 		isMale = defaultIsMale;
@@ -25,6 +28,10 @@ public class Character {
 		isHat = defaultIsHat;
 		hairLength = defaultHairLength;
 		isPiercing = defaultIsPiercing;
+		isActive = true;
+	}
+	public int getCharacterIndex() {
+		return characterIndex;
 	}
 	public String getName() {
 		return name;
@@ -58,5 +65,11 @@ public class Character {
 	}
 	public boolean getIsPiercing() {
 		return isPiercing;
+	}
+	public boolean getIsActive() {
+		return isActive;
+	}
+	public void setIsActive(boolean newIsActive) {
+		isActive = newIsActive;
 	}
 }

@@ -18,6 +18,13 @@ public class Main {
 		// User firestar = new User(0, "Start", "", 20231111, "Greninja");
 		Game newGame = new Game();
 		System.out.println("Welcme to the Guess Who? PvP version. ");
-		newGame.playerVsPlayer();
+		newGame.playerVsComputer();
+//		Board test = new Board();
+//		for (int r = 0; r < 24; r++) {
+//			for (int c = 0; c < 19; c++) {
+//				System.out.print(test.getAnswers()[r][c] + " ");
+//			}
+//			System.out.println();
+//		}
 	}
 }
