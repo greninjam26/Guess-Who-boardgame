@@ -3,7 +3,7 @@ import java.util.*;
 
 public class Main {
 	public static Random rand = new Random();
-	public static void main(String[] args) throws Exception{
+//	public static void main(String[] args) throws Exception{
 		
 		
 		
@@ -16,9 +16,9 @@ public class Main {
 		// 	System.out.println(test.getQuestionsList().get(i).getQuestion());
 		// }
 		// User firestar = new User(0, "Start", "", 20231111, "Greninja");
-		Game newGame = new Game();
-		System.out.println("Welcme to the Guess Who? PvP version. ");
-		newGame.playerVsComputer();
+//		Game newGame = new Game();
+//		System.out.println("Welcme to the Guess Who? PvP version. ");
+//		newGame.playerVsComputer();
 //		Board test = new Board();
 //		for (int r = 0; r < 24; r++) {
 //			for (int c = 0; c < 19; c++) {
@@ -26,5 +26,7 @@ public class Main {
 //			}
 //			System.out.println();
 //		}
-	}
+//	}
+
+    
 }

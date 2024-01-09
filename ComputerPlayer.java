@@ -6,7 +6,6 @@ public class ComputerPlayer extends Player{
 	private String mode;
 	private Question askedQuestion;
 	private int qIndex;
-	private Scanner scanner = new Scanner(System.in);
 	private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();
 	private ArrayList<Character> possibleCharacters = new ArrayList<Character>();
 	private int[] answerCount = new int[getGameBoard().getQuestionSize()];
@@ -23,54 +22,52 @@ public class ComputerPlayer extends Player{
 	public void setMode(String newMode) {
 		mode = newMode;
 	}
-	public String play(User user1) {
-		System.out.println("Please answer the Question(yes or no): ");
-		if (onlyOne() == 1) {
-			if (guess()) {
-				System.out.println("Congraulation, " + user1.getUsername() + ", you won!!!! Because the AI guessed the wrong character");
-			}
-			else {
-				System.out.println("Sorry, " + user1.getUsername() + " the AI guessed your characcter, you lost.");
-			}
-			return "finished";
+	public boolean answerQuestion(String askedQuestion) {
+		boolean[][] answersList = getGameBoard().getAnswers();
+		int characterIndex = getGameBoard().getCharacters().indexOf(getSelectedCharacter());
+		int questionIndex = getGameBoard().findQuestion(askedQuestion).getQuestionIndex();
+		if (answersList[characterIndex][questionIndex]) {
+			return true;
 		}
+		return false;
+	}
+	public String playGuess(String username, boolean guessResult) {
+		if (guessResult) {
+			return "Congraulation, " + username + ", you won!!!! Because the AI guessed the wrong character";
+		}
+		return "Sorry, " + username + " the AI guessed your characcter, you lost.";
+	}
+	public Question playQuestion() {
+		Question questionChoosen = chooseQuestion();
 		if (mode.equals("easy")) {
-			easyMode();
+			Random rand = new Random();
+			qIndex = rand.nextInt(unAskedQuestions.size());
+			questionChoosen = getGameBoard().getQuestionsList().get(qIndex);
 		}
-		else if (mode.equals("medium")) {
-			mediumMode();
-		}
-		else {
-			hardMode();
-		}
-		return "AI";
+		setQuestionAsked(questionChoosen.getQuestion());
+		return questionChoosen;
 	}
-	private void easyMode() {
-		Random rand = new Random();
-		qIndex = rand.nextInt(unAskedQuestions.size());
-		askedQuestion = getGameBoard().getQuestionsList().get(qIndex);
-		askQuestion(askedQuestion);
-	}
-	private void mediumMode() {
-		
-	}
-	private void hardMode() {
-		askedQuestion = chooseQuestion();
-		askQuestion(askedQuestion);
-	}
-	private void askQuestion(Question askedQuestion) {
-		System.out.println(askedQuestion.getQuestion());
-		unAskedQuestions.remove(askedQuestion);
-		String qAnswer = scanner.next();
+	public void askQuestion(String askedQuestion, String questionAnswer) {
+		Question newQuestionAsked = getGameBoard().findQuestion(askedQuestion);
+		unAskedQuestions.remove(newQuestionAsked);
+		String qAnswer = questionAnswer;
 		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
 			if (!possibleCharacters.get(i).getIsActive()) {
 				continue;
 			}
 			if (qAnswer.equals("yes") && !getGameBoard().getAnswers()[i][qIndex]) {
 				possibleCharacters.get(i).setIsActive(false);
+				reCalculate(i);
 			}
 			else if (qAnswer.equals("no") && getGameBoard().getAnswers()[i][qIndex]) {
 				possibleCharacters.get(i).setIsActive(false);
+				reCalculate(i);
+			}
+		}
+		System.out.println("==========================");
+		for (int i = 0; i < 24; i++) {
+			if (possibleCharacters.get(i).getIsActive()) {
+				System.out.println(possibleCharacters.get(i).getName());
 			}
 		}
 	}
@@ -88,30 +85,35 @@ public class ComputerPlayer extends Player{
 		}
 		return result;
 	}
-	private boolean guess() {
-		System.out.println("Is " + possibleCharacters.get(0).getName() + " the character? ");
-		String choice = scanner.next();
-		if (choice.equals("yes")) {
-			return false;
-		}
-		return true;
-	}
-	public boolean answerQuestion(String askedQuestion) {
-		boolean[][] answersList = getGameBoard().getAnswers();
-		int characterIndex = getGameBoard().getCharacters().indexOf(getSelectedCharacter());
-		int questionIndex = getGameBoard().findQuestion(askedQuestion).getQuestionIndex();
-		if (answersList[characterIndex][questionIndex]) {
-			return true;
-		}
-		return false;
-	}
-	private int onlyOne() {
+	public boolean onlyOne() {
 		int counter = 0;
 		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
 			if (possibleCharacters.get(i).getIsActive()) {
 				counter++;
 			}
 		}
-		return counter;
+		if (counter == 1) {
+			return true;
+		}
+		return false;
+	}
+	public String onlyOneLeft() {
+		String leftCharacter = "";
+		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
+			if (possibleCharacters.get(i).getIsActive()) {
+				leftCharacter = possibleCharacters.get(i).getName();
+			}
+		}
+		return leftCharacter;
+	}
+	private void reCalculate(int i) {
+		for (int j = 0; j < getGameBoard().getQuestionSize(); j++) {
+			if (getGameBoard().getAnswers()[i][j]) {
+				answerCount[j]--;
+			}
+		}
+	}
+	public ArrayList<Character> getPossibleCharacters() {
+		return possibleCharacters;
 	}
 }
