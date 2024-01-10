@@ -21,6 +21,7 @@ public abstract class Player {
 		for (int i = 0; i < 19; i++) {
 			questionsUnAsked.add(gameBoard.getQuestionsList().get(i));
 		}
+//		questionsUnAsked = gameBoard.getQuestionsList(); // problem
 	}
 	public boolean guessCharacter(User opponent) {
 		if (guess.equals(opponent.getSelectedCharacter().getName())) {

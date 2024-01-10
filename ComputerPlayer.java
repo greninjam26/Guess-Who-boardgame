@@ -17,6 +17,7 @@ public class ComputerPlayer extends Player{
 			unAskedQuestions.add(getGameBoard().getQuestionsList().get(i));
 		}
 		possibleCharacters = getGameBoard().getCharacters();
+//		unAskedQuestions = getGameBoard().getQuestionsList(); // wrong
 		answerCount = getGameBoard().getPeopleCount();
 	}
 	public String getMode() {
