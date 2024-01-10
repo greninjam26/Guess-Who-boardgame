@@ -5,6 +5,9 @@ public abstract class Player {
 	private Question questionAsked;
 	private ArrayList<Question> questionsAsked = new ArrayList<Question>();
 	private ArrayList<Question> questionsUnAsked = new ArrayList<Question>();
+	private ArrayList<Boolean> questionAnswers = new ArrayList<Boolean>();
+	private ArrayList<Question> questionsAnsweredWrong = new ArrayList<Question>();
+	private ArrayList<Boolean> answerQuestionsAnsweredWrong = new ArrayList<Boolean>();
 	private Character selectedCharacter;
 	private Board gameBoard;
 	private String questionResult;
@@ -15,7 +18,9 @@ public abstract class Player {
 		gameBoard = new Board();
 		Random rand = new Random();
 		selectedCharacter = gameBoard.getCharacters().get(rand.nextInt(24));
-		questionsUnAsked = gameBoard.getQuestionsList();
+		for (int i = 0; i < 19; i++) {
+			questionsUnAsked.add(gameBoard.getQuestionsList().get(i));
+		}
 	}
 	public boolean guessCharacter(User opponent) {
 		if (guess.equals(opponent.getSelectedCharacter().getName())) {
@@ -57,5 +62,37 @@ public abstract class Player {
 	}
 	public ArrayList<Question> getUnAskedQuestions() {
 		return questionsUnAsked;
+	}
+	public ArrayList<Boolean> getQuestionAnswers(){
+		return questionAnswers;
+	}
+	public void addQuestionAnswers(boolean answer) {
+		questionAnswers.add(answer);
+	}
+	public ArrayList<Question> getQuestionsAsked() {
+		return questionsAsked;
+	}
+	public Character findCharacter(String characterName) {
+		Character result = gameBoard.getCharacters().get(0);
+		for (int i = 1; i < gameBoard.getCharacterSize(); i++) {
+			Character curCharacter = gameBoard.getCharacters().get(i);
+			if (curCharacter.getName().equals(characterName)) {
+				result = curCharacter;
+				break;
+			}
+		}
+		return result;
+	}
+	public ArrayList<Question> getQuestionsAnsweredWrong() {
+		return questionsAnsweredWrong;
+	}
+	public ArrayList<Boolean> getAnswerQuestionsAnsweredWrong() {
+		return answerQuestionsAnsweredWrong;
+	}
+	public void addQuestionsAnsweredWrong(Question questionAnsweredWrong) {
+		questionsAnsweredWrong.add(questionAnsweredWrong);
+	}
+	public void addAnswerQuestionsAnsweredWrong(int questionAnsweredWrongIndex) {
+		answerQuestionsAnsweredWrong.add(questionAnswers.get(questionAnsweredWrongIndex));
 	}
 }

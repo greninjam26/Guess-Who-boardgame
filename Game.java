@@ -45,7 +45,14 @@ public class Game {
 	public void setState(String newState) {
 		state = newState;
 	}
-	public String playerVsComputer(String newState, String newUsername) throws Exception {
+	/**
+	 * this method choose the player or the AI who goes first randomly
+	 * @param newState
+	 * @param newUsername
+	 * @return
+	 * @throws Exception
+	 */
+	public String playerVsComputerRandom(String newState, String newUsername) throws Exception {
 		state = newState;
 		Random rand = new Random();
 		username1 = newUsername;
@@ -53,7 +60,6 @@ public class Game {
 		System.out.println(state);
 		AI = new ComputerPlayer(state.substring(3), "", "");
 		int choice = rand.nextInt(2);
-//		int choice = 2;
 		if (choice == 1) {
 			user1.setIsTurn(true);
 			AI.setIsTurn(false);
@@ -62,15 +68,37 @@ public class Game {
 		else {
 			user1.setIsTurn(false);
 			AI.setIsTurn(true);
-			return "The Computer is going first";
+			return "The AI is going first";
 		}
+	}
+	public String playerVsComputerAIFirst(String newState, String newUsername) throws Exception {
+		state = newState;
+		username1 = newUsername;
+		user1 = new User(0, "", "", 0, username1);
+		System.out.println(state);
+		AI = new ComputerPlayer(state.substring(3), "", "");
+		user1.setIsTurn(false);
+		AI.setIsTurn(true);
+		return "The AI is going first";
+	}
+	public String playerVsComputerPlayerFirst(String newState, String newUsername) throws Exception {
+		state = newState;
+		username1 = newUsername;
+		user1 = new User(0, "", "", 0, username1);
+		System.out.println(state);
+		AI = new ComputerPlayer(state.substring(3), "", "");
+		user1.setIsTurn(true);
+		AI.setIsTurn(false);
+		return "You are going first"; 
 	}
 	public String AskAI(String questionName) {
 		String newQuestion = questionName;
 		user1.setQuestionAsked(newQuestion);
 		if (AI.answerQuestion(newQuestion)) {
+			user1.addQuestionAnswers(true);
 			return "Yes";
 		}
+		user1.addQuestionAnswers(false);
 		return "No";
 	}
 	public String guessAI(String newGuess) {
@@ -79,6 +107,17 @@ public class Game {
 			return "Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!";
 		}
 		return "Sorry, that is the wrong character, the correct one is " + AI.getSelectedCharacter().getName() + ", you lost.";
+	}
+	public void checkUserAnswers(String userCharacterName) {
+		Character userCharacter = user1.findCharacter(userCharacterName);
+		user1.setSelectedCharacter(userCharacter);
+		for (int i = 0; i < user1.getQuestionsAsked().size(); i++) {
+			Question curQuestion = user1.getQuestionsAsked().get(i);
+			if (!board.getAnswers()[userCharacter.getCharacterIndex()][curQuestion.getQuestionIndex()]) {
+				user1.addQuestionsAnsweredWrong(curQuestion);
+				user1.addAnswerQuestionsAnsweredWrong(i);
+			}
+		}
 	}
 	public void playerVsPlayer() throws Exception{
 		Random rand = new Random();

@@ -9,10 +9,13 @@ public class ComputerPlayer extends Player{
 	private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();
 	private ArrayList<Character> possibleCharacters = new ArrayList<Character>();
 	private int[] answerCount = new int[getGameBoard().getQuestionSize()];
+	private int possibleCharactersCount = 24;
 	public ComputerPlayer(String defaultMode, String defaultState, String defaultGuess) throws Exception {
 		super(defaultState, defaultGuess);
 		mode = defaultMode;
-		unAskedQuestions = getGameBoard().getQuestionsList();
+		for (int i = 0; i < 19; i++) {
+			unAskedQuestions.add(getGameBoard().getQuestionsList().get(i));
+		}
 		possibleCharacters = getGameBoard().getCharacters();
 		answerCount = getGameBoard().getPeopleCount();
 	}
@@ -38,6 +41,10 @@ public class ComputerPlayer extends Player{
 		return "Sorry, " + username + " the AI guessed your characcter, you lost.";
 	}
 	public Question playQuestion() {
+		System.out.println(unAskedQuestions.size());
+		for (int i = 0; i < unAskedQuestions.size(); i++) {
+			System.out.println(unAskedQuestions.get(i).getQuestion() + ":" + answerCount[unAskedQuestions.get(i).getQuestionIndex()]);
+		}
 		Question questionChoosen = chooseQuestion();
 		if (mode.equals("easy")) {
 			Random rand = new Random();
@@ -57,10 +64,12 @@ public class ComputerPlayer extends Player{
 			}
 			if (qAnswer.equals("yes") && !getGameBoard().getAnswers()[i][qIndex]) {
 				possibleCharacters.get(i).setIsActive(false);
+				possibleCharactersCount--;
 				reCalculate(i);
 			}
 			else if (qAnswer.equals("no") && getGameBoard().getAnswers()[i][qIndex]) {
 				possibleCharacters.get(i).setIsActive(false);
+				possibleCharactersCount--;
 				reCalculate(i);
 			}
 		}
@@ -76,7 +85,7 @@ public class ComputerPlayer extends Player{
 		int number = Integer.MAX_VALUE;
 		for (int i = 0; i < unAskedQuestions.size(); i++) {
 			int questionNumber = unAskedQuestions.get(i).getQuestionIndex();
-			int count = Math.abs(answerCount[questionNumber]-possibleCharacters.size()/2);
+			int count = Math.abs(answerCount[questionNumber]-possibleCharactersCount/2);
 			if (count < number) {
 				number = count;
 				result = unAskedQuestions.get(i);
