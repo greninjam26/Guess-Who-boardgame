@@ -1,22 +1,34 @@
 import java.util.Random;
 import java.util.ArrayList;
 
-public abstract class Player {
+public class Player {
 	private Question questionAsked;
-	private ArrayList<Question> questionsAsked = new ArrayList<Question>();
-	private ArrayList<Question> questionsUnAsked = new ArrayList<Question>();
-	private ArrayList<Boolean> questionAnswers = new ArrayList<Boolean>();
-	private ArrayList<Question> questionsAnsweredWrong = new ArrayList<Question>();
-	private ArrayList<Boolean> answerQuestionsAnsweredWrong = new ArrayList<Boolean>();
+	private ArrayList<Question> questionsAsked;
+	private ArrayList<Question> questionsUnAsked;
+	private ArrayList<Boolean> questionAnswers;
+	private ArrayList<Question> questionsAnsweredWrong;
+	private ArrayList<Boolean> answerQuestionsAnsweredWrong;
 	private Character selectedCharacter;
 	private Board gameBoard;
 	private String questionResult;
 	private String guess;
 	private boolean isTurn;
 	public Player(String defaultState, String defaultGuess) throws Exception{
+		//PBF problem solving
+//		ArrayList<MyObject> originalList = new ArrayList<>();
+//		ArrayList<MyObject> clonedList = new ArrayList<>();
+//
+//		for (MyObject item : originalList) {
+//		    clonedList.add(new MyObject(item)); // Assuming MyObject has a copy constructor
+//		}
 		guess = defaultGuess;
 		gameBoard = new Board();
 		Random rand = new Random();
+		questionsAsked = new ArrayList<Question>();
+		questionsUnAsked = new ArrayList<Question>();
+		questionAnswers = new ArrayList<Boolean>();
+		questionsAnsweredWrong = new ArrayList<Question>();
+		answerQuestionsAnsweredWrong = new ArrayList<Boolean>();
 		selectedCharacter = gameBoard.getCharacters().get(rand.nextInt(24));
 		for (int i = 0; i < 19; i++) {
 			questionsUnAsked.add(gameBoard.getQuestionsList().get(i));
@@ -91,6 +103,7 @@ public abstract class Player {
 		return answerQuestionsAnsweredWrong;
 	}
 	public void addQuestionsAnsweredWrong(Question questionAnsweredWrong) {
+		System.out.println("?????" + questionAnsweredWrong + "??????");
 		questionsAnsweredWrong.add(questionAnsweredWrong);
 	}
 	public void addAnswerQuestionsAnsweredWrong(int questionAnsweredWrongIndex) {

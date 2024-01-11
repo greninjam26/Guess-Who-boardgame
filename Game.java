@@ -5,7 +5,6 @@ public class Game {
 	private String gameId;
 	private Player currentPlayer;
 	private Player[] players;
-	private Board board;
 	private String state;
 	private String username1;
 	private int birthday1;
@@ -108,16 +107,19 @@ public class Game {
 		}
 		return "Sorry, that is the wrong character, the correct one is " + AI.getSelectedCharacter().getName() + ", you lost.";
 	}
-	public void checkUserAnswers(String userCharacterName) {
-		Character userCharacter = user1.findCharacter(userCharacterName);
-		user1.setSelectedCharacter(userCharacter);
-		for (int i = 0; i < user1.getQuestionsAsked().size(); i++) {
-			Question curQuestion = user1.getQuestionsAsked().get(i);
-			if (!board.getAnswers()[userCharacter.getCharacterIndex()][curQuestion.getQuestionIndex()]) {
-				user1.addQuestionsAnsweredWrong(curQuestion);
-				user1.addAnswerQuestionsAnsweredWrong(i);
+	public boolean checkUserAnswers() {
+		boolean check = true;
+		System.out.println("questions: " + AI.getQuestionsAsked().size());
+		for (int i = 0; i < AI.getQuestionsAsked().size(); i++) {
+			Question curQuestion = AI.getQuestionsAsked().get(i);
+			if (AI.getGameBoard().getAnswers()[AI.getSelectedCharacter().getCharacterIndex()][curQuestion.getQuestionIndex()] != AI.getQuestionAnswers().get(i)) {
+				System.out.println("???????????????????????????????????????");
+				AI.addQuestionsAnsweredWrong(curQuestion);
+				AI.addAnswerQuestionsAnsweredWrong(i);
+				check = false;
 			}
 		}
+		return check;
 	}
 	public void playerVsPlayer() throws Exception{
 		Random rand = new Random();
