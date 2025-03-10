@@ -1,4 +1,4 @@
-/*Author: Gavin Liu, Bagavan Marakathalingasivam, Andreas Li
+/*Author: Gavin Liu
  * Date: Dec 29 2023
  * Description: this class is used to store all the attributes of the character and can be called from other classes
  * */
