@@ -1,4 +1,4 @@
-/*Author: Gavin Liu, Bagavan Marakathalingasivam, Andreas Li
+/*Author: Gavin Liu
  * Date: Jan 8 2024
  * Description: this class contains all the basic front end code that have all the buttons and panels working 
  * but the styling should be improved on for it to look good. 
