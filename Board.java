@@ -1,39 +1,48 @@
+/*Author: Gavin Liu
+ * Date: Jan 5 2023
+ * Description: this class will have all the original data that was read from the data bases and stored, 
+ * which can be called by other classes 
+ * */
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Board {
-	private final int characterSize = 24;
-	private final int questionSize = 19;
-	private ArrayList<Character> characters = new ArrayList<Character>();
-	private ArrayList<Question> questionsList = new ArrayList<Question>();
-	private boolean[][] answers = new boolean[characterSize][questionSize];
-	private int[] peopleCount = new int[19];
+	private final int characterSize = 24;//number of characters
+	private final int questionSize = 19;//number of questions
+	private ArrayList<Character> characters = new ArrayList<Character>();//Character type ArrayList storing all the characters
+	private ArrayList<Question> questionsList = new ArrayList<Question>();//Question type ArrayList storing all the questions
+	private boolean[][] answers = new boolean[characterSize][questionSize];//boolean 2D array storing all the questions answers
+	private int[] peopleCount = new int[19];//int array storing the number of character that is true to the 19 questions
 	public Board() throws Exception{
+		//reading from the QuestionDB csv file for the list of questions
 		File file2 = new File("QuestionDB.csv");
 		Scanner scanner2 = new Scanner(file2);
-		int i = 0;
+		int i = 0;//index of the question
 		while (scanner2.hasNextLine()) {
 			String line = scanner2.nextLine();
 			String[] attributes2 = line.split(",");
-			
+			//creating the question object with all of its attributes
 			Question question = new Question(
-					attributes2[0],
-					attributes2[1],
-					attributes2[2],
-					i
+					attributes2[0],			// question name
+					attributes2[1],			// category
+					attributes2[2],			// attribute of the character
+					i						// index
 					);
 			
-			questionsList.add(question);
+			questionsList.add(question);//add the question to the ArrayList
 			i++;
 		}
 		scanner2.close();
+		//reading from the GuessWhoDB csv file for all the characters and their attributes
 		File file = new File("GuessWhoDB.csv");
 		Scanner scanner1 = new Scanner(file);
-		i = 0;
+		i = 0;//index of the character
 		while (scanner1.hasNextLine()) {
 			String line = scanner1.nextLine();
 			String[] attributes = line.split(",");
+			//creating the character object and store all of its attributes
 			Character character = new Character(
 					i,
 					attributes[0], 							// name
@@ -48,7 +57,8 @@ public class Board {
 					attributes[9], 							// hairLength
 					Boolean.parseBoolean(attributes[10])	// IsPiercing
 					);
-			characters.add(character);
+			characters.add(character);//add the character to the ArrayList
+			//check if the each question is questions true or false for the player and also increase the value in the peopleCount
 			if (character.getEyeColour().equals("Blue")) {
 				answers[i][0] = true;
 				peopleCount[0]++;
@@ -125,35 +135,63 @@ public class Board {
 				answers[i][18] = true;
 				peopleCount[18]++;
 			}
-			// Now you can use 'character' as needed (e.g., add it to a list)
 			i++;
 		}
 		scanner1.close();
 	}
+	/**
+	 * method will return the peopleCount int array
+	 * @return peopleCount array
+	 */
 	public int[] getPeopleCount() {
 		return peopleCount;
 	}
+	/**
+	 * method will return the number of questions
+	 * @return the number of questions
+	 */
 	public int getQuestionSize() {
 		return questionSize;
 	}
+	/**
+	 * method will return the number of characters
+	 * @return the number of characters
+	 */
 	public int getCharacterSize() {
 		return characterSize;
 	}
+	/**
+	 * method will return the ArrayList of questions
+	 * @return Question type ArrayList of questions
+	 */
 	public ArrayList<Question> getQuestionsList() {
 		return questionsList;
 	}
+	/**
+	 * method will return the ArrayList of characters
+	 * @return Character type ArrayList of characters
+	 */
 	public ArrayList<Character> getCharacters() {
 		return characters;
 	}
+	/**
+	 * method will return the 2D array of questions answers
+	 * @return boolean 2D array of answers
+	 */
 	public boolean[][] getAnswers() {
 		return answers;
 	}
+	/**
+	 * method will take the inputed question name and check and find the according question Object and return it
+	 * @param questionName the name of the question 
+	 * @return the Question type value with the questionName
+	 */
 	public Question findQuestion(String questionName) {
 		Question result = questionsList.get(0);
-		for (int i = 0; i < questionsList.size(); i++) {
-			if (questionsList.get(i).getQuestion().equals(questionName)) {
-				result = questionsList.get(i);
-				return result;
+		for (int i = 1; i < questionsList.size(); i++) {//check every question to see with one have the same question name as the input
+			if (questionsList.get(i).getQuestion().equals(questionName)) {//if the current question have the same name as the questionName
+				result = questionsList.get(i);//set result to current question
+				return result;//then return result
 			}
 		}
 		return result;
