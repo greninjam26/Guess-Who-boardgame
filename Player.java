@@ -1,4 +1,4 @@
-/*Author: Gavin Liu, Bagavan Marakathalingasivam, Andreas Li
+/*Author: Gavin Liu
  * Date: Dec 29 2024
  * Description: this class is made to create the parent class of the ComputerPlayer and the User
  * so this class contain the methods and attributes that are in common for the ComputerPlayer and the User
