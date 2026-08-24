@@ -4,7 +4,6 @@
  * which can be called by other classes 
  * */
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -17,8 +16,7 @@ public class Board {
 	private int[] peopleCount = new int[19];//int array storing the number of character that is true to the 19 questions
 	public Board() throws Exception{
 		//reading from the QuestionDB csv file for the list of questions
-		File file2 = new File("QuestionDB.csv");
-		Scanner scanner2 = new Scanner(file2);
+		Scanner scanner2 = new Scanner(GameResources.openQuestionData());
 		int i = 0;//index of the question
 		while (scanner2.hasNextLine()) {
 			String line = scanner2.nextLine();
@@ -36,8 +34,7 @@ public class Board {
 		}
 		scanner2.close();
 		//reading from the GuessWhoDB csv file for all the characters and their attributes
-		File file = new File("GuessWhoDB.csv");
-		Scanner scanner1 = new Scanner(file);
+		Scanner scanner1 = new Scanner(GameResources.openCharacterData());
 		i = 0;//index of the character
 		while (scanner1.hasNextLine()) {
 			String line = scanner1.nextLine();
