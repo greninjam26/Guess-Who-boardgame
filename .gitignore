@@ -1,0 +1,20 @@
+# Maven and Java build output
+target/
+out/
+bin/
+*.class
+
+# Runtime-generated game data
+test.csv
+
+# IDE settings
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
