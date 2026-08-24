@@ -202,18 +202,9 @@ public class Game {
 		username2 = usernameS;
 		birthday2 = birthdayS;
 		user2 = new User("", birthday2, username2);//initialize the user 2 Object
-		int choice = 0;
-		if (birthday1 == birthday2) {
-			choice = rand.nextInt(2);
-		}
-		else if (birthday1 > birthday2 || choice == 1) {
-			user1.setIsTurn(true);
-			user2.setIsTurn(false);
-		}
-		else {
-			user1.setIsTurn(false);
-			user2.setIsTurn(true);
-		}
+		boolean user1Starts = birthday1 == birthday2 ? rand.nextBoolean() : birthday1 > birthday2;
+		user1.setIsTurn(user1Starts);
+		user2.setIsTurn(!user1Starts);
 	}
 	/**
 	 * this method will be used to start the game when the players wants user1 to go first
