@@ -3,13 +3,13 @@
  * Description: this class contains all the basic front end code that have all the buttons and panels working 
  * but the styling should be improved on for it to look good. 
  * */
-import java.io.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import javax.sound.sampled.*;
+import java.util.Optional;
+import javax.sound.sampled.Clip;
 import javax.swing.border.Border;
 
 public class GUI {
@@ -20,7 +20,7 @@ public class GUI {
 	//new StoreResult object use to store the game data and result
 	private StoreResult store;
 	//the music
-	private static Clip music;
+	private static Optional<Clip> music = Optional.empty();
 	//the list of characters image
 	private ArrayList<ImageIcon> characterImages = new ArrayList<ImageIcon>();
 	//image for the characters that were elimated
@@ -361,7 +361,7 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();//close the frame
-				music.close();//stop the music
+				music.ifPresent(Clip::close);//stop the music
 			}
 		});
 		//this action listener is used to dispose the frame and stop the music and restart entire program
@@ -1077,11 +1077,7 @@ public class GUI {
 	 * this method will read the eliminated character icon and storing it
 	 */
 	private void getBackIcon() {
-		ImageIcon characterIcon = new ImageIcon(getClass().getResource("characterGone.jpg"));
-		Image image = characterIcon.getImage();
-		Image newimg = image.getScaledInstance(width, height, java.awt.Image.SCALE_SMOOTH);
-		characterIcon = new ImageIcon(newimg);
-		back = characterIcon;
+		back = GameResources.loadEliminatedCharacterIcon(width, height);
 	}
 	/**
 	 * this method will read the images and stored them and it will only be called once in the beginning of the program
@@ -1089,26 +1085,18 @@ public class GUI {
 	private void readAllImages() {
 		//get all the images for the characters by reading
 		for (int i = 0; i < 24; i++) {
-			ImageIcon characterIcon = new ImageIcon(getClass().getResource("" + i + ".jpg"));
-			Image image = characterIcon.getImage();
-			Image newimg = image.getScaledInstance(width, height,  java.awt.Image.SCALE_SMOOTH);
-			characterIcon = new ImageIcon(newimg);
-			characterImages.add(characterIcon);
+			characterImages.add(GameResources.loadCharacterIcon(i, width, height));
 		}
 		//read the image for the characters that were elimated
 		getBackIcon();
 	}
 	public static void main(String[] args) {
 		//uploading the music
-		try {
-			File audioFile = new File("Bloom of Youth.wav");
-			AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
-			music = AudioSystem.getClip();
-			music.open(audioStream);
-		}
-		catch (Exception e) {}
-		music.start();
-		music.loop(Clip.LOOP_CONTINUOUSLY);//keep repeating the music
+		music = GameResources.loadBackgroundMusic();
+		music.ifPresent(clip -> {
+			clip.start();
+			clip.loop(Clip.LOOP_CONTINUOUSLY);//keep repeating the music
+		});
 		//run the GUI
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {

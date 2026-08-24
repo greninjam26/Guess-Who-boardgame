@@ -27,22 +27,25 @@ The project has no external runtime dependencies.
 ├── pom.xml
 ├── README.md
 └── src/
-    └── main/
-        ├── java/                  # Application source code
-        │   ├── GUI.java           # Swing interface and entry point
-        │   ├── Game.java          # Game flow and mode coordination
-        │   ├── Board.java         # Character/question data and answers
-        │   ├── Player.java        # Shared player state and behavior
-        │   ├── User.java          # Human-player information
-        │   ├── ComputerPlayer.java # Computer opponent logic
-        │   ├── Character.java     # Character model
-        │   ├── Question.java      # Question model
-        │   ├── StoreResult.java   # Result persistence
-        │   └── Leaderboard.java   # Leaderboard data and sorting
-        └── resources/
-            ├── audio/             # Background music
-            ├── data/              # Character and question CSV files
-            └── images/            # Character-card artwork
+    ├── main/
+    │   ├── java/                   # Application source code
+    │   │   ├── GUI.java            # Swing interface and entry point
+    │   │   ├── Game.java           # Game flow and mode coordination
+    │   │   ├── Board.java          # Character/question data and answers
+    │   │   ├── GameResources.java  # Classpath resource loading
+    │   │   ├── Player.java         # Shared player state and behavior
+    │   │   ├── User.java           # Human-player information
+    │   │   ├── ComputerPlayer.java # Computer opponent logic
+    │   │   ├── Character.java      # Character model
+    │   │   ├── Question.java       # Question model
+    │   │   ├── StoreResult.java    # Result persistence
+    │   │   └── Leaderboard.java    # Leaderboard data and sorting
+    │   └── resources/
+    │       ├── audio/               # Background music
+    │       ├── data/                # Character and question CSV files
+    │       └── images/              # Character-card artwork
+    └── test/
+        └── java/                    # Regression checks
 ```
 
 ## Prerequisites
@@ -69,6 +72,26 @@ mvn clean package
 
 Maven compiles the application, copies its resources, and creates the build output under `target/`.
 
+## Run
+
+After building, start the Swing application with:
+
+```bash
+java -cp target/classes GUI
+```
+
+The bundled music file currently contains no audio data, so the game starts without background music.
+
+## Test
+
+The resource-loading regression check has no external test dependency. On macOS or Linux, run it with:
+
+```bash
+mkdir -p target/test-classes
+javac --release 17 -d target/test-classes src/main/java/*.java src/test/java/*.java
+java -Djava.awt.headless=true -cp "target/test-classes:src/main/resources" GameResourcesTest
+```
+
 ## Main Classes
 
 | Class | Responsibility |
@@ -76,6 +99,7 @@ Maven compiles the application, copies its resources, and creates the build outp
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
 | `Board` | Loads the character/question databases and builds the answer matrix. |
+| `GameResources` | Loads packaged CSV files and images and treats background music as optional. |
 | `Player` | Stores behavior and state shared by human and computer players. |
 | `ComputerPlayer` | Selects questions and narrows possible characters for the AI. |
 | `User` | Stores a human player's username and birthday. |
@@ -86,22 +110,19 @@ Maven compiles the application, copies its resources, and creates the build outp
 
 ## Current Limitations
 
-This repository has been reorganized before changing the application code. The source compiles, but the GUI is not yet launch-ready from the Maven layout:
+The application now loads its CSV and image assets from the Maven classpath. The remaining limitations are:
 
-- The Java classes still use their original resource paths instead of loading files from the new resource folders.
-- `Bloom of Youth.wav` contains no audio data. Startup currently attempts to use the audio clip even when loading it fails.
-- There is no automated test suite yet.
+- `Bloom of Youth.wav` contains no audio data, so background music is disabled automatically.
+- The regression check currently covers resource loading, not the complete game flow.
 - The classes still use the default Java package.
-
-These constraints are documented rather than hidden so the next improvement can address resource loading without mixing that behavioral change into the structural cleanup.
 
 ## Suggested Next Steps
 
-1. Load CSV, image, and audio resources consistently from the classpath.
-2. Replace the empty music asset or make background music optional.
-3. Add unit tests for board loading, question matching, turn selection, and AI behavior.
-4. Introduce a named Java package.
-5. Split the large Swing class into smaller view and controller components.
+1. Replace the empty music asset.
+2. Add unit tests for question matching, turn selection, and AI behavior.
+3. Introduce a named Java package.
+4. Improve input validation and naming consistency.
+5. Split the large Swing class into smaller view and controller modules.
 
 ## Data and Assets
 
