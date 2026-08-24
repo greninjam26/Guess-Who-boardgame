@@ -84,13 +84,13 @@ The bundled music file currently contains no audio data, so the game starts with
 
 ## Test
 
-The resource-loading regression check has no external test dependency. On macOS or Linux, run it with:
+Run the JUnit suite with:
 
 ```bash
-mkdir -p target/test-classes
-javac --release 17 -d target/test-classes src/main/java/*.java src/test/java/*.java
-java -Djava.awt.headless=true -cp "target/test-classes:src/main/resources" GameResourcesTest
+mvn test
 ```
+
+The tests cover packaged resources, board data, starting-turn rules, and core computer-player behavior.
 
 ## Main Classes
 
@@ -113,13 +113,13 @@ java -Djava.awt.headless=true -cp "target/test-classes:src/main/resources" GameR
 The application now loads its CSV and image assets from the Maven classpath. The remaining limitations are:
 
 - `Bloom of Youth.wav` contains no audio data, so background music is disabled automatically.
-- The regression check currently covers resource loading, not the complete game flow.
+- Swing interactions and complete game sessions are not yet covered by automated tests.
 - The classes still use the default Java package.
 
 ## Suggested Next Steps
 
 1. Replace the empty music asset.
-2. Add unit tests for question matching, turn selection, and AI behavior.
+2. Expand tests for question elimination, guessing, and result storage.
 3. Introduce a named Java package.
 4. Improve input validation and naming consistency.
 5. Split the large Swing class into smaller view and controller modules.
