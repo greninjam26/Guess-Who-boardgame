@@ -6,12 +6,16 @@
  * */
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 
 public class StoreResult {
-	private	PrintWriter write;//the PrintWriter that is writing all the result of the game to the csv file
+	private final PrintWriter write;//the PrintWriter that is writing all the result of the game to the csv file
 	public StoreResult() throws Exception {
-		write = new PrintWriter(new FileWriter("test.csv", true));//initialize the PrintWriter
+		this(new FileWriter("test.csv", true));
+	}
+	StoreResult(Writer writer) {
+		write = new PrintWriter(writer);
 	}
 	/**
 	 * this method will be used to store the data of the game in a pvp game
@@ -32,15 +36,15 @@ public class StoreResult {
 	 */
 	public void addGameResultPVC(User user1, ComputerPlayer ai, String gameResult) {
 		storeUser1(user1);
-		write.print("AI," + ai.getSelectedCharacter());//store AI as the second player and it's selected character
+		write.print("AI," + ai.getSelectedCharacter().getName());//store AI as the second player and it's selected character
 		ArrayList<Question> questionsAsked = ai.getQuestionsAsked();
 		ArrayList<Boolean> questionsAnswers = ai.getQuestionAnswers(); 
 		for (int i = 0; i < questionsAsked.size(); i++) {
 			if (questionsAnswers.get(i)) {//when the answer is true
-				write.println("," + questionsAsked.get(i) + ", yes");//store the question followed by the answer
+				write.println("," + questionsAsked.get(i).getQuestion() + ", yes");//store the question followed by the answer
 			}
 			else {//when it is false
-				write.println("," + questionsAsked.get(i) + ", no");//store the question followed by the answer
+				write.println("," + questionsAsked.get(i).getQuestion() + ", no");//store the question followed by the answer
 			}
 		}
 		write.println(gameResult);//the username of the player that won the game
@@ -56,10 +60,10 @@ public class StoreResult {
 		ArrayList<Boolean> questionsAnswers = user1.getQuestionAnswers(); 
 		for (int i = 0; i < questionsAsked.size(); i++) {
 			if (questionsAnswers.get(i)) {//when the answer is true
-				write.println("," + questionsAsked.get(i) + ", yes");//store the question followed by the answer
+				write.println("," + questionsAsked.get(i).getQuestion() + ", yes");//store the question followed by the answer
 			}
 			else {//when it is false
-				write.println("," + questionsAsked.get(i) + ", no");//store the question followed by the answer
+				write.println("," + questionsAsked.get(i).getQuestion() + ", no");//store the question followed by the answer
 			}
 		}
 	}
