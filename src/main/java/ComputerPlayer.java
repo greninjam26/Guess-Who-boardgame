@@ -13,9 +13,14 @@ public class ComputerPlayer extends Player{
 	private ArrayList<Character> possibleCharacters = new ArrayList<Character>();//the characters
 	private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question 
 	private int possibleCharactersCount = getGameBoard().getCharacterSize();//the number of characters
+	private final Random random;
 	public ComputerPlayer(String defaultMode, String defaultState) throws Exception {
+		this(defaultMode, defaultState, new Random());
+	}
+	public ComputerPlayer(String defaultMode, String defaultState, Random random) throws Exception {
 		super(defaultState);
 		mode = defaultMode;
+		this.random = random;
 		//using a for loop to get all the values from the board class to avoid changing the orginal arrayList 
 		for (int i = 0; i < 19; i++) {
 			unAskedQuestions.add(getGameBoard().getQuestionsList().get(i));
@@ -71,9 +76,9 @@ public class ComputerPlayer extends Player{
 	public Question playQuestion() {
 		Question questionChoosen = chooseQuestion();//set the question to be the one the hard AI will ask
 		if (mode.equals("easy")) {//when the mode is easy
-			Random rand = new Random();
-			qIndex = rand.nextInt(unAskedQuestions.size());
-			questionChoosen = getGameBoard().getQuestionsList().get(qIndex);//reset the question to the one the easy AI asks
+			int questionPosition = random.nextInt(unAskedQuestions.size());
+			questionChoosen = unAskedQuestions.get(questionPosition);//reset the question to the one the easy AI asks
+			qIndex = questionChoosen.getQuestionIndex();
 		}
 		setQuestionAsked(questionChoosen.getQuestion());
 		return questionChoosen;
