@@ -18,13 +18,13 @@ public class ComputerPlayer extends Player{
 		this(defaultMode, defaultState, new Random());
 	}
 	public ComputerPlayer(String defaultMode, String defaultState, Random random) throws Exception {
-		super(defaultState);
+		this(defaultMode, defaultState, new Board(), random);
+	}
+	ComputerPlayer(String defaultMode, String defaultState, Board board, Random random) {
+		super(defaultState, board, new Random());
 		mode = defaultMode;
 		this.random = random;
-		//using a for loop to get all the values from the board class to avoid changing the orginal arrayList 
-		for (int i = 0; i < 19; i++) {
-			unAskedQuestions.add(getGameBoard().getQuestionsList().get(i));
-		}
+		unAskedQuestions.addAll(getGameBoard().getQuestionsList());
 		possibleCharacters = getGameBoard().getCharacters();
 		answerCount = getGameBoard().getPeopleCount();
 	}

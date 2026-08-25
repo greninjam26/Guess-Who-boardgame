@@ -64,6 +64,17 @@ class ComputerPlayerTest {
         assertTrue(activeCharacters > 0, "Brown-eyed characters should remain active");
     }
 
+    @Test
+    void initializesQuestionsFromTheBoardCollection() throws Exception {
+        Board reducedBoard = new Board();
+        reducedBoard.getQuestionsList().remove(reducedBoard.getQuestionsList().size() - 1);
+
+        ComputerPlayer easyComputer = new ComputerPlayer(
+                "easy", "", reducedBoard, alwaysChooseFirst());
+
+        assertEquals(18, easyComputer.getUnAskedQuestions().size());
+    }
+
     private Random alwaysChooseFirst() {
         return new Random() {
             @Override

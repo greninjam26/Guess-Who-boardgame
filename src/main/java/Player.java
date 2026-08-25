@@ -18,18 +18,18 @@ public class Player {
 	private String questionResult;//the result of the new question asked by the player
 	private boolean isTurn;//if it is the player's turn
 	public Player(String defaultState) throws Exception{
+		this(defaultState, new Board(), new Random());
+	}
+	Player(String defaultState, Board board, Random random) {
 		//set all the attributes to the default values
-		gameBoard = new Board();
-		Random rand = new Random();
+		gameBoard = board;
 		questionsAsked = new ArrayList<Question>();
 		questionsUnAsked = new ArrayList<Question>();
 		questionAnswers = new ArrayList<Boolean>();
 		questionsAnsweredWrong = new ArrayList<Question>();
 		answerQuestionsAnsweredWrong = new ArrayList<Boolean>();
-		selectedCharacter = gameBoard.getCharacters().get(rand.nextInt(24));
-		for (int i = 0; i < 19; i++) {
-			questionsUnAsked.add(gameBoard.getQuestionsList().get(i));
-		}
+		selectedCharacter = gameBoard.getCharacters().get(random.nextInt(gameBoard.getCharacters().size()));
+		questionsUnAsked.addAll(gameBoard.getQuestionsList());
 	}
 	/**
 	 * this method is used to return the selected character of the player
