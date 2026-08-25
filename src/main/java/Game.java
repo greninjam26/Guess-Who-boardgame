@@ -64,20 +64,15 @@ public class Game {
 	 * @throws Exception
 	 */
 	public String playerVsComputerRandom(String newState, String newUsername) throws Exception {
-		state = newState;//set the state to newState
 		Random rand = new Random();
-		username1 = newUsername;
-		user1 = new User("", 0, username1);//creating the user1 with the inputed username
-		AI = new ComputerPlayer(state.substring(3), "");
+		initializePlayerVsComputer(newState, newUsername);
 		int choice = rand.nextInt(2);//randomly pick a number between 1 and 2
 		if (choice == 1) {//if it is 1 player going first
-			user1.setIsTurn(true);
-			AI.setIsTurn(false);
+			setTurns(user1, AI, true);
 			return "You are going first"; 
 		}
 		else {//it is 2 AI go first
-			user1.setIsTurn(false);
-			AI.setIsTurn(true);
+			setTurns(user1, AI, false);
 			return "The AI is going first";
 		}
 	}
@@ -89,12 +84,8 @@ public class Game {
 	 * @throws Exception
 	 */
 	public void playerVsComputerAIFirst(String newState, String newUsername) throws Exception {
-		state = newState;
-		username1 = newUsername;
-		user1 = new User("", 0, username1);//creating the user1 with the inputed username
-		AI = new ComputerPlayer(state.substring(3), "");
-		user1.setIsTurn(false);
-		AI.setIsTurn(true);
+		initializePlayerVsComputer(newState, newUsername);
+		setTurns(user1, AI, false);
 	}
 	/**
 	 * this method is used for when the user choose they want to go first
@@ -104,12 +95,8 @@ public class Game {
 	 * @throws Exception
 	 */
 	public void playerVsComputerPlayerFirst(String newState, String newUsername) throws Exception {
-		state = newState;
-		username1 = newUsername;
-		user1 = new User("", 0, username1);//creating the user1 with the inputed username
-		AI = new ComputerPlayer(state.substring(3), "");
-		user1.setIsTurn(true);
-		AI.setIsTurn(false);
+		initializePlayerVsComputer(newState, newUsername);
+		setTurns(user1, AI, true);
 	}
 	/**
 	 * this method will be accepting the question the user asked and return the answer to the question 
@@ -170,21 +157,9 @@ public class Game {
 	 */
 	public void playerVsPlayerRandom(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
 		Random rand = new Random();
-		username1 = usernameO;
-		birthday1 = birthdayO;
-		user1 = new User("", birthday1, username1);//initialize the user 1 Object
-		username2 = usernameS;
-		birthday2 = birthdayS;
-		user2 = new User("", birthday2, username2);//initialize the user 2 Object
+		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
 		int choice = rand.nextInt(2);
-		if (choice == 1) {
-			user1.setIsTurn(true);
-			user2.setIsTurn(false);
-		}
-		else {
-			user1.setIsTurn(false);
-			user2.setIsTurn(true);
-		}
+		setTurns(user1, user2, choice == 1);
 	}
 	/**
 	 * this method will be used to start the game when the players want the younger player to go first
@@ -196,15 +171,9 @@ public class Game {
 	 */
 	public void playerVsPlayerBirthday(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
 		Random rand = new Random();
-		username1 = usernameO;
-		birthday1 = birthdayO;
-		user1 = new User("", birthday1, username1);//initialize the user 1 Object
-		username2 = usernameS;
-		birthday2 = birthdayS;
-		user2 = new User("", birthday2, username2);//initialize the user 2 Object
+		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
 		boolean user1Starts = birthday1 == birthday2 ? rand.nextBoolean() : birthday1 > birthday2;
-		user1.setIsTurn(user1Starts);
-		user2.setIsTurn(!user1Starts);
+		setTurns(user1, user2, user1Starts);
 	}
 	/**
 	 * this method will be used to start the game when the players wants user1 to go first
@@ -215,14 +184,8 @@ public class Game {
 	 * @throws Exception
 	 */
 	public void playerVsPlayer1First(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		username1 = usernameO;
-		birthday1 = birthdayO;
-		user1 = new User("", birthday1, username1);//initialize the user 1 Object
-		username2 = usernameS;
-		birthday2 = birthdayS;
-		user2 = new User("", birthday2, username2);//initialize the user 2 Object
-		user1.setIsTurn(true);
-		user2.setIsTurn(false);
+		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
+		setTurns(user1, user2, true);
 	}
 	/**
 	 * this method will be used to start the game when the players wants user2 to go first
@@ -233,14 +196,30 @@ public class Game {
 	 * @throws Exception
 	 */
 	public void playerVsPlayer2First(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		username1 = usernameO;
-		birthday1 = birthdayO;
-		user1 = new User("", birthday1, username1);//initialize the user 1 Object
-		username2 = usernameS;
-		birthday2 = birthdayS;
-		user2 = new User("", birthday2, username2);//initialize the user 2 Object
-		user1.setIsTurn(false);
-		user2.setIsTurn(true);
+		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
+		setTurns(user1, user2, false);
+	}
+
+	private void initializePlayerVsComputer(String newState, String newUsername) throws Exception {
+		state = newState;
+		username1 = newUsername;
+		user1 = new User("", 0, username1);
+		AI = new ComputerPlayer(state.substring(3), "");
+	}
+
+	private void initializePlayers(String firstUsername, int firstBirthday,
+			String secondUsername, int secondBirthday) throws Exception {
+		username1 = firstUsername;
+		birthday1 = firstBirthday;
+		user1 = new User("", birthday1, username1);
+		username2 = secondUsername;
+		birthday2 = secondBirthday;
+		user2 = new User("", birthday2, username2);
+	}
+
+	private void setTurns(Player firstPlayer, Player secondPlayer, boolean firstPlayerStarts) {
+		firstPlayer.setIsTurn(firstPlayerStarts);
+		secondPlayer.setIsTurn(!firstPlayerStarts);
 	}
 	/**
 	 * this method will find the User object with username of the player
