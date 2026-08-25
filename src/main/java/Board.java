@@ -182,15 +182,14 @@ public class Board {
 	 * method will take the inputed question name and check and find the according question Object and return it
 	 * @param questionName the name of the question 
 	 * @return the Question type value with the questionName
+	 * @throws IllegalArgumentException if the question name is unknown
 	 */
 	public Question findQuestion(String questionName) {
-		Question result = questionsList.get(0);
-		for (int i = 1; i < questionsList.size(); i++) {//check every question to see with one have the same question name as the input
-			if (questionsList.get(i).getQuestion().equals(questionName)) {//if the current question have the same name as the questionName
-				result = questionsList.get(i);//set result to current question
-				return result;//then return result
+		for (Question question : questionsList) {
+			if (question.getQuestion().equals(questionName)) {
+				return question;
 			}
 		}
-		return result;
+		throw new IllegalArgumentException("Unknown question: " + questionName);
 	}
 }

@@ -1,4 +1,5 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,5 +25,11 @@ class BoardTest {
 
         assertEquals(expected.getQuestion(), actual.getQuestion());
         assertEquals(expected.getQuestionIndex(), actual.getQuestionIndex());
+    }
+
+    @Test
+    void rejectsUnknownQuestionNames() {
+        assertThrows(IllegalArgumentException.class,
+                () -> board.findQuestion("Is this an unknown question?"));
     }
 }

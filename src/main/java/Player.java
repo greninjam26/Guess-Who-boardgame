@@ -128,18 +128,15 @@ public class Player {
 	 * this method is used for finding the character object from the character name
 	 * @param characterName the name of the character
 	 * @return the Character Object
+	 * @throws IllegalArgumentException if the character name is unknown
 	 */
 	public Character findCharacter(String characterName) {
-		Character result = gameBoard.getCharacters().get(0);
-		for (int i = 1; i < gameBoard.getCharacterSize(); i++) {
-			Character curCharacter = gameBoard.getCharacters().get(i);
-			//check is the current character's name is equals to the character name we are trying to find
-			if (curCharacter.getName().equals(characterName)) {
-				result = curCharacter;
-				return result;
+		for (Character character : gameBoard.getCharacters()) {
+			if (character.getName().equals(characterName)) {
+				return character;
 			}
 		}
-		return result;
+		throw new IllegalArgumentException("Unknown character: " + characterName);
 	}
 	/**
 	 * this method will be return the questions that the player's opponent answered wrong
