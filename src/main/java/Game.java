@@ -100,9 +100,8 @@ public class Game {
 	}
 
 	public String askComputer(String question) {
-		firstPlayer.setQuestionAsked(question);
 		boolean answer = computerPlayer.answerQuestion(question);
-		firstPlayer.addQuestionAnswers(answer);
+		firstPlayer.recordQuestionAnswer(question, answer);
 		return answer ? "Yes" : "No";
 	}
 

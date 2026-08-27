@@ -65,6 +65,68 @@ class ComputerPlayerTest {
     }
 
     @Test
+    void yesAnswerEliminatesCharactersWithoutTheAskedAttribute() throws Exception {
+        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        Question blueEyes = easyComputer.playQuestion();
+
+        easyComputer.askQuestion(blueEyes.getQuestion(), "yes");
+
+        int activeCharacters = 0;
+        for (Character character : easyComputer.getPossibleCharacters()) {
+            if (character.getIsActive()) {
+                activeCharacters++;
+                assertEquals("Blue", character.getEyeColour());
+            }
+        }
+        assertTrue(activeCharacters > 0, "Blue-eyed characters should remain active");
+    }
+
+    @Test
+    void noAnswerEliminatesCharactersWithTheAskedAttribute() throws Exception {
+        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        Question blueEyes = easyComputer.playQuestion();
+
+        easyComputer.askQuestion(blueEyes.getQuestion(), "no");
+
+        int activeCharacters = 0;
+        for (Character character : easyComputer.getPossibleCharacters()) {
+            if (character.getIsActive()) {
+                activeCharacters++;
+                assertNotEquals("Blue", character.getEyeColour());
+            }
+        }
+        assertTrue(activeCharacters > 0, "Non-blue-eyed characters should remain active");
+    }
+
+    @Test
+    void matchingAnswersConvergeToTheSelectedCharacter() throws Exception {
+        Board board = new Board();
+        ComputerPlayer easyComputer = new ComputerPlayer(
+                "easy", "", board, alwaysChooseFirst());
+        Character target = easyComputer.findCharacter("Sam");
+
+        while (!easyComputer.getUnAskedQuestions().isEmpty()) {
+            Question question = easyComputer.playQuestion();
+            boolean matchesTarget = board.getAnswers()
+                    [target.getCharacterIndex()][question.getQuestionIndex()];
+            easyComputer.askQuestion(question.getQuestion(), matchesTarget ? "yes" : "no");
+        }
+
+        assertTrue(easyComputer.onlyOne());
+        assertEquals("Sam", easyComputer.lastOne());
+    }
+
+    @Test
+    void reportsAWinWhenTheComputerGuessesIncorrectly() {
+        assertTrue(computerPlayer.playGuess("Olivia", true).contains("you won"));
+    }
+
+    @Test
+    void reportsALossWhenTheComputerGuessesCorrectly() {
+        assertTrue(computerPlayer.playGuess("Olivia", false).contains("you lost"));
+    }
+
+    @Test
     void initializesQuestionsFromTheBoardCollection() throws Exception {
         Board reducedBoard = new Board();
         reducedBoard.getQuestionsList().remove(reducedBoard.getQuestionsList().size() - 1);

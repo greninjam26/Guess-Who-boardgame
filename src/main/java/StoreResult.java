@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.List;
 
 public class StoreResult {
 	private final PrintWriter write;//the PrintWriter that is writing all the result of the game to the csv file
@@ -24,9 +25,9 @@ public class StoreResult {
 	 * @param gameResult the username of the player who won the game
 	 */
 	public void addGameResultPVP(User user1, User user2, String gameResult) {
-		storeUser1(user1);
-		write.print(user2.getUsername() + "," + user2.getSelectedCharacter().getName());//the username and selected characterof the second user
-		write.println(gameResult);//the username of the player that won the game
+		storePlayer(user1.getUsername(), user1);
+		storePlayer(user2.getUsername(), user2);
+		writeRow(List.of(gameResult));//the username of the player that won the game
 		write.close();
 	}
 	/**
@@ -35,36 +36,42 @@ public class StoreResult {
 	 * @param gameResult who won the game the AI or the user
 	 */
 	public void addGameResultPVC(User user1, ComputerPlayer ai, String gameResult) {
-		storeUser1(user1);
-		write.print("AI," + ai.getSelectedCharacter().getName());//store AI as the second player and it's selected character
-		ArrayList<Question> questionsAsked = ai.getQuestionsAsked();
-		ArrayList<Boolean> questionsAnswers = ai.getQuestionAnswers(); 
-		for (int i = 0; i < questionsAsked.size(); i++) {
-			if (questionsAnswers.get(i)) {//when the answer is true
-				write.println("," + questionsAsked.get(i).getQuestion() + ", yes");//store the question followed by the answer
-			}
-			else {//when it is false
-				write.println("," + questionsAsked.get(i).getQuestion() + ", no");//store the question followed by the answer
-			}
-		}
-		write.println(gameResult);//the username of the player that won the game
+		storePlayer(user1.getUsername(), user1);
+		storePlayer("AI", ai);
+		writeRow(List.of(gameResult));//the username of the player that won the game
 		write.close();
 	}
 	/**
-	 * this method will be used to store data of the user1
-	 * @param user1 the first player
+	 * Stores one participant and all of their question results on a single row.
+	 * @param name the participant name written to the result
+	 * @param player the participant whose game data is stored
 	 */
-	private void storeUser1(User user1) {
-		write.print(user1.getUsername() + "," + user1.getSelectedCharacter().getName());//the username and selected character of the first user
-		ArrayList<Question> questionsAsked = user1.getQuestionsAsked();
-		ArrayList<Boolean> questionsAnswers = user1.getQuestionAnswers(); 
-		for (int i = 0; i < questionsAsked.size(); i++) {
-			if (questionsAnswers.get(i)) {//when the answer is true
-				write.println("," + questionsAsked.get(i).getQuestion() + ", yes");//store the question followed by the answer
-			}
-			else {//when it is false
-				write.println("," + questionsAsked.get(i).getQuestion() + ", no");//store the question followed by the answer
-			}
+	private void storePlayer(String name, Player player) {
+		ArrayList<String> fields = new ArrayList<>();
+		fields.add(name);
+		fields.add(player.getSelectedCharacter().getName());
+		for (int i = 0; i < player.getQuestionsAsked().size(); i++) {
+			fields.add(player.getQuestionsAsked().get(i).getQuestion());
+			fields.add(player.getQuestionAnswers().get(i) ? " yes" : " no");
 		}
+		writeRow(fields);
+	}
+
+	private void writeRow(List<String> fields) {
+		for (int i = 0; i < fields.size(); i++) {
+			if (i > 0) {
+				write.print(",");
+			}
+			write.print(escapeCsv(fields.get(i)));
+		}
+		write.println();
+	}
+
+	private String escapeCsv(String value) {
+		if (value.contains(",") || value.contains("\"")
+				|| value.contains("\n") || value.contains("\r")) {
+			return "\"" + value.replace("\"", "\"\"") + "\"";
+		}
+		return value;
 	}
 }

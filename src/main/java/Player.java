@@ -118,6 +118,22 @@ public class Player {
 		questionAnswers.add(answer);
 	}
 	/**
+	 * Records a question and its answer as one history entry. Free-form questions
+	 * are retained even when they are not part of the preset board questions.
+	 * @param question the question that was asked
+	 * @param answer the answer received for the question
+	 */
+	public void recordQuestionAnswer(String question, boolean answer) {
+		try {
+			setQuestionAsked(question);
+		}
+		catch (IllegalArgumentException exception) {
+			questionAsked = new Question(question, "free-form", "", -1);
+			questionsAsked.add(questionAsked);
+		}
+		addQuestionAnswers(answer);
+	}
+	/**
 	 * this method will return the question asked by the player
 	 * @return the questions asked by the player
 	 */
