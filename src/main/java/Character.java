@@ -2,6 +2,10 @@
  * Date: Dec 29 2023
  * Description: this class is used to store all the attributes of the character and can be called from other classes
  * */
+/**
+ * Describes a Guess Who character and whether the character remains active on
+ * a player's board.
+ */
 public class Character {
 	//add the attributes of the character
 	private int characterIndex;			//the index of the character in the database
@@ -17,6 +21,22 @@ public class Character {
 	private String hairLength;
 	private boolean isPiercing;
 	private boolean isActive;			//if the character is still a possible character that can be guessed by the AI
+	/**
+	 * Creates a character with all attributes loaded from the character data.
+	 *
+	 * @param defaultCharacterIndex zero-based position in the character data
+	 * @param defaultName character name
+	 * @param defaultEyeColour eye colour
+	 * @param defaultIsMale whether the character is male
+	 * @param defaultIsLight whether the character has a light skin tone
+	 * @param defaultHairColour hair colour
+	 * @param defaultIsFacialHair whether the character has facial hair
+	 * @param defaultIsGlasses whether the character wears glasses
+	 * @param defaultIsTeethVisible whether the character has visible teeth
+	 * @param defaultIsHat whether the character wears a hat
+	 * @param defaultHairLength hair-length category
+	 * @param defaultIsPiercing whether the character has a piercing
+	 */
 	public Character(int defaultCharacterIndex, String defaultName, String defaultEyeColour, boolean defaultIsMale, 
 			boolean defaultIsLight, String defaultHairColour, boolean defaultIsFacialHair, 
 			boolean defaultIsGlasses, boolean defaultIsTeethVisible, boolean defaultIsHat, 

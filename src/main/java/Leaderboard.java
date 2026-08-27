@@ -1,13 +1,28 @@
 import java.util.*;
 import java.io.*;
+
+/**
+ * Loads, updates, and sorts player names and scores for the leaderboard.
+ */
 public class Leaderboard {
 	
 	private ArrayList<Integer> scores = new ArrayList<Integer>();
 	private ArrayList<String> names = new ArrayList<String>();
 	
+	/**
+	 * Creates an empty leaderboard.
+	 *
+	 * @throws Exception retained for compatibility with existing callers
+	 */
 	public Leaderboard()throws Exception{
 		
 	}
+	/**
+	 * Loads name and score pairs from {@code Leaderboard.csv}.
+	 *
+	 * @throws Exception if the leaderboard file cannot be read or contains an
+	 *         invalid score
+	 */
 	public void readLeaderboard()throws Exception{
 		File file = new File("Leaderboard.csv");
 		Scanner scanner2 = new Scanner(file);
@@ -18,10 +33,20 @@ public class Leaderboard {
 			scores.add(Integer.parseInt(rank[1]));
 		}
 	}
+	/**
+	 * Adds a name and score to the in-memory leaderboard.
+	 *
+	 * @param passedName player name
+	 * @param passedScore player score
+	 */
 	public void addScore(String passedName, int passedScore){
 		names.add(passedName);
 		scores.add(passedScore);
 	}
+	/**
+	 * Sorts leaderboard entries into ascending score order while keeping names
+	 * paired with their scores.
+	 */
 	public void sortLeaderboard(){
 		int temp;
         String nameTemp; 

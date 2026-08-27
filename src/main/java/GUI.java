@@ -12,6 +12,9 @@ import java.util.Optional;
 import javax.sound.sampled.Clip;
 import javax.swing.border.Border;
 
+/**
+ * Swing user interface for configuring and playing Guess Who games.
+ */
 public class GUI {
 	// Main frame of the application
 	private JFrame frame;
@@ -99,6 +102,9 @@ public class GUI {
 	private String curPlayer;
 	private JButton guess;
 	private JButton next;
+	/**
+	 * Creates and displays the game interface.
+	 */
 	public GUI() {
 		readAllImages();
 		gameGUI();
@@ -1141,6 +1147,11 @@ public class GUI {
 		refreshFrame();
 	}
 
+	/**
+	 * Starts background music when available and launches the Swing interface.
+	 *
+	 * @param args command-line arguments; currently unused
+	 */
 	public static void main(String[] args) {
 		//uploading the music
 		music = GameResources.loadBackgroundMusic();
