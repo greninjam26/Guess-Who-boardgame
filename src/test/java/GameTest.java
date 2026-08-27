@@ -81,6 +81,106 @@ class GameTest {
         assertEquals("Yes", answer);
         assertEquals(1, game.getFirstPlayer().getQuestionsAsked().size());
         assertTrue(game.getFirstPlayer().getQuestionAnswers().get(0));
+        assertFalse(game.getFirstPlayer().getIsTurn());
+        assertTrue(game.getComputerPlayer().getIsTurn());
+    }
+
+    @Test
+    void gameOwnsComputerQuestionAndAnswerFlow() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        Question question = game.playComputerQuestion();
+        game.answerComputerQuestion(false);
+
+        assertSame(question, game.getComputerPlayer().getQuestionsAsked().get(0));
+        assertFalse(game.getComputerPlayer().getQuestionAnswers().get(0));
+        assertTrue(game.getFirstPlayer().getIsTurn());
+        assertFalse(game.getComputerPlayer().getIsTurn());
+    }
+
+    @Test
+    void computerQuestionCannotBePlayedInAPlayerGame() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(IllegalStateException.class, () -> game.playComputerQuestion());
+    }
+
+    @Test
+    void computerAnswerCannotBeRecordedBeforeAQuestion() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertThrows(IllegalStateException.class, () -> game.answerComputerQuestion(true));
+    }
+
+    @Test
+    void computerMustAnswerPendingQuestionBeforePlayingAnother() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        game.playComputerQuestion();
+
+        assertThrows(IllegalStateException.class, () -> game.playComputerQuestion());
+
+        assertEquals(1, game.getComputerPlayer().getQuestionsAsked().size());
+    }
+
+    @Test
+    void turnCannotAdvanceWhileComputerQuestionIsPending() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        game.playComputerQuestion();
+
+        assertThrows(IllegalStateException.class, () -> game.advanceTurn());
+
+        assertFalse(game.getFirstPlayer().getIsTurn());
+        assertTrue(game.getComputerPlayer().getIsTurn());
+        assertEquals(1, game.getComputerPlayer().getQuestionsAsked().size());
+        assertTrue(game.getComputerPlayer().getQuestionAnswers().isEmpty());
+    }
+
+    @Test
+    void computerCannotReuseAnAnsweredQuestionOnALaterTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        game.playComputerQuestion();
+        game.answerComputerQuestion(false);
+        game.advanceTurn();
+
+        assertThrows(IllegalStateException.class, () -> game.answerComputerQuestion(true));
+
+        assertEquals(1, game.getComputerPlayer().getQuestionAnswers().size());
+    }
+
+    @Test
+    void computerCannotPlayAfterAllQuestionsAreExhausted() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        int availableQuestions = game.getComputerPlayer().getUnAskedQuestions().size();
+        for (int index = 0; index < availableQuestions; index++) {
+            game.playComputerQuestion();
+            game.answerComputerQuestion(false);
+            game.advanceTurn();
+        }
+
+        assertThrows(IllegalStateException.class, () -> game.playComputerQuestion());
+    }
+
+    @Test
+    void playerCannotAskComputerDuringComputerTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.askComputer("Is your character's eye colour green?"));
+
+        assertTrue(game.getFirstPlayer().getQuestionsAsked().isEmpty());
+    }
+
+    @Test
+    void computerCannotPlayQuestionDuringPlayerTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(IllegalStateException.class, () -> game.playComputerQuestion());
+
+        assertTrue(game.getComputerPlayer().getQuestionsAsked().isEmpty());
     }
 
     @Test
@@ -107,6 +207,41 @@ class GameTest {
         assertTrue(result.contains("you lost"));
         assertEquals(GameStatus.FINISHED, game.getStatus());
         assertEquals("AI", game.getWinner().orElseThrow());
+    }
+
+    @Test
+    void computerGuessCannotBeMadeBeforeGameStarts() {
+        assertThrows(IllegalStateException.class, () -> game.guessComputer("Sam"));
+    }
+
+    @Test
+    void computerGuessCannotBeMadeInAPlayerGame() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(IllegalStateException.class, () -> game.guessComputer("Sam"));
+    }
+
+    @Test
+    void playerCannotGuessComputerDuringComputerTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertThrows(IllegalStateException.class, () -> game.guessComputer("Sam"));
+
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
+    void computerGuessRejectsBlankNameWithoutFinishingGame() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(IllegalArgumentException.class, () -> game.guessComputer("  "));
+
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
     }
 
     @Test
@@ -161,6 +296,65 @@ class GameTest {
                 PlayerGameStart.FIRST_PLAYER);
 
         assertThrows(IllegalArgumentException.class, () -> game.getPlayer("Unknown"));
+    }
+
+    @Test
+    void gameRecordsAPlayerQuestionAndAnswer() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        game.recordPlayerQuestion(
+                "Player 1", "Does your character look friendly?", false);
+
+        assertEquals("Does your character look friendly?",
+                game.getFirstPlayer().getQuestionsAsked().get(0).getQuestion());
+        assertFalse(game.getFirstPlayer().getQuestionAnswers().get(0));
+    }
+
+    @Test
+    void playerQuestionCannotBeRecordedBeforeGameStarts() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.recordPlayerQuestion("Player 1", "Is this too early?", true));
+    }
+
+    @Test
+    void inactivePlayerCannotRecordAQuestion() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.recordPlayerQuestion("Player 2", "Am I out of turn?", true));
+
+        assertTrue(game.getSecondPlayer().getQuestionsAsked().isEmpty());
+    }
+
+    @Test
+    void advancingTurnSwitchesBetweenHumanPlayers() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        game.advanceTurn();
+
+        assertFalse(game.getFirstPlayer().getIsTurn());
+        assertTrue(game.getSecondPlayer().getIsTurn());
+
+        game.advanceTurn();
+
+        assertTrue(game.getFirstPlayer().getIsTurn());
+        assertFalse(game.getSecondPlayer().getIsTurn());
+    }
+
+    @Test
+    void turnCannotAdvanceBeforeGameStarts() {
+        assertThrows(IllegalStateException.class, () -> game.advanceTurn());
     }
 
     @Test

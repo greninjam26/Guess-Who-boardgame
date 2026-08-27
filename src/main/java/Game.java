@@ -18,6 +18,7 @@ public class Game {
 	private User firstPlayer;
 	private User secondPlayer;
 	private ComputerPlayer computerPlayer;
+	private Question pendingComputerQuestion;
 	private GameStatus status;
 	private Optional<String> winner;
 
@@ -106,6 +107,39 @@ public class Game {
 	}
 
 	/**
+	 * Records a human player's question and the answer they received.
+	 *
+	 * @param username username of the player who asked the question
+	 * @param question question text, including free-form questions
+	 * @param answer answer received for the question
+	 * @throws IllegalArgumentException if {@code username} is not a current
+	 *         human player
+	 * @throws IllegalStateException if no game is in progress or it is not that
+	 *         player's turn
+	 */
+	public void recordPlayerQuestion(String username, String question, boolean answer) {
+		requireInProgress();
+		User player = getPlayer(username);
+		requireTurn(player);
+		player.recordQuestionAnswer(question, answer);
+	}
+
+	/**
+	 * Transfers the active turn to the other participant.
+	 *
+	 * @throws IllegalStateException if no game is in progress or the computer
+	 *         has an unanswered question
+	 */
+	public void advanceTurn() {
+		requireInProgress();
+		if (pendingComputerQuestion != null) {
+			throw new IllegalStateException("The computer question must be answered first");
+		}
+		Player opponent = computerPlayer != null ? computerPlayer : secondPlayer;
+		setTurns(firstPlayer, opponent, !firstPlayer.getIsTurn());
+	}
+
+	/**
 	 * Starts a player-versus-computer game and assigns the opening turn.
 	 *
 	 * @param username human player's username
@@ -188,12 +222,58 @@ public class Game {
 	 * @param question exact text of a preset board question
 	 * @return {@code Yes} or {@code No}
 	 * @throws IllegalArgumentException if the question is not on the board
-	 * @throws NullPointerException if no computer opponent has been initialized
+	 * @throws IllegalStateException if no computer game is in progress or it is
+	 *         not the human player's turn
 	 */
 	public String askComputer(String question) {
-		boolean answer = computerPlayer.answerQuestion(question);
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(firstPlayer);
+		boolean answer = computer.answerQuestion(question);
 		firstPlayer.recordQuestionAnswer(question, answer);
+		advanceTurn();
 		return answer ? "Yes" : "No";
+	}
+
+	/**
+	 * Selects and records the computer opponent's next question.
+	 *
+	 * @return the question selected by the computer
+	 * @throws IllegalStateException if no computer game is in progress, it is
+	 *         not the computer's turn, another question is pending, or no
+	 *         questions remain
+	 */
+	public Question playComputerQuestion() {
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(computer);
+		if (pendingComputerQuestion != null) {
+			throw new IllegalStateException("The computer already has a pending question");
+		}
+		if (computer.getUnAskedQuestions().isEmpty()) {
+			throw new IllegalStateException("The computer has no questions remaining");
+		}
+		pendingComputerQuestion = computer.playQuestion();
+		return pendingComputerQuestion;
+	}
+
+	/**
+	 * Applies the human player's answer to the computer's current question,
+	 * records the answer, and returns the turn to the human player.
+	 *
+	 * @param answer answer to the computer's current question
+	 * @throws IllegalStateException if no computer game is in progress, it is
+	 *         not the computer's turn, or the computer has no pending question
+	 */
+	public void answerComputerQuestion(boolean answer) {
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(computer);
+		if (pendingComputerQuestion == null) {
+			throw new IllegalStateException("The computer has not asked a question");
+		}
+		computer.askQuestion(
+				pendingComputerQuestion.getQuestion(), answer ? "yes" : "no");
+		computer.addQuestionAnswers(answer);
+		pendingComputerQuestion = null;
+		advanceTurn();
 	}
 
 	/**
@@ -202,19 +282,24 @@ public class Game {
 	 *
 	 * @param guess guessed character name
 	 * @return a message describing whether the guess was correct
-	 * @throws NullPointerException if {@code guess} is {@code null} or no
-	 *         computer opponent has been initialized
-	 * @throws IllegalStateException if the computer game has already finished
+	 * @throws IllegalArgumentException if {@code guess} is {@code null} or blank
+	 * @throws IllegalStateException if no computer game is in progress or it is
+	 *         not the human player's turn
 	 */
 	public String guessComputer(String guess) {
-		if (guess.equals(computerPlayer.getSelectedCharacter().getName())) {
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(firstPlayer);
+		if (guess == null || guess.isBlank()) {
+			throw new IllegalArgumentException("guess must not be blank");
+		}
+		if (guess.equals(computer.getSelectedCharacter().getName())) {
 			finish(firstPlayer.getUsername());
 			return "Congraulation, " + firstPlayer.getUsername()
 					+ " you guessed the character, you won!!!!";
 		}
 		finish(COMPUTER_WINNER);
 		return "Sorry, that is the wrong character, the correct one is "
-				+ computerPlayer.getSelectedCharacter().getName() + ", you lost.";
+				+ computer.getSelectedCharacter().getName() + ", you lost.";
 	}
 
 	/**
@@ -266,12 +351,34 @@ public class Game {
 
 	private void beginGame() {
 		winner = Optional.empty();
+		pendingComputerQuestion = null;
 		status = GameStatus.IN_PROGRESS;
 	}
 
 	private void setTurns(Player first, Player second, boolean firstStarts) {
 		first.setIsTurn(firstStarts);
 		second.setIsTurn(!firstStarts);
+	}
+
+	private ComputerPlayer requireComputerPlayer() {
+		requireInProgress();
+		if (computerPlayer == null) {
+			throw new IllegalStateException("No computer game is in progress");
+		}
+		return computerPlayer;
+	}
+
+	private void requireTurn(Player player) {
+		requireInProgress();
+		if (!player.getIsTurn()) {
+			throw new IllegalStateException("It is not this player's turn");
+		}
+	}
+
+	private void requireInProgress() {
+		if (status != GameStatus.IN_PROGRESS) {
+			throw new IllegalStateException("No game is in progress");
+		}
 	}
 
 	private void requireUsername(String username, String fieldName) {

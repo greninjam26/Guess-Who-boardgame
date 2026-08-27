@@ -683,8 +683,8 @@ public class GUI {
 				result1.setVisible(true);
 				recordStepsLabel1Text += newQuestion + " : " + AIAnswer + "<br>";//record the question and the answer to the recordStepsLabel1 
 				recordStepsLabel1.setText(recordStepsLabel1Text);
-				newGame.getFirstPlayer().setIsTurn(false);
-				newGame.getComputerPlayer().setIsTurn(true);
+				stepPanel.remove(questionComboBox);
+				stepPanel.remove(questionChoiceButton);
 				nextTurnButton.setVisible(true);//add in the nextTurn button for the user to move on to the next turn
 				//have space of waiting period
 				//skip next turn button
@@ -709,14 +709,11 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				questionAnswer = (String) questionAnswerComboBox.getSelectedItem();//read the question answer
-				newGame.getComputerPlayer().askQuestion(AIQuestion.getQuestion(), questionAnswer);
+				newGame.answerComputerQuestion(questionAnswer.equals("yes"));
 				recordStepsLabel2Text += questionAnswer + "<br>";//store the result
 				recordStepsLabel2.setText(recordStepsLabel2Text);
-				newGame.getFirstPlayer().setIsTurn(true);//set the turns
 				stepPanel.remove(questionAnswerButton);
 				stepPanel.remove(questionAnswerComboBox);
-				newGame.getComputerPlayer().addQuestionAnswers(questionAnswer.equals("yes"));
-				newGame.getComputerPlayer().setIsTurn(false);
 				nextTurnButton.setVisible(true);//add in the nextTurn button
 			}
 		});
@@ -827,7 +824,6 @@ public class GUI {
 		askButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				User curUser = newGame.getPlayer(curPlayer);
 				if (modeChoice.endsWith("preset questions")) {//if it is preset question user questionComboBox
 					newQuestion = questionComboBox.getSelectedItem().toString();
 				}
@@ -838,7 +834,7 @@ public class GUI {
 				String question = curPlayer + ", " + newQuestion;//get the question
 				//pop up window to ask the user question
 				int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-				curUser.recordQuestionAnswer(newQuestion, result == JOptionPane.YES_OPTION);
+				newGame.recordPlayerQuestion(curPlayer, newQuestion, result == JOptionPane.YES_OPTION);
 		        if (result == JOptionPane.YES_OPTION) {// User chose YES
 					if(curPlayer.equals(username1)){//when it is player 1 asking
 						recordStepsLabel1Text += newQuestion+"  "+"yes.<br>";//add to Label 1
@@ -887,8 +883,6 @@ public class GUI {
 					frame.remove(stepPanel);
 					frame.add(boardPanel2);
 					frame.add(stepPanel);
-					newGame.getFirstPlayer().setIsTurn(false);
-					newGame.getSecondPlayer().setIsTurn(true);
 				    curPlayer = username2;//change curPlayer
 				}
 				else {//when it is userboad's board
@@ -897,10 +891,9 @@ public class GUI {
 					frame.remove(stepPanel);
 					frame.add(boardPanel1);
 					frame.add(stepPanel);
-					newGame.getFirstPlayer().setIsTurn(true);
-					newGame.getSecondPlayer().setIsTurn(false);
 				    curPlayer = username1;//change curPlayer
 				}
+				newGame.advanceTurn();
 				stepLabel.setText(curPlayer + ", Choose to ask a question or guess the answer: ");
 				result1.setText("");
 				askButton.setEnabled(true);
@@ -950,7 +943,7 @@ public class GUI {
 				refreshFrame();
 			}
 			else {// there are morn than one possible characters
-				AIQuestion = newGame.getComputerPlayer().playQuestion();//get the question
+				AIQuestion = newGame.playComputerQuestion();//get the question
 				String choosenQuestion = AIQuestion.getQuestion();
 				//displace the question
 				stepLabel.setText(choosenQuestion);
