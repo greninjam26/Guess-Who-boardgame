@@ -10,8 +10,17 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Appends completed game histories to a CSV file. Each participant occupies
+ * one row followed by a row containing the winner.
+ */
 public class StoreResult {
 	private final PrintWriter write;//the PrintWriter that is writing all the result of the game to the csv file
+	/**
+	 * Creates a result writer that appends to {@code test.csv}.
+	 *
+	 * @throws Exception if the result file cannot be opened
+	 */
 	public StoreResult() throws Exception {
 		this(new FileWriter("test.csv", true));
 	}
@@ -19,7 +28,9 @@ public class StoreResult {
 		write = new PrintWriter(writer);
 	}
 	/**
-	 * this method will be used to store the data of the game in a pvp game
+	 * Stores both human players, their question histories, and the winner of a
+	 * player-versus-player game.
+	 *
 	 * @param user1 the first player
 	 * @param user2 the second player
 	 * @param gameResult the username of the player who won the game
@@ -31,9 +42,12 @@ public class StoreResult {
 		write.close();
 	}
 	/**
-	 * this method will be used to store the data of the game in a pvp game
-	 * @param user1 the player that is player against the AI
-	 * @param gameResult who won the game the AI or the user
+	 * Stores the human player, computer opponent, their question histories, and
+	 * the winner of a player-versus-computer game.
+	 *
+	 * @param user1 the player competing against the computer
+	 * @param ai the computer opponent
+	 * @param gameResult the human player's username or {@code AI}
 	 */
 	public void addGameResultPVC(User user1, ComputerPlayer ai, String gameResult) {
 		storePlayer(user1.getUsername(), user1);

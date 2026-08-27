@@ -6,6 +6,10 @@
 import java.util.Random;
 import java.util.ArrayList;
 
+/**
+ * Holds the board state and question history shared by human and computer
+ * players.
+ */
 public class Player {
 	private Question questionAsked;//the new question asked by the player
 	private ArrayList<Question> questionsAsked;//questions asked by the player
@@ -17,6 +21,14 @@ public class Player {
 	private Board gameBoard;//the gameBoard of the player
 	private String questionResult;//the result of the new question asked by the player
 	private boolean isTurn;//if it is the player's turn
+	/**
+	 * Creates a player using the standard board and a randomly selected
+	 * character.
+	 *
+	 * @param defaultState initial state retained for compatibility with player
+	 *        subclasses
+	 * @throws Exception if the board resources cannot be loaded
+	 */
 	public Player(String defaultState) throws Exception{
 		this(defaultState, new Board(), new Random());
 	}
@@ -120,6 +132,8 @@ public class Player {
 	/**
 	 * Records a question and its answer as one history entry. Free-form questions
 	 * are retained even when they are not part of the preset board questions.
+	 * Preset questions are also removed from the player's unasked-question list.
+	 *
 	 * @param question the question that was asked
 	 * @param answer the answer received for the question
 	 */

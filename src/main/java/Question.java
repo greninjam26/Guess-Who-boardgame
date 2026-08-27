@@ -2,12 +2,23 @@
  * Date: Dec 29 2023
  * Description: this class is used to store all the attributes of the questions and can be called from other classes
  * */
+/**
+ * Describes a yes-or-no question and the character attribute it tests.
+ */
 public class Question {
 	//attributes of the question
 	private String question;//the question
 	private String category;//the category the question belong in
 	private String attribute;//the attribute of the character that the question matches
 	private int questionIndex;
+	/**
+	 * Creates a question definition.
+	 *
+	 * @param defaultQuestion displayed question text
+	 * @param defaultCategory attribute category
+	 * @param defaultAttribute value matched by a yes answer
+	 * @param defaultQuestionIndex zero-based position in the answer matrix
+	 */
 	public Question(String defaultQuestion, String defaultCategory, String defaultAttribute, int defaultQuestionIndex) {
 		//set the attributes to inputed value
 		question = defaultQuestion;

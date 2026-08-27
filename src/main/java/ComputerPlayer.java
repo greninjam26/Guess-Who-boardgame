@@ -6,6 +6,10 @@
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * Computer-controlled player that asks questions and eliminates characters
+ * using either an easy random strategy or a hard balanced-split strategy.
+ */
 public class ComputerPlayer extends Player{
 	private String mode;//the mode of the AI, easy or hard
 	private int qIndex;//the index of the question
@@ -14,9 +18,25 @@ public class ComputerPlayer extends Player{
 	private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question 
 	private int possibleCharactersCount = getGameBoard().getCharacterSize();//the number of characters
 	private final Random random;
+	/**
+	 * Creates a computer player using the standard board and a new random
+	 * source.
+	 *
+	 * @param defaultMode computer difficulty mode
+	 * @param defaultState initial player state
+	 * @throws Exception if the board resources cannot be loaded
+	 */
 	public ComputerPlayer(String defaultMode, String defaultState) throws Exception {
 		this(defaultMode, defaultState, new Random());
 	}
+	/**
+	 * Creates a computer player with an injected random source.
+	 *
+	 * @param defaultMode computer difficulty mode
+	 * @param defaultState initial player state
+	 * @param random source used for random question selection
+	 * @throws Exception if the board resources cannot be loaded
+	 */
 	public ComputerPlayer(String defaultMode, String defaultState, Random random) throws Exception {
 		this(defaultMode, defaultState, new Board(), random);
 	}
@@ -125,7 +145,7 @@ public class ComputerPlayer extends Player{
 	}
 	/**
 	 * the method will return if there is only only character is left in the list of possible characters
-	 * @return
+	 * @return {@code true} when exactly one possible character remains active
 	 */
 	public boolean onlyOne() {
 		int counter = 0;//set the number of possible character to 0
@@ -141,7 +161,7 @@ public class ComputerPlayer extends Player{
 	}
 	/**
 	 * the method will return the last possible character
-	 * @return
+	 * @return the remaining character name, or an empty string if none remain
 	 */
 	public String lastOne() {
 		String lastCharacterName = "";//initialize the variable that store the name of the last possible character left

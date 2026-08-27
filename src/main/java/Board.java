@@ -7,6 +7,10 @@
 import java.util.ArrayList;
 import java.util.Scanner;
 
+/**
+ * Loads the standard character and question data and exposes the attribute
+ * matrix used by players and the computer opponent.
+ */
 public class Board {
 	private final int characterSize = 24;//number of characters
 	private final int questionSize = 19;//number of questions
@@ -14,6 +18,11 @@ public class Board {
 	private ArrayList<Question> questionsList = new ArrayList<Question>();//Question type ArrayList storing all the questions
 	private boolean[][] answers = new boolean[characterSize][questionSize];//boolean 2D array storing all the questions answers
 	private int[] peopleCount = new int[19];//int array storing the number of character that is true to the 19 questions
+	/**
+	 * Loads the standard board from the bundled CSV resources.
+	 *
+	 * @throws Exception if a required board resource cannot be read
+	 */
 	public Board() throws Exception{
 		//reading from the QuestionDB csv file for the list of questions
 		Scanner scanner2 = new Scanner(GameResources.openQuestionData());
