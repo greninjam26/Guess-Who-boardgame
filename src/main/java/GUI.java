@@ -709,7 +709,7 @@ public class GUI {
 				newGame.getFirstPlayer().setIsTurn(true);//set the turns
 				stepPanel.remove(questionAnswerButton);
 				stepPanel.remove(questionAnswerComboBox);
-				newGame.getComputerPlayer().addQuestionAnswers(true);
+				newGame.getComputerPlayer().addQuestionAnswers(questionAnswer.equals("yes"));
 				newGame.getComputerPlayer().setIsTurn(false);
 				nextTurnButton.setVisible(true);//add in the nextTurn button
 			}
@@ -832,8 +832,8 @@ public class GUI {
 				String question = curPlayer + ", " + newQuestion;//get the question
 				//pop up window to ask the user question
 				int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
+				curUser.recordQuestionAnswer(newQuestion, result == JOptionPane.YES_OPTION);
 		        if (result == JOptionPane.YES_OPTION) {// User chose YES
-		    		curUser.setQuestionAsked(newQuestion);//set the question asked for the user to the nestOne
 					if(curPlayer.equals(username1)){//when it is player 1 asking
 						recordStepsLabel1Text += newQuestion+"  "+"yes.<br>";//add to Label 1
 					}
