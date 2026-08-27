@@ -1,249 +1,165 @@
-/*Author: Gavin Liu
- * Date: Jan 8 2024
- * Description: this class used to have all the method that is needed to start he 4 different mode of the game
- * and be able to let player ask questions and make guesses to both AI opponent and another player opponent
- * */
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 
 public class Game {
-	//creating all the variables
-	private String state;//the state of the game
-	private String gameResult;//the result of the game, which is the username of the player who won the game
-	private String username1;//username of the first player
-	private int birthday1;//birthday of the first player
-	private User user1;//the User object of the first player
-	private String username2;//username of the second player
-	private int birthday2;//birthday of the second player
-	private User user2;//the User oject of the second player
-	private ComputerPlayer AI;//the ComputerPlayer object which is the AI
+	private static final String COMPUTER_WINNER = "AI";
+
+	private final Random random;
+	private User firstPlayer;
+	private User secondPlayer;
+	private ComputerPlayer computerPlayer;
+	private GameStatus status;
+	private Optional<String> winner;
+
 	public Game() {
-		//initialize
-		state = "Starting";
-		gameResult = "";
+		this(new Random());
 	}
-	/**
-	 * this method will return the state of the game
-	 * @return the state of the game
-	 */
-	public String getState() {
-		return state;
+
+	Game(Random random) {
+		this.random = Objects.requireNonNull(random, "random");
+		status = GameStatus.STARTING;
+		winner = Optional.empty();
 	}
-	/**
-	 * this method will return the first user playing in the game
-	 * @return the first player
-	 */
-	public User getUser1() {
-		return user1;
+
+	public GameStatus getStatus() {
+		return status;
 	}
-	/**
-	 * this method will return the second user playing in the game
-	 * @return the second player
-	 */
-	public User getUser2() {
-		return user2;
+
+	public Optional<String> getWinner() {
+		return winner;
 	}
-	/**
-	 * this method will return the AI that the user is playing
-	 * @return the AI that is playing
-	 */
-	public ComputerPlayer getAI() {
-		return AI;
+
+	public User getFirstPlayer() {
+		return firstPlayer;
 	}
-	/**
-	 * set the state of the to newState
-	 * @param newState the new state of the game
-	 */
-	public void setState(String newState) {
-		state = newState;
+
+	public User getSecondPlayer() {
+		return secondPlayer;
 	}
-	/**
-	 * this method choose the player or the AI who goes first randomly, change the state and create user1 and AI
-	 * @param newState the new state for the game
-	 * @param newUsername the username of the palyer
-	 * @return this method will return a String with the text of who is going first. 
-	 * @throws Exception
-	 */
-	public String playerVsComputerRandom(String newState, String newUsername) throws Exception {
-		Random rand = new Random();
-		initializePlayerVsComputer(newState, newUsername);
-		int choice = rand.nextInt(2);//randomly pick a number between 1 and 2
-		if (choice == 1) {//if it is 1 player going first
-			setTurns(user1, AI, true);
-			return "You are going first"; 
+
+	public ComputerPlayer getComputerPlayer() {
+		return computerPlayer;
+	}
+
+	public User getPlayer(String username) {
+		if (firstPlayer != null && firstPlayer.getUsername().equals(username)) {
+			return firstPlayer;
 		}
-		else {//it is 2 AI go first
-			setTurns(user1, AI, false);
-			return "The AI is going first";
+		if (secondPlayer != null && secondPlayer.getUsername().equals(username)) {
+			return secondPlayer;
 		}
+		throw new IllegalArgumentException("Unknown player: " + username);
 	}
-	/**
-	 * this method is used for when the user choose the AI should go first
-	 * @param newState new state of the game
-	 * @param newUsername the new username of the player
-	 * @return this method will set the value to it is AI's turn
-	 * @throws Exception
-	 */
-	public void playerVsComputerAIFirst(String newState, String newUsername) throws Exception {
-		initializePlayerVsComputer(newState, newUsername);
-		setTurns(user1, AI, false);
-	}
-	/**
-	 * this method is used for when the user choose they want to go first
-	 * @param newState new state of the game
-	 * @param newUsername the new username of the player
-	 * @return this method will set the value to it is player's turn
-	 * @throws Exception
-	 */
-	public void playerVsComputerPlayerFirst(String newState, String newUsername) throws Exception {
-		initializePlayerVsComputer(newState, newUsername);
-		setTurns(user1, AI, true);
-	}
-	/**
-	 * this method will be accepting the question the user asked and return the answer to the question 
-	 * @param questionName the question name the user asked
-	 * @return the response to the question of the user
-	 */
-	public String AskAI(String questionName) {
-		String newQuestion = questionName;
-		user1.setQuestionAsked(newQuestion);//stored the question in the user object
-		if (AI.answerQuestion(newQuestion)) {//when the answer is yes
-			user1.addQuestionAnswers(true);
-			return "Yes";
+
+	public void startComputerGame(String username, ComputerDifficulty difficulty,
+			ComputerGameStart start) throws Exception {
+		requireUsername(username, "username");
+		if (COMPUTER_WINNER.equals(username)) {
+			throw new IllegalArgumentException("Username is reserved for the computer: " + username);
 		}
-		//else return no
-		user1.addQuestionAnswers(false);
-		return "No";
+		Objects.requireNonNull(difficulty, "difficulty");
+		Objects.requireNonNull(start, "start");
+
+		firstPlayer = new User("", 0, username);
+		secondPlayer = null;
+		computerPlayer = new ComputerPlayer(difficulty.mode(), "");
+
+		boolean playerStarts = switch (start) {
+			case PLAYER -> true;
+			case COMPUTER -> false;
+			case RANDOM -> random.nextBoolean();
+		};
+		setTurns(firstPlayer, computerPlayer, playerStarts);
+		beginGame();
 	}
-	/**
-	 * this method will return the result of the user's guess on the AI's selected character and store who won the game
-	 * @param newGuess the guess that the user inputed
-	 * @return if the user guessed it right or wrong
-	 */
-	public String guessAI(String newGuess) {
-		String guess = newGuess;
-		if (guess.equals(AI.getSelectedCharacter().getName())) {
-			gameResult = username1;
-			return "Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!";
+
+	public void startPlayerGame(String firstUsername, int firstBirthday,
+			String secondUsername, int secondBirthday, PlayerGameStart start) throws Exception {
+		requireUsername(firstUsername, "firstUsername");
+		requireUsername(secondUsername, "secondUsername");
+		Objects.requireNonNull(start, "start");
+		if (firstUsername.equals(secondUsername)) {
+			throw new IllegalArgumentException("Player usernames must be different");
 		}
-		gameResult = "AI";
-		return "Sorry, that is the wrong character, the correct one is " + AI.getSelectedCharacter().getName() + ", you lost.";
+
+		firstPlayer = new User("", firstBirthday, firstUsername);
+		secondPlayer = new User("", secondBirthday, secondUsername);
+		computerPlayer = null;
+
+		boolean firstPlayerStarts = switch (start) {
+			case FIRST_PLAYER -> true;
+			case SECOND_PLAYER -> false;
+			case RANDOM -> random.nextBoolean();
+			case YOUNGER -> firstBirthday == secondBirthday
+					? random.nextBoolean()
+					: firstBirthday > secondBirthday;
+		};
+		setTurns(firstPlayer, secondPlayer, firstPlayerStarts);
+		beginGame();
 	}
-	/**
-	 * this method will check all of the user's answers with their selected character to see if they answered any questions wrong.
-	 * Which cause the AI to guess the character wrong or not able to guess the user's character
-	 * @return if the user answered any question wrong
-	 */
+
+	public String askComputer(String question) {
+		firstPlayer.setQuestionAsked(question);
+		boolean answer = computerPlayer.answerQuestion(question);
+		firstPlayer.addQuestionAnswers(answer);
+		return answer ? "Yes" : "No";
+	}
+
+	public String guessComputer(String guess) {
+		if (guess.equals(computerPlayer.getSelectedCharacter().getName())) {
+			finish(firstPlayer.getUsername());
+			return "Congraulation, " + firstPlayer.getUsername()
+					+ " you guessed the character, you won!!!!";
+		}
+		finish(COMPUTER_WINNER);
+		return "Sorry, that is the wrong character, the correct one is "
+				+ computerPlayer.getSelectedCharacter().getName() + ", you lost.";
+	}
+
 	public boolean checkUserAnswers() {
-		boolean check = true;//initialize the check variable, which stores if the user answer all the questions right, to true
-		System.out.println("questions: " + AI.getQuestionsAsked().size());
-		for (int i = 0; i < AI.getQuestionsAsked().size(); i++) {
-			Question curQuestion = AI.getQuestionsAsked().get(i);
-			//check if the user's answer is the same and the correct answer to the Ai's question
-			if (AI.getGameBoard().getAnswers()[user1.getSelectedCharacter().getCharacterIndex()][curQuestion.getQuestionIndex()] != AI.getQuestionAnswers().get(i)) {
-				AI.addQuestionsAnsweredWrong(curQuestion);
-				AI.addAnswerQuestionsAnsweredWrong(i);
-				check = false;//set check to false
+		boolean allCorrect = true;
+		for (int i = 0; i < computerPlayer.getQuestionsAsked().size(); i++) {
+			Question question = computerPlayer.getQuestionsAsked().get(i);
+			boolean correctAnswer = computerPlayer.getGameBoard().getAnswers()
+					[firstPlayer.getSelectedCharacter().getCharacterIndex()]
+					[question.getQuestionIndex()];
+			if (correctAnswer != computerPlayer.getQuestionAnswers().get(i)) {
+				computerPlayer.addQuestionsAnsweredWrong(question);
+				computerPlayer.addAnswerQuestionsAnsweredWrong(i);
+				allCorrect = false;
 			}
 		}
-		return check;
-	}
-	/**
-	 * this method will be used to start the game when the players want to randomly choose who goes first
-	 * @param usernameO username of the first user
-	 * @param birthdayO birthday of the first user
-	 * @param usernameS username of the second user
-	 * @param birthdayS birthday of the second user
-	 * @throws Exception
-	 */
-	public void playerVsPlayerRandom(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		Random rand = new Random();
-		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
-		int choice = rand.nextInt(2);
-		setTurns(user1, user2, choice == 1);
-	}
-	/**
-	 * this method will be used to start the game when the players want the younger player to go first
-	 * @param usernameO username of the first user
-	 * @param birthdayO birthday of the first user
-	 * @param usernameS username of the second user
-	 * @param birthdayS birthday of the second user
-	 * @throws Exception
-	 */
-	public void playerVsPlayerBirthday(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		Random rand = new Random();
-		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
-		boolean user1Starts = birthday1 == birthday2 ? rand.nextBoolean() : birthday1 > birthday2;
-		setTurns(user1, user2, user1Starts);
-	}
-	/**
-	 * this method will be used to start the game when the players wants user1 to go first
-	 * @param usernameO username of the first user
-	 * @param birthdayO birthday of the first user
-	 * @param usernameS username of the second user
-	 * @param birthdayS birthday of the second user
-	 * @throws Exception
-	 */
-	public void playerVsPlayer1First(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
-		setTurns(user1, user2, true);
-	}
-	/**
-	 * this method will be used to start the game when the players wants user2 to go first
-	 * @param usernameO username of the first user
-	 * @param birthdayO birthday of the first user
-	 * @param usernameS username of the second user
-	 * @param birthdayS birthday of the second user
-	 * @throws Exception
-	 */
-	public void playerVsPlayer2First(String usernameO, int birthdayO, String usernameS, int birthdayS) throws Exception{
-		initializePlayers(usernameO, birthdayO, usernameS, birthdayS);
-		setTurns(user1, user2, false);
+		return allCorrect;
 	}
 
-	private void initializePlayerVsComputer(String newState, String newUsername) throws Exception {
-		state = newState;
-		username1 = newUsername;
-		user1 = new User("", 0, username1);
-		AI = new ComputerPlayer(state.substring(3), "");
-	}
-
-	private void initializePlayers(String firstUsername, int firstBirthday,
-			String secondUsername, int secondBirthday) throws Exception {
-		username1 = firstUsername;
-		birthday1 = firstBirthday;
-		user1 = new User("", birthday1, username1);
-		username2 = secondUsername;
-		birthday2 = secondBirthday;
-		user2 = new User("", birthday2, username2);
-	}
-
-	private void setTurns(Player firstPlayer, Player secondPlayer, boolean firstPlayerStarts) {
-		firstPlayer.setIsTurn(firstPlayerStarts);
-		secondPlayer.setIsTurn(!firstPlayerStarts);
-	}
-	/**
-	 * this method will find the User object with username of the player
-	 * @param username the username of the User
-	 * @return the User object matched with the username
-	 */
-	public User findUser(String username) {
-		if (user1.getUsername().equals(username)) {
-			return user1;
+	public void finish(String winner) {
+		if (status != GameStatus.IN_PROGRESS) {
+			throw new IllegalStateException("Only a game in progress can be finished");
 		}
-		return user2;
+		boolean knownPlayer = firstPlayer != null && firstPlayer.getUsername().equals(winner)
+				|| secondPlayer != null && secondPlayer.getUsername().equals(winner);
+		boolean computer = computerPlayer != null && COMPUTER_WINNER.equals(winner);
+		if (!knownPlayer && !computer) {
+			throw new IllegalArgumentException("Unknown winner: " + winner);
+		}
+		this.winner = Optional.of(winner);
+		status = GameStatus.FINISHED;
 	}
-	/**
-	 * this method will return which player won the game
-	 * @return the result of the game
-	 */
-	public String getGameResult() {
-		return gameResult;
+
+	private void beginGame() {
+		winner = Optional.empty();
+		status = GameStatus.IN_PROGRESS;
 	}
-	/**
-	 * this method will set the result of the game as the inputed result
-	 * @param newGameResult the new result of the game
-	 */
-	public void setGameResult(String newGameResult) {
-		gameResult = newGameResult;
+
+	private void setTurns(Player first, Player second, boolean firstStarts) {
+		first.setIsTurn(firstStarts);
+		second.setIsTurn(!firstStarts);
+	}
+
+	private void requireUsername(String username, String fieldName) {
+		if (username == null || username.isBlank()) {
+			throw new IllegalArgumentException(fieldName + " must not be blank");
+		}
 	}
 }
