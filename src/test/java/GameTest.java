@@ -1,3 +1,4 @@
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -299,6 +300,25 @@ class GameTest {
     }
 
     @Test
+    void gameProvidesCharacterNamesForChoices() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        String[] characterNames = game.getCharacterNames();
+
+        assertArrayEquals(new String[] {
+                "Sam", "Olivia", "Nick", "David", "Sofia", "Liz",
+                "Lily", "Leo", "Emma", "Daniel", "Ben", "Katie",
+                "Al", "Amy", "Mike", "Gabe", "Farah", "Laura",
+                "Jordan", "Eric", "Carmen", "Rachel", "Joe", "Mia"
+        }, characterNames);
+    }
+
+    @Test
+    void characterNamesAreUnavailableBeforeGameStarts() {
+        assertThrows(IllegalStateException.class, () -> game.getCharacterNames());
+    }
+
+    @Test
     void gameSelectsCharacterForNamedPlayer() throws Exception {
         game.startPlayerGame(
                 "Player 1", 20000101,
@@ -309,6 +329,27 @@ class GameTest {
         game.selectCharacter("Player 2", "Sam");
 
         assertEquals("Sam", game.getSecondPlayer().getSelectedCharacter().getName());
+    }
+
+    @Test
+    void gameProvidesSelectedCharacterIndexForNamedPlayer() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.finish("Player 1");
+        game.selectCharacter("Player 2", "Sam");
+
+        assertEquals(0, game.getSelectedCharacterIndex("Player 2"));
+    }
+
+    @Test
+    void selectedCharacterIndexIsHiddenUntilGameFinishes() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.getSelectedCharacterIndex("Player"));
     }
 
     @Test
@@ -323,6 +364,28 @@ class GameTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> game.selectCharacter("Player 1", differentCharacterName));
+        assertSame(originalCharacter, game.getFirstPlayer().getSelectedCharacter());
+    }
+
+    @Test
+    void characterSelectionRejectsUnknownUsername() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+        game.finish("Player");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.selectCharacter("Unknown", "Sam"));
+    }
+
+    @Test
+    void characterSelectionRejectsUnknownCharacterWithoutChangingSelection() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+        game.finish("Player");
+        Character originalCharacter = game.getFirstPlayer().getSelectedCharacter();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.selectCharacter("Player", "Unknown character"));
         assertSame(originalCharacter, game.getFirstPlayer().getSelectedCharacter());
     }
 
