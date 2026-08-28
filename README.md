@@ -11,6 +11,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Character and question data loaded from CSV files
 - Game-result recording and leaderboard foundations
 - HTTP submission of completed game results
+- Offline CSV fallback when the game-result server is unavailable
 
 ## Technology
 
@@ -30,6 +31,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
     ├── main/
     │   ├── java/com/guesswho/
     │   │   ├── GuessWhoServerApplication.java # Spring Boot entry point
+    │   │   ├── client/             # Desktop HTTP client and offline fallback flow
     │   │   ├── game/               # Game flow, models, and resources
     │   │   ├── persistence/        # CSV result and leaderboard storage
     │   │   ├── ui/                 # Swing interface and entry point
@@ -75,6 +77,16 @@ java -cp target/classes com.guesswho.ui.GUI
 ```
 
 The bundled music file currently contains no audio data, so the game starts without background music.
+
+Completed games are submitted asynchronously to `http://localhost:8080` by
+default. If the server is unavailable or rejects the request, the result is
+stored locally in `test.csv`. Point the desktop app at another server with the
+`guesswho.server.url` system property:
+
+```bash
+java -Dguesswho.server.url=https://games.example \
+  -cp target/classes com.guesswho.ui.GUI
+```
 
 ## Run the Server
 
@@ -151,6 +163,8 @@ The tests cover packaged resources, board data, starting-turn rules, and core co
 | `GuessWhoServerApplication` | Starts the Spring Boot HTTP server. |
 | `StatusController` | Reports whether the server is online through `/api/status`. |
 | `GameResultController` | Validates and accepts completed games through `POST /api/game-results`. |
+| `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
+| `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
 | `GameResult` | Provides an immutable completed-game snapshot for external consumers. |
@@ -178,7 +192,7 @@ The application now loads its CSV and image assets from the Maven classpath. The
 2. Expand tests for question elimination, guessing, and result storage.
 3. Improve input validation and naming consistency.
 4. Split the large Swing class into smaller view and controller modules.
-5. Connect the Swing app to the game-result endpoint.
+5. Replace CSV result persistence with a database-backed implementation.
 
 ## Data and Assets
 
