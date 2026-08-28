@@ -895,30 +895,34 @@ public class GUI {
 			refreshFrame();
 		}
 		else {//AI turn
-			if (newGame.getComputerPlayer().onlyOne()) {//if there is only one possible character left
-				String question = "Is " + newGame.getComputerPlayer().lastOne() + " the character? ";//get the last character in the
-				int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-		        if (result == JOptionPane.YES_OPTION) {// User chose YES
-					String ans = newGame.getComputerPlayer().playGuess(username1, false);
-		        	resultLabel.setText(ans);
-		        	JOptionPane.showMessageDialog(null, ans, "Message", JOptionPane.INFORMATION_MESSAGE);
-					newGame.finish("AI");
-		        }
-		        else {// User chose NO
-					String ans = newGame.getComputerPlayer().playGuess(username1, true);
-		        	resultLabel.setText(ans);
-		        	JOptionPane.showMessageDialog(null, ans, "Message", JOptionPane.INFORMATION_MESSAGE);
-					newGame.finish(username1);
-		        }
-		        //remove the board and the steps
-		        frame.remove(boardPanel1);
-		        frame.remove(stepPanel);
-		        //set up the comboBox
+			Optional<String> computerGuess = newGame.getComputerGuessName();
+			if (computerGuess.isPresent()) {//if there is only one possible character left
+				String question = "Is " + computerGuess.orElseThrow() + " the character? ";
+				int result = JOptionPane.showConfirmDialog(
+						null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
+				boolean correct = result == JOptionPane.YES_OPTION;
+				String winner = newGame.resolveComputerGuess(correct);
+				String ans;
+				if (winner.equals(username1)) {//the AI guessed the wrong character
+					ans = "Congraulation, " + username1
+							+ ", you won!!!! Because the AI guessed the wrong character";
+				}
+				else {//the AI guessed the correct character
+					ans = "Sorry, " + username1
+							+ " the AI guessed your character, you lost.";
+				}
+				resultLabel.setText(ans);
+				JOptionPane.showMessageDialog(
+						null, ans, "Message", JOptionPane.INFORMATION_MESSAGE);
+				//remove the board and the steps
+				frame.remove(boardPanel1);
+				frame.remove(stepPanel);
+				//set up the comboBox
 				String[] characters = newGame.getCharacterNames();
 				charactersComboBox1 = new JComboBox<String>(characters);
 				inputSelectedCharacterPanel1.add(charactersComboBox1);
 				inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
-		        frame.add(inputSelectedCharacterPanel1);
+				frame.add(inputSelectedCharacterPanel1);
 				refreshFrame();
 			}
 			else {// there are morn than one possible characters
