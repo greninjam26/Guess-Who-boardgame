@@ -107,6 +107,35 @@ public class Game {
 	}
 
 	/**
+	 * Returns the participant whose turn is currently active.
+	 *
+	 * @return a human player's username or {@code AI}
+	 * @throws IllegalStateException if no game is in progress
+	 */
+	public String getCurrentPlayerName() {
+		requireInProgress();
+		if (firstPlayer.getIsTurn()) {
+			return firstPlayer.getUsername();
+		}
+		return secondPlayer != null ? secondPlayer.getUsername() : COMPUTER_WINNER;
+	}
+
+	/**
+	 * Returns the preset question texts that the current human player has not
+	 * asked.
+	 *
+	 * @return unasked question texts in board order
+	 * @throws IllegalStateException if no game is in progress or the current
+	 *         participant is the computer
+	 */
+	public String[] getCurrentPlayerQuestionTexts() {
+		User player = requireCurrentHumanPlayer();
+		return player.getUnAskedQuestions().stream()
+				.map(Question::getQuestion)
+				.toArray(String[]::new);
+	}
+
+	/**
 	 * Returns the character names available on the game board.
 	 *
 	 * @return character names in board order
@@ -347,6 +376,30 @@ public class Game {
 	}
 
 	/**
+	 * Resolves a human player's guess in a player-versus-player game and
+	 * finishes the game with the appropriate winner.
+	 *
+	 * @param username username of the player making the guess
+	 * @param characterName exact board character name being guessed
+	 * @param correct whether the opposing player confirmed the guess
+	 * @return the winning player's username
+	 * @throws IllegalArgumentException if the username or character name is
+	 *         unknown
+	 * @throws IllegalStateException if no player-versus-player game is in
+	 *         progress or it is not the named player's turn
+	 */
+	public String resolvePlayerGuess(String username, String characterName, boolean correct) {
+		requirePlayerGame();
+		User guessingPlayer = getPlayer(username);
+		requireTurn(guessingPlayer);
+		guessingPlayer.findCharacter(characterName);
+		User opponent = guessingPlayer == firstPlayer ? secondPlayer : firstPlayer;
+		String winningUsername = correct ? username : opponent.getUsername();
+		finish(winningUsername);
+		return winningUsername;
+	}
+
+	/**
 	 * Checks the answers supplied to the computer against the first player's
 	 * selected character. Incorrect answers are added to the computer player's
 	 * review history.
@@ -410,6 +463,24 @@ public class Game {
 			throw new IllegalStateException("No computer game is in progress");
 		}
 		return computerPlayer;
+	}
+
+	private void requirePlayerGame() {
+		requireInProgress();
+		if (secondPlayer == null) {
+			throw new IllegalStateException("No player-versus-player game is in progress");
+		}
+	}
+
+	private User requireCurrentHumanPlayer() {
+		requireInProgress();
+		if (firstPlayer.getIsTurn()) {
+			return firstPlayer;
+		}
+		if (secondPlayer != null && secondPlayer.getIsTurn()) {
+			return secondPlayer;
+		}
+		throw new IllegalStateException("The current participant is not a human player");
 	}
 
 	private void requireTurn(Player player) {

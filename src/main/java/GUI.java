@@ -354,12 +354,8 @@ public class GUI {
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					frame.remove(guessBoardPanel);
-					if (newGame.getFirstPlayer().getIsTurn()) {//if it user1's turn
-						guessPVP(newGame.getFirstPlayer(), newGame.getSecondPlayer(), i);//user1 do the guess
-					}
-					else {//when it is user2's turn
-						guessPVP(newGame.getSecondPlayer(), newGame.getFirstPlayer(), i);//user2 do the guess
-					}
+					String guessingUsername = newGame.getCurrentPlayerName();//find whose turn it is
+					guessPVP(guessingUsername, i);//current user does the guess
 				}
 			});
 		}
@@ -591,7 +587,7 @@ public class GUI {
 					try {
 						//call the method and start the game with randomly chosen who goes first between the AI and the player
 						newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.RANDOM);
-						whosFirst = newGame.getFirstPlayer().getIsTurn()
+						whosFirst = newGame.getCurrentPlayerName().equals(username1)
 								? "You are going first"
 								: "The AI is going first";
 					} catch (Exception e1) {
@@ -644,11 +640,7 @@ public class GUI {
 					stepLabel.setText("Please choice the question you want to ask: ");
 					stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height of the stepLabel
 					//set up the question comboBox for the user with the question the user haven't asked
-					ArrayList<Question> questionsLeft = newGame.getFirstPlayer().getUnAskedQuestions();
-					String[] questions = new String[questionsLeft.size()];
-					for (int i = 0; i < questionsLeft.size(); i++) {
-						questions[i] = questionsLeft.get(i).getQuestion();
-					}
+					String[] questions = newGame.getCurrentPlayerQuestionTexts();
 					questionComboBox = new JComboBox<String>(questions);
 					questionComboBox.setBounds(490, 675, 300, 30); // x, y, width, height
 					//add the questionsComboBox and questionChoiceButton
@@ -657,7 +649,7 @@ public class GUI {
 					refreshFrame();
 				}
 				else {//if user want to make a guess
-					stepLabel.setText(newGame.getFirstPlayer().getUsername() + ", please enter your guess: ");
+					stepLabel.setText(newGame.getCurrentPlayerName() + ", please enter your guess: ");
 					stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height
 					//set up a guessComboBox to store all the possible characters that the user can guess
 					String[] characters = newGame.getCharacterNames();
@@ -850,7 +842,7 @@ public class GUI {
 		guess.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (newGame.getFirstPlayer().getIsTurn()) {//user1's turn
+				if (newGame.getCurrentPlayerName().equals(username1)) {//user1's turn
 					frame.remove(boardPanel1);
 				}
 				else {//user2's turn
@@ -871,7 +863,6 @@ public class GUI {
 					frame.remove(stepPanel);
 					frame.add(boardPanel2);
 					frame.add(stepPanel);
-				    curPlayer = username2;//change curPlayer
 				}
 				else {//when it is userboad's board
 					//remove the board2 and board1 need to remove and add the stepPanel for it to work 
@@ -879,9 +870,13 @@ public class GUI {
 					frame.remove(stepPanel);
 					frame.add(boardPanel1);
 					frame.add(stepPanel);
-				    curPlayer = username1;//change curPlayer
 				}
 				newGame.advanceTurn();
+				curPlayer = newGame.getCurrentPlayerName();//change curPlayer
+				if (modeChoice.endsWith("preset questions")) {
+					questionComboBox.setModel(new DefaultComboBoxModel<String>(
+							newGame.getCurrentPlayerQuestionTexts()));
+				}
 				stepLabel.setText(curPlayer + ", Choose to ask a question or guess the answer: ");
 				result1.setText("");
 				askButton.setEnabled(true);
@@ -893,7 +888,7 @@ public class GUI {
 	 * this method will run the code for one turn of the game, which could be player's turn or AI's. 
 	 */
 	private void oneTurn() {
-		if (newGame.getFirstPlayer().getIsTurn()) {//player turn
+		if (newGame.getCurrentPlayerName().equals(username1)) {//player turn
 			stepLabel.setText("Please make your choice: 1. ask question. 2. guess the character");
 			stepPanel.add(stepInput);
 			stepPanel.add(stepChoiceButton);
@@ -1016,22 +1011,17 @@ public class GUI {
 	 * this method will be called when the it pvp predefined question mode is starting, it add in all the boards and panels
 	 */
 	private void p2pGamePreQuestion() {
-		if (newGame.getFirstPlayer().getIsTurn()) {
+		curPlayer = newGame.getCurrentPlayerName();
+		if (curPlayer.equals(username1)) {
 			frame.add(boardPanel1);
-			curPlayer = username1;
 		}
 		else {
 			frame.add(boardPanel2);
-			curPlayer = username2;
 		}
 
 		stepLabel.setText(curPlayer + ", Choose a question or guess the character");
 		//creating the questionComboBox
-		ArrayList<Question> questionsLeft = newGame.getFirstPlayer().getUnAskedQuestions();
-		String[] questions = new String[questionsLeft.size()];
-		for (int i = 0; i < questionsLeft.size(); i++) {
-			questions[i] = questionsLeft.get(i).getQuestion();
-		}
+		String[] questions = newGame.getCurrentPlayerQuestionTexts();
 		questionComboBox = new JComboBox<String>(questions);
 		questionComboBox.setBounds(490, 675, 300, 30); // x, y, width, height
 		//add the questionsComboBox
@@ -1043,13 +1033,12 @@ public class GUI {
 	 * this method will be run when the pvp ask question game is starting, it set up the board and question asking
 	 */
 	private void freeAsk() {
-		if (newGame.getFirstPlayer().getIsTurn()) {
+		curPlayer = newGame.getCurrentPlayerName();
+		if (curPlayer.equals(username1)) {
 			frame.add(boardPanel1);
-			curPlayer = username1;
 		}
 		else {
 			frame.add(boardPanel2);
-			curPlayer = username2;
 		}
 
 		stepLabel.setText(curPlayer + ", input a question or guess the character (don't make the question go over 43 letters including space)");
@@ -1065,22 +1054,21 @@ public class GUI {
 	 * this method will have a pop up window to ask the other player wether the first player's guess is right or wrong
 	 * depend on the answer store the result in a label
 	 * add in the in panel that ask the users to input the selected character
-	 * @param user1 the user that is guessing
-	 * @param user2 the user that is answering question
+	 * @param guessingUsername the username of the user that is guessing
 	 * @param index the index of the character of the user1's guess
 	 */
-	private void guessPVP(User user1, User user2, int index) {
+	private void guessPVP(String guessingUsername, int index) {
 		String[] characters = newGame.getCharacterNames();//get the guessed character
 		String question = "Is " + characters[index] + " the character? ";//question statement
 		int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-        if (result == JOptionPane.YES_OPTION) {// User chose YES
-        	resultLabel.setText("Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!");
-			newGame.finish(user1.getUsername());
-        }
-        else {// User chose NO
-        	resultLabel.setText("<html>Congraulation, " + user2.getUsername() + ", you won!!!! <br>Because " + user1.getUsername() + " you guessed the wrong character<html>");
-			newGame.finish(user2.getUsername());
-        }
+		String winningUsername = newGame.resolvePlayerGuess(
+				guessingUsername, characters[index], result == JOptionPane.YES_OPTION);
+		if (result == JOptionPane.YES_OPTION) {// User chose YES
+			resultLabel.setText("Congraulation, " + winningUsername + " you guessed the character, you won!!!!");
+		}
+		else {// User chose NO
+			resultLabel.setText("<html>Congraulation, " + winningUsername + ", you won!!!! <br>Because " + guessingUsername + " you guessed the wrong character<html>");
+		}
 		charactersComboBox1 = new JComboBox<String>(characters);
 		inputSelectedCharacterPanel1.add(charactersComboBox1);
 		inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
