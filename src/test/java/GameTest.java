@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Random;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -97,6 +98,76 @@ class GameTest {
         assertFalse(game.getComputerPlayer().getQuestionAnswers().get(0));
         assertTrue(game.getFirstPlayer().getIsTurn());
         assertFalse(game.getComputerPlayer().getIsTurn());
+    }
+
+    @Test
+    void postGameReviewIsEmptyWhenEveryComputerAnswerWasCorrect() throws Exception {
+        recordComputerAnswerFor("Sam", true);
+
+        assertTrue(game.getComputerAnswerCorrections().isEmpty());
+    }
+
+    @Test
+    void postGameReviewReturnsTheExpectedAnswerForEachMistake() throws Exception {
+        Question question = recordComputerAnswerFor("Sam", false);
+
+        assertEquals(
+                List.of(new AnswerCorrection(question.getQuestion(), true)),
+                game.getComputerAnswerCorrections());
+    }
+
+    @Test
+    void postGameReviewIsRepeatableAndImmutable() throws Exception {
+        Question question = recordComputerAnswerFor("Sam", false);
+
+        List<AnswerCorrection> firstReview = game.getComputerAnswerCorrections();
+        List<AnswerCorrection> secondReview = game.getComputerAnswerCorrections();
+
+        assertEquals(firstReview, secondReview);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> firstReview.add(new AnswerCorrection(question.getQuestion(), true)));
+    }
+
+    @Test
+    void computerAnswerReviewIsUnavailableBeforeGameFinishes() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.getComputerAnswerCorrections());
+    }
+
+    @Test
+    void computerAnswerReviewIsUnavailableForPlayerGames() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.finish("Player 1");
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.getComputerAnswerCorrections());
+    }
+
+    @Test
+    void gameProvidesComputerSelectedCharacterIndexAfterComputerGame() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+        game.getComputerPlayer().setSelectedCharacter(
+                game.getComputerPlayer().findCharacter("Sam"));
+        game.finish("Player");
+
+        assertEquals(0, game.getComputerSelectedCharacterIndex());
+    }
+
+    @Test
+    void computerSelectedCharacterIndexIsHiddenUntilGameFinishes() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.getComputerSelectedCharacterIndex());
     }
 
     @Test
@@ -813,5 +884,17 @@ class GameTest {
         for (Character character : game.getComputerPlayer().getPossibleCharacters()) {
             character.setIsActive(character.getName().equals(remainingName));
         }
+    }
+
+    private Question recordComputerAnswerFor(String characterName, boolean matchingAnswer)
+            throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        Question question = game.getComputerPlayer().getGameBoard()
+                .findQuestion("Is your character's eye colour green?");
+        game.getComputerPlayer().setQuestionAsked(question.getQuestion());
+        game.getComputerPlayer().addQuestionAnswers(matchingAnswer);
+        game.finish("Player");
+        game.selectCharacter("Player", characterName);
+        return question;
     }
 }

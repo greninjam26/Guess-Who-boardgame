@@ -1,6 +1,8 @@
 /* Author: Gavin Liu
  * Date: Jan 8 2024
  */
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -436,27 +438,46 @@ public class Game {
 	}
 
 	/**
-	 * Checks the answers supplied to the computer against the first player's
-	 * selected character. Incorrect answers are added to the computer player's
-	 * review history.
+	 * Returns corrections for answers that did not match the human player's
+	 * selected character.
 	 *
-	 * @return {@code true} when every recorded answer is correct
-	 * @throws NullPointerException if no computer opponent has been initialized
+	 * @return immutable corrections in the order the computer asked the questions
+	 * @throws IllegalStateException if a finished computer game is unavailable
 	 */
-	public boolean checkUserAnswers() {
-		boolean allCorrect = true;
-		for (int i = 0; i < computerPlayer.getQuestionsAsked().size(); i++) {
-			Question question = computerPlayer.getQuestionsAsked().get(i);
-			boolean correctAnswer = computerPlayer.getGameBoard().getAnswers()
-					[firstPlayer.getSelectedCharacter().getCharacterIndex()]
-					[question.getQuestionIndex()];
-			if (correctAnswer != computerPlayer.getQuestionAnswers().get(i)) {
-				computerPlayer.addQuestionsAnsweredWrong(question);
-				computerPlayer.addAnswerQuestionsAnsweredWrong(i);
-				allCorrect = false;
+	public List<AnswerCorrection> getComputerAnswerCorrections() {
+		ComputerPlayer computer = requireFinishedComputerGame();
+		List<AnswerCorrection> corrections = new ArrayList<>();
+		int selectedCharacterIndex = firstPlayer.getSelectedCharacter().getCharacterIndex();
+		for (int index = 0; index < computer.getQuestionsAsked().size(); index++) {
+			Question question = computer.getQuestionsAsked().get(index);
+			boolean expectedAnswer = computer.getGameBoard().getAnswers()
+					[selectedCharacterIndex][question.getQuestionIndex()];
+			if (expectedAnswer != computer.getQuestionAnswers().get(index)) {
+				corrections.add(new AnswerCorrection(question.getQuestion(), expectedAnswer));
 			}
 		}
-		return allCorrect;
+		return List.copyOf(corrections);
+	}
+
+	/**
+	 * Returns the board index of the computer's selected character.
+	 *
+	 * @return selected character's board index
+	 * @throws IllegalStateException if a finished computer game is unavailable
+	 */
+	public int getComputerSelectedCharacterIndex() {
+		return requireFinishedComputerGame().getSelectedCharacter().getCharacterIndex();
+	}
+
+	/**
+	 * Compatibility bridge for the existing GUI until it migrates to the
+	 * immutable post-game review API.
+	 *
+	 * @return {@code true} when no corrections are present
+	 */
+	@Deprecated
+	public boolean checkUserAnswers() {
+		return getComputerAnswerCorrections().isEmpty();
 	}
 
 	/**
@@ -497,6 +518,14 @@ public class Game {
 		requireInProgress();
 		if (computerPlayer == null) {
 			throw new IllegalStateException("No computer game is in progress");
+		}
+		return computerPlayer;
+	}
+
+	private ComputerPlayer requireFinishedComputerGame() {
+		requireFinished();
+		if (computerPlayer == null) {
+			throw new IllegalStateException("No finished computer game is available");
 		}
 		return computerPlayer;
 	}
