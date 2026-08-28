@@ -1,7 +1,11 @@
+package com.guesswho.persistence;
+
+import com.guesswho.game.GameResult;
+
 /*Author: Gavin Liu
  * Date: Jan 11 2023
- * Description: this class is used to store the 2 player played the game, the selected character of each player, 
- * the questions they asked and the answers they got. Then it also store the result of the game, 
+ * Description: this class is used to store the 2 player played the game, the selected character of each player,
+ * the questions they asked and the answers they got. Then it also store the result of the game,
  * which is who won the game
  * */
 import java.io.FileWriter;

@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /**
  * Describes one answer that did not match the human player's selected
  * character.

@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Dec 29 2024
  * Description: this class is made to create the parent class of the ComputerPlayer and the User
@@ -91,7 +93,7 @@ public class Player {
 		return questionResult;
 	}
 	/**
-	 * this method will set the result of the questions 
+	 * this method will set the result of the questions
 	 * @param newQuestionResult the new questions of the question
 	 */
 	public void setQuestionResult(String newQuestionResult) {

@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /**
  * Opening-turn choices for a two-player game.
  */

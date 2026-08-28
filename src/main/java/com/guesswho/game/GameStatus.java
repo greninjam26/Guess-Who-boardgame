@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /**
  * Lifecycle states of a game session.
  */

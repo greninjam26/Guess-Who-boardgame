@@ -1,7 +1,18 @@
+package com.guesswho.ui;
+
+import com.guesswho.game.AnswerCorrection;
+import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.ComputerGameStart;
+import com.guesswho.game.Game;
+import com.guesswho.game.GameResources;
+import com.guesswho.game.PlayerGameStart;
+import com.guesswho.game.Question;
+import com.guesswho.persistence.StoreResult;
+
 /*Author: Gavin Liu
  * Date: Jan 8 2024
- * Description: this class contains all the basic front end code that have all the buttons and panels working 
- * but the styling should be improved on for it to look good. 
+ * Description: this class contains all the basic front end code that have all the buttons and panels working
+ * but the styling should be improved on for it to look good.
  * */
 import javax.swing.*;
 import java.awt.*;
@@ -198,14 +209,14 @@ public class GUI {
 		birthdayAskingPanel2.add(birthdayAskingLabel2);
 		birthdayAskingPanel2.add(birthdayField2);
 		birthdayAskingPanel2.add(birthdayAskingButton2);
-		
+
 		JPanel characterSelectionPanel = new JPanel();
 		JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
 				+ "be displaced. <br>Please click the ready button to start the game when you finish selecting your character. <html>");
 		JButton readyButton = new JButton("Ready");
 		characterSelectionPanel.add(characterSelectionLabel);
 		characterSelectionPanel.add(readyButton);
-		
+
 		whosFirstChoicePanel = new JPanel();
 		JLabel whosFirstChoiceLabel = new JLabel("Please choice who do you want to do first or just random: ");
 		AIFirstButton = new JButton("AI goes first");
@@ -214,7 +225,7 @@ public class GUI {
 		randomlyChooseButton = new JButton("Randomly choose who go first");
 		birthdayDecideButton = new JButton("Younger person go first");
 		whosFirstChoicePanel.add(whosFirstChoiceLabel);
-		
+
 		// Game panel with character buttons
 		//board1 is the game board for the first player
 		//board2 is the game board for the second player
@@ -248,7 +259,7 @@ public class GUI {
 			boardPanel2.add(characterButton2);
 			guessBoardPanel.add(characterButton3);
 		}
-		//stepPanel is used in each turn the user ask questions, 
+		//stepPanel is used in each turn the user ask questions,
 		//enter guess and choice what is their next step, wether to ask a question or make a guess
         stepPanel = new JPanel(null);
 		stepLabel = new JLabel("Please make your choice: 1. ask question. 2. guess the character");
@@ -277,7 +288,7 @@ public class GUI {
 		stepPanel.add(result1);
 		stepPanel.add(nextTurnButton);
 		nextTurnButton.setVisible(false);
-		
+
 		// Create a line border with the specified color and width
 		Border border1 = BorderFactory.createLineBorder(Color.BLACK, 2);
 		Border border2 = BorderFactory.createLineBorder(Color.BLACK, 2);
@@ -288,7 +299,7 @@ public class GUI {
 		recordStepsPanel1.add(recordStepsLabel1);
 		// Set the border for the JPanel
 		recordStepsPanel1.setBorder(border1);
-		//records all the questions asked by the opponent of the first player, and the answer the first player inputed. 
+		//records all the questions asked by the opponent of the first player, and the answer the first player inputed.
 		recordStepsLabel2Text = "<html>";
 		JPanel recordStepsPanel2 = new JPanel();
 		recordStepsLabel2 = new JLabel(recordStepsLabel2Text);
@@ -320,7 +331,7 @@ public class GUI {
 		//guess button for PVP
 		guess = new JButton("guess");
 		guess.setBounds(1015, 675, 100, 30); // x, y, width, height
-		
+
 		// Add start panel to the frame
 		frame.add(welcomePanel, BorderLayout.CENTER);
 		frame.add(controlPanel, BorderLayout.NORTH);
@@ -573,7 +584,7 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.remove(whosFirstChoicePanel);
-				if(modeChoice.startsWith("player vs player")){//play against another player 
+				if(modeChoice.startsWith("player vs player")){//play against another player
 					try {
 						newGame.startPlayerGame(
 								username1, birthday1, username2, birthday2,
@@ -670,7 +681,7 @@ public class GUI {
 				String AIAnswer = newGame.askComputer(newQuestion);//store the AI's answer to user's question
 				result1.setText("AI: " + AIAnswer);
 				result1.setVisible(true);
-				recordStepsLabel1Text += newQuestion + " : " + AIAnswer + "<br>";//record the question and the answer to the recordStepsLabel1 
+				recordStepsLabel1Text += newQuestion + " : " + AIAnswer + "<br>";//record the question and the answer to the recordStepsLabel1
 				recordStepsLabel1.setText(recordStepsLabel1Text);
 				stepPanel.remove(questionComboBox);
 				stepPanel.remove(questionChoiceButton);
@@ -851,14 +862,14 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if (curPlayer.equals(username1)) {//when it is userboad's board
-					//remove the board1 and board2 need to remove and add the stepPanel for it to work 
+					//remove the board1 and board2 need to remove and add the stepPanel for it to work
 					frame.remove(boardPanel1);
 					frame.remove(stepPanel);
 					frame.add(boardPanel2);
 					frame.add(stepPanel);
 				}
 				else {//when it is userboad's board
-					//remove the board2 and board1 need to remove and add the stepPanel for it to work 
+					//remove the board2 and board1 need to remove and add the stepPanel for it to work
 					frame.remove(boardPanel2);
 					frame.remove(stepPanel);
 					frame.add(boardPanel1);
@@ -878,7 +889,7 @@ public class GUI {
 		});
 	}
 	/**
-	 * this method will run the code for one turn of the game, which could be player's turn or AI's. 
+	 * this method will run the code for one turn of the game, which could be player's turn or AI's.
 	 */
 	private void oneTurn() {
 		if (newGame.getCurrentPlayerName().equals(username1)) {//player turn

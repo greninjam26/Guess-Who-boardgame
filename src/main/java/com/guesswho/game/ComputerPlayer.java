@@ -1,6 +1,8 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Jan 8 2024
- * Description: this class is made to have most of the logic for the easy and hard AI. all the Ai's guessing 
+ * Description: this class is made to have most of the logic for the easy and hard AI. all the Ai's guessing
  * and ask Algorism will be here
  * */
 import java.util.ArrayList;
@@ -15,7 +17,7 @@ public class ComputerPlayer extends Player{
 	private int qIndex;//the index of the question
 	private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();//the questions that is not asked by the AI
 	private ArrayList<Character> possibleCharacters = new ArrayList<Character>();//the characters
-	private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question 
+	private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question
 	private int possibleCharactersCount = getGameBoard().getCharacterSize();//the number of characters
 	private final Random random;
 	/**
@@ -113,15 +115,15 @@ public class ComputerPlayer extends Player{
 		}
 	}
 	/**
-	 * this method will choose the question that can eliminate as close to half of the possible characters as possible. 
-	 * @return it will return the questions that the hard AI should ask the user to eliminate half of the possible characters. 
+	 * this method will choose the question that can eliminate as close to half of the possible characters as possible.
+	 * @return it will return the questions that the hard AI should ask the user to eliminate half of the possible characters.
 	 */
 	private Question chooseQuestion() {
 		Question result = unAskedQuestions.get(0);//set the result to the first question
 		int number = Math.abs(answerCount[0]-possibleCharactersCount/2);//get the value for the first question
 		for (int i = 1; i < unAskedQuestions.size(); i++) {//checking all the questions from the second one
 			int questionNumber = unAskedQuestions.get(i).getQuestionIndex();
-			int count = Math.abs(answerCount[questionNumber]-possibleCharactersCount/2);//calculate how close the number of questions is to half 
+			int count = Math.abs(answerCount[questionNumber]-possibleCharactersCount/2);//calculate how close the number of questions is to half
 			if (count < number) {//if the count is smaller, in other words closer to the half point
 				//save the new value
 				number = count;
@@ -162,7 +164,7 @@ public class ComputerPlayer extends Player{
 	}
 	/**
 	 * the method will recalculate the number of character that is true for each question
-	 * @param index 
+	 * @param index
 	 */
 	private void reCalculate(int index) {
 		for (int j = 0; j < getGameBoard().getQuestionSize(); j++) {

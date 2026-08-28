@@ -1,3 +1,5 @@
+package com.guesswho.persistence;
+
 import java.util.*;
 import java.io.*;
 
@@ -5,17 +7,17 @@ import java.io.*;
  * Loads, updates, and sorts player names and scores for the leaderboard.
  */
 public class Leaderboard {
-	
+
 	private ArrayList<Integer> scores = new ArrayList<Integer>();
 	private ArrayList<String> names = new ArrayList<String>();
-	
+
 	/**
 	 * Creates an empty leaderboard.
 	 *
 	 * @throws Exception retained for compatibility with existing callers
 	 */
 	public Leaderboard()throws Exception{
-		
+
 	}
 	/**
 	 * Loads name and score pairs from {@code Leaderboard.csv}.
@@ -49,7 +51,7 @@ public class Leaderboard {
 	 */
 	public void sortLeaderboard(){
 		int temp;
-        String nameTemp; 
+        String nameTemp;
         int i = 0;
         boolean check = true;
         while(check == true){
@@ -65,9 +67,9 @@ public class Leaderboard {
                     check = true;
                 }
             }
-            i++; 
+            i++;
         }
-		
+
 	}
 
 }

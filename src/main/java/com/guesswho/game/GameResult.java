@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 import java.util.List;
 
 /**
