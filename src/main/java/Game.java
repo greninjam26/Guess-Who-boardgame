@@ -107,6 +107,21 @@ public class Game {
 	}
 
 	/**
+	 * Returns the character names available on the game board.
+	 *
+	 * @return character names in board order
+	 * @throws IllegalStateException if the game has not started
+	 */
+	public String[] getCharacterNames() {
+		if (firstPlayer == null) {
+			throw new IllegalStateException("Game must be started before character names are available");
+		}
+		return firstPlayer.getGameBoard().getCharacters().stream()
+				.map(Character::getName)
+				.toArray(String[]::new);
+	}
+
+	/**
 	 * Selects a board character for a human player.
 	 *
 	 * @param username username of the player selecting the character
@@ -116,12 +131,23 @@ public class Game {
 	 * @throws IllegalStateException if the game has not finished
 	 */
 	public void selectCharacter(String username, String characterName) {
-		if (status != GameStatus.FINISHED) {
-			throw new IllegalStateException("Characters can only be selected after the game finishes");
-		}
+		requireFinished();
 		User player = getPlayer(username);
 		Character character = player.findCharacter(characterName);
 		player.setSelectedCharacter(character);
+	}
+
+	/**
+	 * Returns the board index of a human player's selected character.
+	 *
+	 * @param username username of the player whose character was selected
+	 * @return selected character's board index
+	 * @throws IllegalArgumentException if the username is unknown
+	 * @throws IllegalStateException if the game has not finished
+	 */
+	public int getSelectedCharacterIndex(String username) {
+		requireFinished();
+		return getPlayer(username).getSelectedCharacter().getCharacterIndex();
 	}
 
 	/**
@@ -396,6 +422,12 @@ public class Game {
 	private void requireInProgress() {
 		if (status != GameStatus.IN_PROGRESS) {
 			throw new IllegalStateException("No game is in progress");
+		}
+	}
+
+	private void requireFinished() {
+		if (status != GameStatus.FINISHED) {
+			throw new IllegalStateException("Game must be finished before characters can be selected or revealed");
 		}
 	}
 

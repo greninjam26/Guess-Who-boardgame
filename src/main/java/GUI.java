@@ -660,11 +660,7 @@ public class GUI {
 					stepLabel.setText(newGame.getFirstPlayer().getUsername() + ", please enter your guess: ");
 					stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height
 					//set up a guessComboBox to store all the possible characters that the user can guess
-					ArrayList<Character> validCharacters = newGame.getFirstPlayer().getGameBoard().getCharacters();
-					String[] characters = new String[validCharacters.size()];
-					for (int i = 0; i < validCharacters.size(); i++) {
-						characters[i] = validCharacters.get(i).getName();
-					}
+					String[] characters = newGame.getCharacterNames();
 					guessComboBox = new JComboBox<String>(characters);
 					guessComboBox.setBounds(565, 675, 150, 30); // x, y, width, height
 					stepPanel.add(guessComboBox);
@@ -726,11 +722,7 @@ public class GUI {
 		        frame.remove(boardPanel1);
 		        frame.remove(stepPanel);
 		        //add in the panel for the user to enter their selected character
-				ArrayList<Character> validCharacters = newGame.getFirstPlayer().getGameBoard().getCharacters();
-				String[] characters = new String[validCharacters.size()];
-				for (int i = 0; i < validCharacters.size(); i++) {
-					characters[i] = validCharacters.get(i).getName();
-				}
+				String[] characters = newGame.getCharacterNames();
 				charactersComboBox1= new JComboBox<String>(characters);
 				inputSelectedCharacterPanel1.add(charactersComboBox1);
 				inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
@@ -745,7 +737,7 @@ public class GUI {
 				String userCharacterName1 = (String) charactersComboBox1.getSelectedItem();//get the character
 				//change it to Character type and set the selected character
 				newGame.selectCharacter(username1, userCharacterName1);
-		        player1SelectedCharacter = getCharacterImage(newGame.getFirstPlayer());//get the image of the character
+		        player1SelectedCharacter = getCharacterImage(username1);//get the image of the character
 				frame.remove(inputSelectedCharacterPanel1);
 				if (modeChoice.startsWith("player vs computer")) {//when it is against computer
 			        AISelectedCharacter = getAICharacterImage();//get the AI character image
@@ -788,11 +780,7 @@ public class GUI {
 				}
 				else {//when it is against another player
 					//set up another comboBox for the second user to enter their selected character
-					ArrayList<Character> validCharacters = newGame.getFirstPlayer().getGameBoard().getCharacters();
-					String[] characters = new String[validCharacters.size()];
-					for (int i = 0; i < validCharacters.size(); i++) {
-						characters[i] = validCharacters.get(i).getName();
-					}
+					String[] characters = newGame.getCharacterNames();
 					charactersComboBox2 = new JComboBox<String>(characters);
 					inputSelectedCharacterPanel2.add(charactersComboBox2);
 					inputSelectedCharacterPanel2.add(inputSelectedCharacterButton2);
@@ -808,7 +796,7 @@ public class GUI {
 				String userCharacterName2 = (String) charactersComboBox2.getSelectedItem();//get the character
 				//change it to Character type and set the selected character
 				newGame.selectCharacter(username2, userCharacterName2);
-		        player2SelectedCharacter = getCharacterImage(newGame.getSecondPlayer());//get the image of the character
+		        player2SelectedCharacter = getCharacterImage(username2);//get the image of the character
 				frame.remove(inputSelectedCharacterPanel2);
 		        endingPanel.add(player2SelectedCharacter);
 		        endingPanel.add(resultLabel);
@@ -931,11 +919,7 @@ public class GUI {
 		        frame.remove(boardPanel1);
 		        frame.remove(stepPanel);
 		        //set up the comboBox
-				ArrayList<Character> validCharacters = newGame.getFirstPlayer().getGameBoard().getCharacters();
-				String[] characters = new String[validCharacters.size()];
-				for (int i = 0; i < validCharacters.size(); i++) {
-					characters[i] = validCharacters.get(i).getName();
-				}
+				String[] characters = newGame.getCharacterNames();
 				charactersComboBox1 = new JComboBox<String>(characters);
 				inputSelectedCharacterPanel1.add(charactersComboBox1);
 				inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
@@ -959,12 +943,12 @@ public class GUI {
 		}
 	}
 	/**
-	 * this method will use the inputed user to find and output the image of the selected character icon
-	 * @param player the user that was inputed
+	 * this method will use the inputed username to find and output the image of the selected character icon
+	 * @param username the username that was inputed
 	 * @return the JLabel with the selected Character icon
 	 */
-	private JLabel getCharacterImage(User player) {
-        int characterIndex = player.getSelectedCharacter().getCharacterIndex();
+	private JLabel getCharacterImage(String username) {
+        int characterIndex = newGame.getSelectedCharacterIndex(username);
         ImageIcon characterIcon = characterImages.get(characterIndex);
 		JLabel characterLabel = new JLabel(characterIcon);
 		return characterLabel;
@@ -1086,8 +1070,8 @@ public class GUI {
 	 * @param index the index of the character of the user1's guess
 	 */
 	private void guessPVP(User user1, User user2, int index) {
-		ArrayList<Character> validCharacters = user1.getGameBoard().getCharacters();//get the guessed character
-		String question = "Is " + validCharacters.get(index).getName() + " the character? ";//question statement
+		String[] characters = newGame.getCharacterNames();//get the guessed character
+		String question = "Is " + characters[index] + " the character? ";//question statement
 		int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
         if (result == JOptionPane.YES_OPTION) {// User chose YES
         	resultLabel.setText("Congraulation, " + user1.getUsername() + " you guessed the character, you won!!!!");
@@ -1097,10 +1081,6 @@ public class GUI {
         	resultLabel.setText("<html>Congraulation, " + user2.getUsername() + ", you won!!!! <br>Because " + user1.getUsername() + " you guessed the wrong character<html>");
 			newGame.finish(user2.getUsername());
         }
-		String[] characters = new String[validCharacters.size()];
-		for (int i = 0; i < validCharacters.size(); i++) {
-			characters[i] = validCharacters.get(i).getName();
-		}
 		charactersComboBox1 = new JComboBox<String>(characters);
 		inputSelectedCharacterPanel1.add(charactersComboBox1);
 		inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
