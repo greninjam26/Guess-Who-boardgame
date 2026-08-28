@@ -8,6 +8,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import javax.sound.sampled.Clip;
 import javax.swing.border.Border;
@@ -738,7 +739,8 @@ public class GUI {
 			        endingPanel.add(resultLabel);
 			        endingPanel.add(player1SelectedCharacter);
 					String validateResult = "";
-					if (newGame.checkUserAnswers()) {//there are not wrong answers
+					List<AnswerCorrection> corrections = newGame.getComputerAnswerCorrections();
+					if (corrections.isEmpty()) {//there are not wrong answers
 						validateResult = "<html>Your answer to the questions is all correct!!! <br>Thank you for doing to correctly!! :) <br>your game result will be stored";
 						try {
 							store = new StoreResult();
@@ -751,16 +753,10 @@ public class GUI {
 								newGame.getWinner().orElseThrow());
 					}
 					else {//when there are wrong answers
-						ArrayList<Question> wrongAnsweredQuestion = newGame.getComputerPlayer().getQuestionsAnsweredWrong();
-						ArrayList<Boolean> wrongAnswers = newGame.getComputerPlayer().getAnswerQuestionsAnsweredWrong();
-						validateResult = "<html>you answered " + wrongAnsweredQuestion.size() + " questions wrong!!! :( <br> your game result will not be saved";//displace the number of wrong questions
-						for (int i = 0; i < wrongAnsweredQuestion.size(); i ++) {//get all the questions in the arrayList
-							if (wrongAnswers.get(i)) {//when the user's answer to the questions is true, add yes
-								validateResult += wrongAnsweredQuestion.get(i).getQuestion() + " : yes <br>";
-							}
-							else {//add no
-								validateResult += wrongAnsweredQuestion.get(i).getQuestion() + " : no <br>";
-							}
+						validateResult = "<html>you answered " + corrections.size() + " questions wrong!!! :( <br> your game result will not be saved";//displace the number of wrong questions
+						for (AnswerCorrection correction : corrections) {//get all the questions in the list
+							validateResult += correction.question() + " : "
+									+ (correction.expectedAnswer() ? "yes" : "no") + " <br>";
 						}
 					}
 					validateResult += "<html>";
@@ -957,7 +953,7 @@ public class GUI {
 	 * @return it will return a JLabel with the image of the AI's selected character
 	 */
 	private JLabel getAICharacterImage() {
-		int characterIndex = newGame.getComputerPlayer().getSelectedCharacter().getCharacterIndex();
+		int characterIndex = newGame.getComputerSelectedCharacterIndex();
         ImageIcon characterIcon = characterImages.get(characterIndex);
 		JLabel characterLabel = new JLabel(characterIcon);
 		return characterLabel;

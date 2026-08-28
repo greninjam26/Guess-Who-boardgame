@@ -470,17 +470,6 @@ public class Game {
 	}
 
 	/**
-	 * Compatibility bridge for the existing GUI until it migrates to the
-	 * immutable post-game review API.
-	 *
-	 * @return {@code true} when no corrections are present
-	 */
-	@Deprecated
-	public boolean checkUserAnswers() {
-		return getComputerAnswerCorrections().isEmpty();
-	}
-
-	/**
 	 * Finishes an active game with the supplied winner.
 	 *
 	 * @param winner a current human player's username, or {@code AI} in a

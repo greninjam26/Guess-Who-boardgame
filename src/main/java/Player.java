@@ -15,8 +15,6 @@ public class Player {
 	private ArrayList<Question> questionsAsked;//questions asked by the player
 	private ArrayList<Question> questionsUnAsked;//question haven't asked by the player
 	private ArrayList<Boolean> questionAnswers;//the answers the player got from their question
-	private ArrayList<Question> questionsAnsweredWrong;//the questions that was answered wrong
-	private ArrayList<Boolean> answerQuestionsAnsweredWrong;//the answer of the questions that was answered wrong
 	private Character selectedCharacter;//the selected character of the player
 	private Board gameBoard;//the gameBoard of the player
 	private String questionResult;//the result of the new question asked by the player
@@ -38,8 +36,6 @@ public class Player {
 		questionsAsked = new ArrayList<Question>();
 		questionsUnAsked = new ArrayList<Question>();
 		questionAnswers = new ArrayList<Boolean>();
-		questionsAnsweredWrong = new ArrayList<Question>();
-		answerQuestionsAnsweredWrong = new ArrayList<Boolean>();
 		selectedCharacter = gameBoard.getCharacters().get(random.nextInt(gameBoard.getCharacters().size()));
 		questionsUnAsked.addAll(gameBoard.getQuestionsList());
 	}
@@ -167,33 +163,5 @@ public class Player {
 			}
 		}
 		throw new IllegalArgumentException("Unknown character: " + characterName);
-	}
-	/**
-	 * this method will be return the questions that the player's opponent answered wrong
-	 * @return the wrong answered questions
-	 */
-	public ArrayList<Question> getQuestionsAnsweredWrong() {
-		return questionsAnsweredWrong;
-	}
-	/**
-	 * this method will be return the question answers that the player's opponent answered wrong
-	 * @return the answers of the wrong answered questions
-	 */
-	public ArrayList<Boolean> getAnswerQuestionsAnsweredWrong() {
-		return answerQuestionsAnsweredWrong;
-	}
-	/**
-	 * this method will add in the new question that the player's opponent answered wrong
-	 * @param questionAnsweredWrong the question that the opponent answered wrong
-	 */
-	public void addQuestionsAnsweredWrong(Question questionAnsweredWrong) {
-		questionsAnsweredWrong.add(questionAnsweredWrong);
-	}
-	/**
-	 * this method will add in the answer of the new questions that the player's opponent answered wrong
-	 * @param questionAnsweredWrongIndex the index of the question that was answered wrong
-	 */
-	public void addAnswerQuestionsAnsweredWrong(int questionAnsweredWrongIndex) {
-		answerQuestionsAnsweredWrong.add(!questionAnswers.get(questionAnsweredWrongIndex));
 	}
 }
