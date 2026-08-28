@@ -6,13 +6,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Repository;
 
 /**
  * Appends submitted game results to a configurable CSV file.
  */
-@Repository
 public class CsvGameResultRepository implements GameResultRepository {
     private final Path resultsFile;
 
@@ -21,8 +18,7 @@ public class CsvGameResultRepository implements GameResultRepository {
      *
      * @param resultsFile configured CSV file path
      */
-    public CsvGameResultRepository(
-            @Value("${guesswho.results.file:test.csv}") String resultsFile) {
+    public CsvGameResultRepository(String resultsFile) {
         this.resultsFile = Path.of(resultsFile);
     }
 

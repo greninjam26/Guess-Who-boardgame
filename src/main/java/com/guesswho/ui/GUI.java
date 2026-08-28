@@ -1,5 +1,7 @@
 package com.guesswho.ui;
 
+import com.guesswho.client.GameResultSubmissionService;
+import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.game.AnswerCorrection;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.ComputerGameStart;
@@ -7,7 +9,7 @@ import com.guesswho.game.Game;
 import com.guesswho.game.GameResources;
 import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.Question;
-import com.guesswho.persistence.StoreResult;
+import com.guesswho.persistence.CsvGameResultRepository;
 
 /*Author: Gavin Liu
  * Date: Jan 8 2024
@@ -32,8 +34,11 @@ public class GUI {
 	private JFrame frame;
 	//new game class for the game
 	private Game newGame;
-	//new StoreResult object use to store the game data and result
-	private StoreResult store;
+	//submits results to the server and falls back to the local CSV file
+	private final GameResultSubmissionService resultSubmissionService =
+			new GameResultSubmissionService(
+					new HttpGameResultClient(),
+					new CsvGameResultRepository("test.csv"));
 	//the music
 	private static Optional<Clip> music = Optional.empty();
 	//the list of characters image
@@ -753,12 +758,7 @@ public class GUI {
 					List<AnswerCorrection> corrections = newGame.getComputerAnswerCorrections();
 					if (corrections.isEmpty()) {//there are not wrong answers
 						validateResult = "<html>Your answer to the questions is all correct!!! <br>Thank you for doing to correctly!! :) <br>your game result will be stored";
-						try {
-							store = new StoreResult();
-						} catch (Exception e1) {
-							e1.printStackTrace();
-						}
-						store.addGameResult(newGame.getGameResult());
+						submitGameResult();
 					}
 					else {//when there are wrong answers
 						validateResult = "<html>you answered " + corrections.size() + " questions wrong!!! :( <br> your game result will not be saved";//displace the number of wrong questions
@@ -801,6 +801,7 @@ public class GUI {
 		        frame.add(endingPanel, BorderLayout.CENTER);
 				frame.add(recordStepsPanel1, BorderLayout.EAST);
 				frame.add(recordStepsPanel2, BorderLayout.WEST);
+				submitGameResult();
 				refreshFrame();
 			}
 		});
@@ -1114,6 +1115,18 @@ public class GUI {
 				frame, message, "Unable to start game", JOptionPane.ERROR_MESSAGE);
 		frame.add(whosFirstChoicePanel, BorderLayout.CENTER);
 		refreshFrame();
+	}
+
+	private void submitGameResult() {
+		resultSubmissionService.submit(newGame.getGameResult())
+				.exceptionally(failure -> {
+					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+							frame,
+							"The game result could not be stored.",
+							"Unable to store result",
+							JOptionPane.ERROR_MESSAGE));
+					return null;
+				});
 	}
 
 	/**
