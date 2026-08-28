@@ -107,6 +107,24 @@ public class Game {
 	}
 
 	/**
+	 * Selects a board character for a human player.
+	 *
+	 * @param username username of the player selecting the character
+	 * @param characterName exact board character name
+	 * @throws IllegalArgumentException if the username or character name is
+	 *         unknown
+	 * @throws IllegalStateException if the game has not finished
+	 */
+	public void selectCharacter(String username, String characterName) {
+		if (status != GameStatus.FINISHED) {
+			throw new IllegalStateException("Characters can only be selected after the game finishes");
+		}
+		User player = getPlayer(username);
+		Character character = player.findCharacter(characterName);
+		player.setSelectedCharacter(character);
+	}
+
+	/**
 	 * Records a human player's question and the answer they received.
 	 *
 	 * @param username username of the player who asked the question

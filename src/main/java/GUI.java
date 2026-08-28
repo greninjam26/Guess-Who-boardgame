@@ -743,8 +743,8 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				String userCharacterName1 = (String) charactersComboBox1.getSelectedItem();//get the character
-				Character userCharacter1 = newGame.getFirstPlayer().findCharacter(userCharacterName1);//change it to Character type
-				newGame.getFirstPlayer().setSelectedCharacter(userCharacter1);//set the selected character
+				//change it to Character type and set the selected character
+				newGame.selectCharacter(username1, userCharacterName1);
 		        player1SelectedCharacter = getCharacterImage(newGame.getFirstPlayer());//get the image of the character
 				frame.remove(inputSelectedCharacterPanel1);
 				if (modeChoice.startsWith("player vs computer")) {//when it is against computer
@@ -806,8 +806,8 @@ public class GUI {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				String userCharacterName2 = (String) charactersComboBox2.getSelectedItem();//get the character
-				Character userCharacter2 = newGame.getSecondPlayer().findCharacter(userCharacterName2);//change it to Character type
-				newGame.getSecondPlayer().setSelectedCharacter(userCharacter2);//set the selected character
+				//change it to Character type and set the selected character
+				newGame.selectCharacter(username2, userCharacterName2);
 		        player2SelectedCharacter = getCharacterImage(newGame.getSecondPlayer());//get the image of the character
 				frame.remove(inputSelectedCharacterPanel2);
 		        endingPanel.add(player2SelectedCharacter);
