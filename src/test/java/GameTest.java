@@ -130,6 +130,63 @@ class GameTest {
     }
 
     @Test
+    void completedComputerGameResultContainsBothParticipantHistories() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+        game.getFirstPlayer().recordQuestionAnswer("Does your character wear glasses?", true);
+        game.getComputerPlayer().setSelectedCharacter(
+                game.getComputerPlayer().findCharacter("Nick"));
+        game.getComputerPlayer().recordQuestionAnswer(
+                "Is your character's eye colour blue?", false);
+        game.finish("AI");
+        game.selectCharacter("Player", "Olivia");
+
+        GameResult result = game.getGameResult();
+
+        assertEquals(new GameResult(
+                List.of(
+                        new GameResult.Participant(
+                                "Player",
+                                "Olivia",
+                                List.of(new GameResult.QuestionAnswer(
+                                        "Does your character wear glasses?", true))),
+                        new GameResult.Participant(
+                                "AI",
+                                "Nick",
+                                List.of(new GameResult.QuestionAnswer(
+                                        "Is your character's eye colour blue?", false)))),
+                "AI"), result);
+    }
+
+    @Test
+    void completedPlayerGameResultContainsBothHumanParticipants() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.getFirstPlayer().recordQuestionAnswer("Does the person have visible teeth?", true);
+        game.getSecondPlayer().recordQuestionAnswer("Is the person wearing a hat?", false);
+        game.finish("Player 2");
+        game.selectCharacter("Player 1", "Olivia");
+        game.selectCharacter("Player 2", "Nick");
+
+        GameResult result = game.getGameResult();
+
+        assertEquals(List.of("Player 1", "Player 2"), result.participants().stream()
+                .map(GameResult.Participant::name)
+                .toList());
+        assertEquals("Olivia", result.participants().get(0).selectedCharacter());
+        assertEquals("Nick", result.participants().get(1).selectedCharacter());
+        assertEquals("Player 2", result.winner());
+    }
+
+    @Test
+    void gameResultIsUnavailableBeforeGameFinishes() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(IllegalStateException.class, () -> game.getGameResult());
+    }
+
+    @Test
     void computerAnswerReviewIsUnavailableBeforeGameFinishes() throws Exception {
         game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
 

@@ -63,6 +63,25 @@ public class Game {
 	}
 
 	/**
+	 * Returns an immutable snapshot of the completed game.
+	 *
+	 * @return completed game participants, histories, and winner
+	 * @throws IllegalStateException if the game has not finished
+	 */
+	public GameResult getGameResult() {
+		requireFinished();
+		List<GameResult.Participant> participants = new ArrayList<>();
+		participants.add(toGameResultParticipant(firstPlayer.getUsername(), firstPlayer));
+		if (secondPlayer != null) {
+			participants.add(toGameResultParticipant(secondPlayer.getUsername(), secondPlayer));
+		}
+		else {
+			participants.add(toGameResultParticipant(COMPUTER_WINNER, computerPlayer));
+		}
+		return new GameResult(participants, winner.orElseThrow());
+	}
+
+	/**
 	 * Returns the first human player.
 	 *
 	 * @return the first player, or {@code null} before a game is started
@@ -496,6 +515,19 @@ public class Game {
 		winner = Optional.empty();
 		pendingComputerQuestion = null;
 		status = GameStatus.IN_PROGRESS;
+	}
+
+	private GameResult.Participant toGameResultParticipant(String name, Player player) {
+		List<GameResult.QuestionAnswer> questionAnswers = new ArrayList<>();
+		for (int index = 0; index < player.getQuestionsAsked().size(); index++) {
+			questionAnswers.add(new GameResult.QuestionAnswer(
+					player.getQuestionsAsked().get(index).getQuestion(),
+					player.getQuestionAnswers().get(index)));
+		}
+		return new GameResult.Participant(
+				name,
+				player.getSelectedCharacter().getName(),
+				questionAnswers);
 	}
 
 	private void setTurns(Player first, Player second, boolean firstStarts) {

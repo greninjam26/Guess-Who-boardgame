@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Appends completed game histories to a CSV file. Each participant occupies
- * one row followed by a row containing the winner.
+ * Appends completed game-result snapshots to a CSV file. Each participant
+ * occupies one row followed by a row containing the winner.
  */
 public class StoreResult {
 	private final PrintWriter write;//the PrintWriter that is writing all the result of the game to the csv file
@@ -28,45 +28,24 @@ public class StoreResult {
 		write = new PrintWriter(writer);
 	}
 	/**
-	 * Stores both human players, their question histories, and the winner of a
-	 * player-versus-player game.
+	 * Stores every participant and the winner from a completed game snapshot.
 	 *
-	 * @param user1 the first player
-	 * @param user2 the second player
-	 * @param gameResult the username of the player who won the game
+	 * @param gameResult immutable completed-game data
 	 */
-	public void addGameResultPVP(User user1, User user2, String gameResult) {
-		storePlayer(user1.getUsername(), user1);
-		storePlayer(user2.getUsername(), user2);
-		writeRow(List.of(gameResult));//the username of the player that won the game
+	public void addGameResult(GameResult gameResult) {
+		for (GameResult.Participant participant : gameResult.participants()) {
+			storeParticipant(participant);
+		}
+		writeRow(List.of(gameResult.winner()));
 		write.close();
 	}
-	/**
-	 * Stores the human player, computer opponent, their question histories, and
-	 * the winner of a player-versus-computer game.
-	 *
-	 * @param user1 the player competing against the computer
-	 * @param ai the computer opponent
-	 * @param gameResult the human player's username or {@code AI}
-	 */
-	public void addGameResultPVC(User user1, ComputerPlayer ai, String gameResult) {
-		storePlayer(user1.getUsername(), user1);
-		storePlayer("AI", ai);
-		writeRow(List.of(gameResult));//the username of the player that won the game
-		write.close();
-	}
-	/**
-	 * Stores one participant and all of their question results on a single row.
-	 * @param name the participant name written to the result
-	 * @param player the participant whose game data is stored
-	 */
-	private void storePlayer(String name, Player player) {
+	private void storeParticipant(GameResult.Participant participant) {
 		ArrayList<String> fields = new ArrayList<>();
-		fields.add(name);
-		fields.add(player.getSelectedCharacter().getName());
-		for (int i = 0; i < player.getQuestionsAsked().size(); i++) {
-			fields.add(player.getQuestionsAsked().get(i).getQuestion());
-			fields.add(player.getQuestionAnswers().get(i) ? " yes" : " no");
+		fields.add(participant.name());
+		fields.add(participant.selectedCharacter());
+		for (GameResult.QuestionAnswer questionAnswer : participant.questionAnswers()) {
+			fields.add(questionAnswer.question());
+			fields.add(questionAnswer.answer() ? " yes" : " no");
 		}
 		writeRow(fields);
 	}
