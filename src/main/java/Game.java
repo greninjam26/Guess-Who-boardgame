@@ -205,9 +205,7 @@ public class Game {
 	 */
 	public void advanceTurn() {
 		requireInProgress();
-		if (pendingComputerQuestion != null) {
-			throw new IllegalStateException("The computer question must be answered first");
-		}
+		requireNoPendingComputerQuestion();
 		Player opponent = computerPlayer != null ? computerPlayer : secondPlayer;
 		setTurns(firstPlayer, opponent, !firstPlayer.getIsTurn());
 	}
@@ -350,6 +348,44 @@ public class Game {
 	}
 
 	/**
+	 * Returns the computer's remaining candidate when it is ready to guess.
+	 *
+	 * @return the remaining character name, or an empty value while more than one
+	 *         candidate remains
+	 * @throws IllegalStateException if no computer game is in progress, it is not
+	 *         the computer's turn, or a computer question is awaiting an answer
+	 */
+	public Optional<String> getComputerGuessName() {
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(computer);
+		requireNoPendingComputerQuestion();
+		if (!computer.onlyOne()) {
+			return Optional.empty();
+		}
+		return Optional.of(computer.lastOne());
+	}
+
+	/**
+	 * Resolves the computer's final guess and finishes the game.
+	 *
+	 * @param correct whether the human confirmed the computer's guess
+	 * @return {@code AI} when the guess is correct, otherwise the human player's
+	 *         username
+	 * @throws IllegalStateException if the computer is not ready to make a guess
+	 */
+	public String resolveComputerGuess(boolean correct) {
+		ComputerPlayer computer = requireComputerPlayer();
+		requireTurn(computer);
+		requireNoPendingComputerQuestion();
+		if (!computer.onlyOne()) {
+			throw new IllegalStateException("The computer is not ready to guess");
+		}
+		String winningName = correct ? COMPUTER_WINNER : firstPlayer.getUsername();
+		finish(winningName);
+		return winningName;
+	}
+
+	/**
 	 * Resolves the human player's guess against the computer's selected
 	 * character and finishes the game.
 	 *
@@ -487,6 +523,12 @@ public class Game {
 		requireInProgress();
 		if (!player.getIsTurn()) {
 			throw new IllegalStateException("It is not this player's turn");
+		}
+	}
+
+	private void requireNoPendingComputerQuestion() {
+		if (pendingComputerQuestion != null) {
+			throw new IllegalStateException("The computer question must be answered first");
 		}
 	}
 

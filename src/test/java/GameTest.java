@@ -100,6 +100,80 @@ class GameTest {
     }
 
     @Test
+    void computerGuessNameIsAvailableWhenOneCandidateRemains() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        leaveOnlyComputerCandidate("Sam");
+
+        assertEquals("Sam", game.getComputerGuessName().orElseThrow());
+    }
+
+    @Test
+    void computerGuessNameIsEmptyWhileSeveralCandidatesRemain() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertTrue(game.getComputerGuessName().isEmpty());
+    }
+
+    @Test
+    void computerGuessNameCannotBeReadDuringPlayerTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+        leaveOnlyComputerCandidate("Sam");
+
+        assertThrows(IllegalStateException.class, () -> game.getComputerGuessName());
+    }
+
+    @Test
+    void pendingComputerQuestionMustBeAnsweredBeforeReadingGuessName() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        game.playComputerQuestion();
+        leaveOnlyComputerCandidate("Sam");
+
+        assertThrows(IllegalStateException.class, () -> game.getComputerGuessName());
+    }
+
+    @Test
+    void pendingComputerQuestionMustBeAnsweredBeforeResolvingGuess() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        game.playComputerQuestion();
+        leaveOnlyComputerCandidate("Sam");
+
+        assertThrows(IllegalStateException.class, () -> game.resolveComputerGuess(true));
+    }
+
+    @Test
+    void correctComputerGuessFinishesWithComputerAsWinner() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        leaveOnlyComputerCandidate("Sam");
+
+        String winner = game.resolveComputerGuess(true);
+
+        assertEquals("AI", winner);
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals("AI", game.getWinner().orElseThrow());
+    }
+
+    @Test
+    void incorrectComputerGuessFinishesWithHumanAsWinner() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+        leaveOnlyComputerCandidate("Sam");
+
+        String winner = game.resolveComputerGuess(false);
+
+        assertEquals("Player", winner);
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals("Player", game.getWinner().orElseThrow());
+    }
+
+    @Test
+    void computerGuessCannotBeResolvedBeforeOneCandidateRemains() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertThrows(IllegalStateException.class, () -> game.resolveComputerGuess(true));
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
     void computerQuestionCannotBePlayedInAPlayerGame() throws Exception {
         game.startPlayerGame(
                 "Player 1", 20000101,
@@ -733,5 +807,11 @@ class GameTest {
 
         assertNotEquals(game.getFirstPlayer().getIsTurn(), game.getSecondPlayer().getIsTurn());
         assertTrue(game.getFirstPlayer().getIsTurn());
+    }
+
+    private void leaveOnlyComputerCandidate(String remainingName) {
+        for (Character character : game.getComputerPlayer().getPossibleCharacters()) {
+            character.setIsActive(character.getName().equals(remainingName));
+        }
     }
 }
