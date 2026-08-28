@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Dec 29 2023
  * Description: this class is used to store all the attributes of the character and can be called from other classes
@@ -37,9 +39,9 @@ public class Character {
 	 * @param defaultHairLength hair-length category
 	 * @param defaultIsPiercing whether the character has a piercing
 	 */
-	public Character(int defaultCharacterIndex, String defaultName, String defaultEyeColour, boolean defaultIsMale, 
-			boolean defaultIsLight, String defaultHairColour, boolean defaultIsFacialHair, 
-			boolean defaultIsGlasses, boolean defaultIsTeethVisible, boolean defaultIsHat, 
+	public Character(int defaultCharacterIndex, String defaultName, String defaultEyeColour, boolean defaultIsMale,
+			boolean defaultIsLight, String defaultHairColour, boolean defaultIsFacialHair,
+			boolean defaultIsGlasses, boolean defaultIsTeethVisible, boolean defaultIsHat,
 			String defaultHairLength, boolean defaultIsPiercing) {
 		//set everything to inputed or default value
 		characterIndex = defaultCharacterIndex;

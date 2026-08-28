@@ -1,7 +1,9 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Jan 5 2023
- * Description: this class will have all the original data that was read from the data bases and stored, 
- * which can be called by other classes 
+ * Description: this class will have all the original data that was read from the data bases and stored,
+ * which can be called by other classes
  * */
 
 import java.util.ArrayList;
@@ -37,7 +39,7 @@ public class Board {
 					attributes2[2],			// attribute of the character
 					i						// index
 					);
-			
+
 			questionsList.add(question);//add the question to the ArrayList
 			i++;
 		}
@@ -189,7 +191,7 @@ public class Board {
 	}
 	/**
 	 * method will take the inputed question name and check and find the according question Object and return it
-	 * @param questionName the name of the question 
+	 * @param questionName the name of the question
 	 * @return the Question type value with the questionName
 	 * @throws IllegalArgumentException if the question name is unknown
 	 */

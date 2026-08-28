@@ -28,19 +28,10 @@ The project has no external runtime dependencies.
 ├── README.md
 └── src/
     ├── main/
-    │   ├── java/                   # Application source code
-    │   │   ├── GUI.java            # Swing interface and entry point
-    │   │   ├── Game.java           # Game flow and mode coordination
-    │   │   ├── GameResult.java     # Immutable completed-game snapshot
-    │   │   ├── Board.java          # Character/question data and answers
-    │   │   ├── GameResources.java  # Classpath resource loading
-    │   │   ├── Player.java         # Shared player state and behavior
-    │   │   ├── User.java           # Human-player information
-    │   │   ├── ComputerPlayer.java # Computer opponent logic
-    │   │   ├── Character.java      # Character model
-    │   │   ├── Question.java       # Question model
-    │   │   ├── StoreResult.java    # Result persistence
-    │   │   └── Leaderboard.java    # Leaderboard data and sorting
+    │   ├── java/com/guesswho/
+    │   │   ├── game/               # Game flow, models, and resources
+    │   │   ├── persistence/        # CSV result and leaderboard storage
+    │   │   └── ui/                 # Swing interface and entry point
     │   └── resources/
     │       ├── audio/               # Background music
     │       ├── data/                # Character and question CSV files
@@ -78,7 +69,7 @@ Maven compiles the application, copies its resources, and creates the build outp
 After building, start the Swing application with:
 
 ```bash
-java -cp target/classes GUI
+java -cp target/classes com.guesswho.ui.GUI
 ```
 
 The bundled music file currently contains no audio data, so the game starts without background music.
@@ -116,15 +107,14 @@ The application now loads its CSV and image assets from the Maven classpath. The
 
 - `Bloom of Youth.wav` contains no audio data, so background music is disabled automatically.
 - Swing interactions and complete game sessions are not yet covered by automated tests.
-- The classes still use the default Java package.
 
 ## Suggested Next Steps
 
 1. Replace the empty music asset.
 2. Expand tests for question elimination, guessing, and result storage.
-3. Introduce a named Java package.
-4. Improve input validation and naming consistency.
-5. Split the large Swing class into smaller view and controller modules.
+3. Improve input validation and naming consistency.
+4. Split the large Swing class into smaller view and controller modules.
+5. Add a Spring Boot adapter for connected features.
 
 ## Data and Assets
 

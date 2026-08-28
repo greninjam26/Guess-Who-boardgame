@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Dec 29 2023
  * Description: this class is used to store all the attributes of the questions and can be called from other classes
@@ -27,7 +29,7 @@ public class Question {
 		questionIndex = defaultQuestionIndex;
 	}
 	/**
-	 * this method will return the entire question 
+	 * this method will return the entire question
 	 * @return the entire question
 	 */
 	public String getQuestion() {
@@ -41,7 +43,7 @@ public class Question {
 		return category;
 	}
 	/**
-	 * this method will return the attribute of the character what the questions is asking 
+	 * this method will return the attribute of the character what the questions is asking
 	 * @return the attribute of the character the question is matched to
 	 */
 	public String getAttribute() {

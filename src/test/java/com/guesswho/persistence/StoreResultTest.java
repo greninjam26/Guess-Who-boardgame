@@ -1,3 +1,7 @@
+package com.guesswho.persistence;
+
+import com.guesswho.game.GameResult;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.StringWriter;

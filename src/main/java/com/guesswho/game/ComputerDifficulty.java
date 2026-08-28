@@ -1,3 +1,5 @@
+package com.guesswho.game;
+
 /**
  * Difficulty levels available for a computer opponent.
  */

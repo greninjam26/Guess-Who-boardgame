@@ -1,6 +1,8 @@
+package com.guesswho.game;
+
 /*Author: Gavin Liu
  * Date: Dec 29 2023
- * Description: this class is used to create the user Object which all the attributes tha user will have, 
+ * Description: this class is used to create the user Object which all the attributes tha user will have,
  * but the ComputerPlayer don't have
  * */
 /**
