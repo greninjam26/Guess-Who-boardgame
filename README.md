@@ -15,10 +15,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 
 - Java 17
 - Java Swing and AWT
+- Spring Boot 4.1.1 and Spring MVC
 - Maven
 - CSV-based game data
-
-The project has no external runtime dependencies.
 
 ## Project Structure
 
@@ -29,9 +28,11 @@ The project has no external runtime dependencies.
 └── src/
     ├── main/
     │   ├── java/com/guesswho/
+    │   │   ├── GuessWhoServerApplication.java # Spring Boot entry point
     │   │   ├── game/               # Game flow, models, and resources
     │   │   ├── persistence/        # CSV result and leaderboard storage
-    │   │   └── ui/                 # Swing interface and entry point
+    │   │   ├── ui/                 # Swing interface and entry point
+    │   │   └── web/                # HTTP controllers and responses
     │   └── resources/
     │       ├── audio/               # Background music
     │       ├── data/                # Character and question CSV files
@@ -64,7 +65,7 @@ mvn clean package
 
 Maven compiles the application, copies its resources, and creates the build output under `target/`.
 
-## Run
+## Run the Desktop App
 
 After building, start the Swing application with:
 
@@ -73,6 +74,28 @@ java -cp target/classes com.guesswho.ui.GUI
 ```
 
 The bundled music file currently contains no audio data, so the game starts without background music.
+
+## Run the Server
+
+Start the Spring Boot server during development with:
+
+```bash
+mvn spring-boot:run
+```
+
+Alternatively, run the executable JAR after building:
+
+```bash
+java -jar target/guess-who-boardgame-1.0-SNAPSHOT.jar
+```
+
+The server listens on port `8080` by default. Verify it from another terminal:
+
+```bash
+curl http://localhost:8080/api/status
+```
+
+The response is `{"status":"online"}`. The server is available only on the local machine until it is deployed to a host.
 
 ## Test
 
@@ -88,6 +111,8 @@ The tests cover packaged resources, board data, starting-turn rules, and core co
 
 | Class | Responsibility |
 | --- | --- |
+| `GuessWhoServerApplication` | Starts the Spring Boot HTTP server. |
+| `StatusController` | Reports whether the server is online through `/api/status`. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
 | `GameResult` | Provides an immutable completed-game snapshot for external consumers. |
@@ -114,7 +139,7 @@ The application now loads its CSV and image assets from the Maven classpath. The
 2. Expand tests for question elimination, guessing, and result storage.
 3. Improve input validation and naming consistency.
 4. Split the large Swing class into smaller view and controller modules.
-5. Add a Spring Boot adapter for connected features.
+5. Add game-result endpoints and connect the Swing app to the server.
 
 ## Data and Assets
 
