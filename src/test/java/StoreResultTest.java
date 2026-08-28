@@ -1,6 +1,7 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.StringWriter;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class StoreResultTest {
@@ -8,15 +9,21 @@ class StoreResultTest {
     void storesReadableComputerGameValues() throws Exception {
         StringWriter output = new StringWriter();
         StoreResult storeResult = new StoreResult(output);
-        User user = new User("", 0, "Player");
-        user.setSelectedCharacter(user.findCharacter("Olivia"));
-        user.recordQuestionAnswer("Is your character's eye colour brown?", false);
-        ComputerPlayer computer = new ComputerPlayer("easy", "");
-        computer.setSelectedCharacter(computer.findCharacter("Nick"));
-        computer.setQuestionAsked("Is your character's eye colour blue?");
-        computer.addQuestionAnswers(true);
+        GameResult result = new GameResult(
+                List.of(
+                        new GameResult.Participant(
+                                "Player",
+                                "Olivia",
+                                List.of(new GameResult.QuestionAnswer(
+                                        "Is your character's eye colour brown?", false))),
+                        new GameResult.Participant(
+                                "AI",
+                                "Nick",
+                                List.of(new GameResult.QuestionAnswer(
+                                        "Is your character's eye colour blue?", true)))),
+                "Player");
 
-        storeResult.addGameResultPVC(user, computer, "Player");
+        storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "Player,Olivia,Is your character's eye colour brown?, no",
@@ -30,13 +37,24 @@ class StoreResultTest {
     void storesBothPlayersQuestionsAndWinnerOnSeparateRows() throws Exception {
         StringWriter output = new StringWriter();
         StoreResult storeResult = new StoreResult(output);
-        User firstPlayer = player("Player 1", "Olivia");
-        firstPlayer.recordQuestionAnswer("Is your character's eye colour brown?", false);
-        firstPlayer.recordQuestionAnswer("Does your character look friendly?", true);
-        User secondPlayer = player("Player 2", "Nick");
-        secondPlayer.recordQuestionAnswer("Is your character's eye colour blue?", true);
+        GameResult result = new GameResult(
+                List.of(
+                        new GameResult.Participant(
+                                "Player 1",
+                                "Olivia",
+                                List.of(
+                                        new GameResult.QuestionAnswer(
+                                                "Is your character's eye colour brown?", false),
+                                        new GameResult.QuestionAnswer(
+                                                "Does your character look friendly?", true))),
+                        new GameResult.Participant(
+                                "Player 2",
+                                "Nick",
+                                List.of(new GameResult.QuestionAnswer(
+                                        "Is your character's eye colour blue?", true)))),
+                "Player 2");
 
-        storeResult.addGameResultPVP(firstPlayer, secondPlayer, "Player 2");
+        storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "Player 1,Olivia,Is your character's eye colour brown?, no,"
@@ -51,11 +69,13 @@ class StoreResultTest {
     void keepsRowsSeparateWhenNoQuestionsWereAsked() throws Exception {
         StringWriter output = new StringWriter();
         StoreResult storeResult = new StoreResult(output);
-        User user = player("Player", "Olivia");
-        ComputerPlayer computer = new ComputerPlayer("easy", "");
-        computer.setSelectedCharacter(computer.findCharacter("Nick"));
+        GameResult result = new GameResult(
+                List.of(
+                        new GameResult.Participant("Player", "Olivia", List.of()),
+                        new GameResult.Participant("AI", "Nick", List.of())),
+                "AI");
 
-        storeResult.addGameResultPVC(user, computer, "AI");
+        storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "Player,Olivia",
@@ -69,10 +89,13 @@ class StoreResultTest {
     void escapesCsvFieldsContainingCommasAndQuotes() throws Exception {
         StringWriter output = new StringWriter();
         StoreResult storeResult = new StoreResult(output);
-        User firstPlayer = player("Doe, \"Jane\"", "Olivia");
-        User secondPlayer = player("Opponent", "Nick");
+        GameResult result = new GameResult(
+                List.of(
+                        new GameResult.Participant("Doe, \"Jane\"", "Olivia", List.of()),
+                        new GameResult.Participant("Opponent", "Nick", List.of())),
+                "Doe, \"Jane\"");
 
-        storeResult.addGameResultPVP(firstPlayer, secondPlayer, "Doe, \"Jane\"");
+        storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "\"Doe, \"\"Jane\"\"\",Olivia",
@@ -80,11 +103,5 @@ class StoreResultTest {
                 "\"Doe, \"\"Jane\"\"\"",
                 "");
         assertEquals(expected, output.toString());
-    }
-
-    private User player(String username, String characterName) throws Exception {
-        User player = new User("", 0, username);
-        player.setSelectedCharacter(player.findCharacter(characterName));
-        return player;
     }
 }

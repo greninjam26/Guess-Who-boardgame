@@ -31,6 +31,7 @@ The project has no external runtime dependencies.
     │   ├── java/                   # Application source code
     │   │   ├── GUI.java            # Swing interface and entry point
     │   │   ├── Game.java           # Game flow and mode coordination
+    │   │   ├── GameResult.java     # Immutable completed-game snapshot
     │   │   ├── Board.java          # Character/question data and answers
     │   │   ├── GameResources.java  # Classpath resource loading
     │   │   ├── Player.java         # Shared player state and behavior
@@ -98,6 +99,7 @@ The tests cover packaged resources, board data, starting-turn rules, and core co
 | --- | --- |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
+| `GameResult` | Provides an immutable completed-game snapshot for external consumers. |
 | `Board` | Loads the character/question databases and builds the answer matrix. |
 | `GameResources` | Loads packaged CSV files and images and treats background music as optional. |
 | `Player` | Stores behavior and state shared by human and computer players. |

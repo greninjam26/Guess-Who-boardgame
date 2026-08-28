@@ -747,10 +747,7 @@ public class GUI {
 						} catch (Exception e1) {
 							e1.printStackTrace();
 						}
-						store.addGameResultPVC(
-								newGame.getFirstPlayer(),
-								newGame.getComputerPlayer(),
-								newGame.getWinner().orElseThrow());
+						store.addGameResult(newGame.getGameResult());
 					}
 					else {//when there are wrong answers
 						validateResult = "<html>you answered " + corrections.size() + " questions wrong!!! :( <br> your game result will not be saved";//displace the number of wrong questions
