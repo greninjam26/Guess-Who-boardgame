@@ -299,6 +299,34 @@ class GameTest {
     }
 
     @Test
+    void gameSelectsCharacterForNamedPlayer() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.finish("Player 1");
+
+        game.selectCharacter("Player 2", "Sam");
+
+        assertEquals("Sam", game.getSecondPlayer().getSelectedCharacter().getName());
+    }
+
+    @Test
+    void characterCannotBeSelectedUntilGameFinishes() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        Character originalCharacter = game.getFirstPlayer().getSelectedCharacter();
+        String differentCharacterName = originalCharacter.getName().equals("Sam") ? "Olivia" : "Sam";
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.selectCharacter("Player 1", differentCharacterName));
+        assertSame(originalCharacter, game.getFirstPlayer().getSelectedCharacter());
+    }
+
+    @Test
     void gameRecordsAPlayerQuestionAndAnswer() throws Exception {
         game.startPlayerGame(
                 "Player 1", 20000101,
