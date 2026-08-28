@@ -246,6 +246,101 @@ class GameTest {
     }
 
     @Test
+    void correctPlayerGuessFinishesGameWithGuesserAsWinner() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        String winner = game.resolvePlayerGuess("Player 1", "Sam", true);
+
+        assertEquals("Player 1", winner);
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals("Player 1", game.getWinner().orElseThrow());
+    }
+
+    @Test
+    void incorrectPlayerGuessFinishesGameWithOpponentAsWinner() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.SECOND_PLAYER);
+
+        String winner = game.resolvePlayerGuess("Player 2", "Olivia", false);
+
+        assertEquals("Player 1", winner);
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals("Player 1", game.getWinner().orElseThrow());
+    }
+
+    @Test
+    void playerGuessCannotBeResolvedInAComputerGame() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.resolvePlayerGuess("Player", "Sam", true));
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
+    void inactivePlayerCannotResolveAGuess() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.resolvePlayerGuess("Player 2", "Sam", true));
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
+    void unknownCharacterGuessDoesNotFinishGame() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.resolvePlayerGuess("Player 1", "Unknown character", true));
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
+    void unknownPlayerCannotResolveAGuess() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.resolvePlayerGuess("Unknown", "Sam", true));
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertTrue(game.getWinner().isEmpty());
+    }
+
+    @Test
+    void finishedPlayerGuessCannotBeResolvedAgain() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.resolvePlayerGuess("Player 1", "Sam", true);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.resolvePlayerGuess("Player 1", "Olivia", false));
+        assertEquals("Player 1", game.getWinner().orElseThrow());
+    }
+
+    @Test
     void youngerPlayerStartsWhenBirthdayDeterminesTurn() throws Exception {
         game.startPlayerGame(
                 "Younger", 20050101,
@@ -441,6 +536,88 @@ class GameTest {
 
         assertTrue(game.getFirstPlayer().getIsTurn());
         assertFalse(game.getSecondPlayer().getIsTurn());
+    }
+
+    @Test
+    void gameReportsCurrentPlayerAsTurnsAdvance() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+
+        assertEquals("Player 1", game.getCurrentPlayerName());
+
+        game.advanceTurn();
+
+        assertEquals("Player 2", game.getCurrentPlayerName());
+    }
+
+    @Test
+    void gameReportsComputerAsCurrentParticipant() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertEquals("AI", game.getCurrentPlayerName());
+    }
+
+    @Test
+    void currentPlayerIsUnavailableBeforeGameStarts() {
+        assertThrows(IllegalStateException.class, () -> game.getCurrentPlayerName());
+    }
+
+    @Test
+    void availableQuestionTextsFollowTheCurrentHumanPlayer() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER);
+        game.recordPlayerQuestion(
+                "Player 1", "Is your character's eye colour blue?", true);
+        game.advanceTurn();
+
+        String[] questionTexts = game.getCurrentPlayerQuestionTexts();
+
+        assertArrayEquals(new String[] {
+                "Is your character's eye colour blue?",
+                "Is your character's eye colour brown?",
+                "Is your character's eye colour green?",
+                "Is your character a male?",
+                "Does your character have a light skin tone?",
+                "Is your character's hair colour black?",
+                "Is your character's hair colour brown?",
+                "Is your character's hair colour ginger?",
+                "Is your character's hair colour Blonde?",
+                "Is your character's hair colour white?",
+                "Does your character have facial hair?",
+                "Does your character wear glasses?",
+                "Does the person have visible teeth?",
+                "Is the person wearing a hat?",
+                "Does the person have short hair?",
+                "Does the person have long hair?",
+                "Does the person have their hair tied up?",
+                "Is the person bald?",
+                "Does the person have an ear piercing?"
+        }, questionTexts);
+    }
+
+    @Test
+    void humanQuestionTextsAreUnavailableDuringComputerTurn() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY, ComputerGameStart.COMPUTER);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.getCurrentPlayerQuestionTexts());
+    }
+
+    @Test
+    void humanNamedAiCanAccessQuestionTextsDuringTheirTurn() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "AI", 20010101,
+                PlayerGameStart.SECOND_PLAYER);
+
+        String[] questionTexts = game.getCurrentPlayerQuestionTexts();
+
+        assertEquals("Is your character's eye colour blue?", questionTexts[0]);
     }
 
     @Test
