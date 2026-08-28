@@ -117,16 +117,6 @@ class ComputerPlayerTest {
     }
 
     @Test
-    void reportsAWinWhenTheComputerGuessesIncorrectly() {
-        assertTrue(computerPlayer.playGuess("Olivia", true).contains("you won"));
-    }
-
-    @Test
-    void reportsALossWhenTheComputerGuessesCorrectly() {
-        assertTrue(computerPlayer.playGuess("Olivia", false).contains("you lost"));
-    }
-
-    @Test
     void initializesQuestionsFromTheBoardCollection() throws Exception {
         Board reducedBoard = new Board();
         reducedBoard.getQuestionsList().remove(reducedBoard.getQuestionsList().size() - 1);

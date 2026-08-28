@@ -78,18 +78,6 @@ public class ComputerPlayer extends Player{
 		return false;
 	}
 	/**
-	 * the method will user the answer from the user to the guess of the AI
-	 * @param username the username of the player
-	 * @param guessResult the result of the AI's guess
-	 * @return return the statement depend on the result of the game
-	 */
-	public String playGuess(String username, boolean guessResult) {
-		if (guessResult) {
-			return "Congraulation, " + username + ", you won!!!! Because the AI guessed the wrong character";
-		}
-		return "Sorry, " + username + " the AI guessed your character, you lost.";
-	}
-	/**
 	 * this method will choose the question to ask randomly if the mode is easy, or it will call the chooseQuestion() method to get the question for the hard mode
 	 * @return the question that the Ai is asking the user
 	 */
@@ -147,7 +135,7 @@ public class ComputerPlayer extends Player{
 	 * the method will return if there is only only character is left in the list of possible characters
 	 * @return {@code true} when exactly one possible character remains active
 	 */
-	public boolean onlyOne() {
+	boolean onlyOne() {
 		int counter = 0;//set the number of possible character to 0
 		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
 			if (possibleCharacters.get(i).getIsActive()) {//check if the character is active
@@ -163,7 +151,7 @@ public class ComputerPlayer extends Player{
 	 * the method will return the last possible character
 	 * @return the remaining character name, or an empty string if none remain
 	 */
-	public String lastOne() {
+	String lastOne() {
 		String lastCharacterName = "";//initialize the variable that store the name of the last possible character left
 		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
 			if (possibleCharacters.get(i).getIsActive()) {
