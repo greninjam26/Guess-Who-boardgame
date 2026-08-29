@@ -18,7 +18,6 @@
     <description>A Java Swing adaptation of the Guess Who board game.</description>
 
     <properties>
-        <argLine/>
         <java.version>17</java.version>
         <junit-jupiter.version>6.1.3</junit-jupiter.version>
     </properties>
@@ -59,20 +58,10 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>properties</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Djava.awt.headless=true</argLine>
+                    <!-- Swing components are constructed in tests, so no display is available. -->
+                    <argLine>-Djava.awt.headless=true</argLine>
                 </configuration>
             </plugin>
         </plugins>
