@@ -282,4 +282,16 @@ The application now loads its CSV and image assets from the Maven classpath. The
 - Character artwork is stored under `src/main/resources/images`.
 - Audio is stored under `src/main/resources/audio`.
 
-Ensure that any redistributed images or audio are used in accordance with their original licenses.
+## License
+
+The source code in this repository is released under the MIT License. See
+[LICENSE](LICENSE) for the full text.
+
+The MIT grant covers the source code only. The character artwork under
+`src/main/resources/images` and the audio under `src/main/resources/audio` are
+not covered by it and remain the property of their respective owners. Anyone
+redistributing this project, or building installers from it, is responsible for
+ensuring those assets are used in accordance with their original licenses.
+
+"Guess Who?" is a trademark of Hasbro. This project is an unaffiliated personal
+exercise and is not endorsed by or associated with the trademark holder.
