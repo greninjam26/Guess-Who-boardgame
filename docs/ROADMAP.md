@@ -168,9 +168,12 @@ Suggested as three branches:
 
 **Blocks:** 03, 04, 05, 08 **Needs:** 00
 
-`GUI.java` is ~1,160 lines with one 770-line method holding roughly 35 anonymous
-listeners and mutable fields like `curPlayer`, `modeChoice`, and `AIQuestion`.
-Async state updates cannot be threaded into that safely.
+`GUI.java` was ~1,160 lines with one 770-line method holding roughly 35
+anonymous listeners and mutable fields like `curPlayer`, `modeChoice`, and
+`AIQuestion`. Async state updates could not be threaded into that safely.
+
+Branches 1 and 2 landed together and took it to 831 lines, a 468-line
+`gameGUI()`, 70 fields, and 17 listeners.
 
 **Five branches, state model first.** The order matters: you cannot extract the
 setup screen cleanly while `username1`, `birthday1`, and `modeChoice` live as
@@ -178,21 +181,28 @@ setup screen cleanly while `username1`, `birthday1`, and `modeChoice` live as
 invent throwaway state holders, then undo that at the end. Introduce a thin state
 model first and extract onto it.
 
-1. **`refactor/ui-state-model`** — introduce the state model and a controller
-   skeleton. `GUI` stays monolithic but reads and writes all state through them.
-   Replace the stringly-typed mode flags
-   (`modeChoice.endsWith("preset questions")`) with enums here.
-2. **`refactor/extract-setup-screen`** — usernames, birthdays, mode and
-   difficulty selection, opening-turn choice.
+1. ~~**`refactor/ui-state-model`**~~ — done. `GameSetup` replaced eight loose
+   fields and the stringly-typed mode flags; `GameController` translates one
+   `OpeningTurn` into whichever start call the mode needs. `curPlayer` is
+   derived from `Game` rather than cached.
+2. ~~**`refactor/extract-setup-screen`**~~ — done. `SetupScreens` owns welcome,
+   mode, names, birthdays, and who goes first on a `CardLayout`, so the frame no
+   longer swaps panels to move between setup steps. Merged with branch 1, since
+   the two read as one change.
 3. **`refactor/extract-board-view`** — the character grids and flip-down
    behavior.
 4. **`refactor/extract-question-controls`** — asking, answering, and guessing.
 5. **`refactor/extract-ending-screen`** — result, reveal, and answer review.
 
+- [x] Replace the stringly-typed mode flags with an explicit enum-backed state
+      model.
 - [ ] Every branch leaves the app working and the suite green.
-- [ ] Establish the EDT discipline in branch 1: every state change arrives through
-      one `SwingUtilities.invokeLater` boundary rather than scattered through
-      listeners.
+- [ ] Give the controller a view-update path. It currently starts games and holds
+      the setup, but the screens still read state directly rather than being
+      pushed to — that push is what online play needs.
+- [ ] Establish the EDT discipline: every state change arrives through one
+      `SwingUtilities.invokeLater` boundary rather than scattered through
+      listeners. Deferred from branch 1, which had no async source yet.
 - [ ] Bring each extracted piece under test as it lands. `LeaderboardPanel` is the
       model to copy — its test covers loading, success, empty, error, and retry,
       and the README lists untested Swing as a known limitation.
@@ -513,4 +523,4 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** `refactor/ui-state-model` — the first of Phase 02's five.
+**Next branch:** `refactor/extract-board-view` — the third of Phase 02's five.
