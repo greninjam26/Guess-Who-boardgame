@@ -1,5 +1,6 @@
 package com.guesswho.client;
 
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,9 +35,27 @@ class HttpLeaderboardClientTest {
                 List.of(
                         new LeaderboardEntry("Alex", 3, 2),
                         new LeaderboardEntry("AI", 3, 1)),
-                client.fetch().join());
+                client.fetch(null).join());
         assertEquals(
                 URI.create("https://games.example/api/leaderboard"),
+                requestedUri.get());
+    }
+
+    @Test
+    void requestsASingleModeWhenOneIsGiven() {
+        AtomicReference<URI> requestedUri = new AtomicReference<>();
+        HttpLeaderboardClient client = new HttpLeaderboardClient(
+                URI.create("https://games.example/guess-who"),
+                uri -> {
+                    requestedUri.set(uri);
+                    return CompletableFuture.completedFuture(
+                            new HttpLeaderboardClient.Response(200, "[]"));
+                });
+
+        client.fetch(GameMode.PVE).join();
+
+        assertEquals(
+                URI.create("https://games.example/api/leaderboard?mode=PVE"),
                 requestedUri.get());
     }
 
@@ -47,7 +66,7 @@ class HttpLeaderboardClientTest {
                 uri -> CompletableFuture.completedFuture(
                         new HttpLeaderboardClient.Response(503, "[]")));
 
-        assertThrows(CompletionException.class, () -> client.fetch().join());
+        assertThrows(CompletionException.class, () -> client.fetch(null).join());
     }
 
     @Test
@@ -57,7 +76,7 @@ class HttpLeaderboardClientTest {
                 uri -> CompletableFuture.completedFuture(
                         new HttpLeaderboardClient.Response(200, "not-json")));
 
-        assertThrows(CompletionException.class, () -> client.fetch().join());
+        assertThrows(CompletionException.class, () -> client.fetch(null).join());
     }
 
     @Test
@@ -67,6 +86,6 @@ class HttpLeaderboardClientTest {
                 uri -> CompletableFuture.failedFuture(
                         new IllegalStateException("Server unavailable")));
 
-        assertThrows(CompletionException.class, () -> client.fetch().join());
+        assertThrows(CompletionException.class, () -> client.fetch(null).join());
     }
 }

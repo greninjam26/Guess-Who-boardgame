@@ -59,7 +59,47 @@ class LeaderboardControllerTest {
                 .andExpect(jsonPath("$[3].wins").value(0));
     }
 
+    @Test
+    void reportsStandingsForOneModeWhenAModeIsRequested() throws Exception {
+        submitGame("Alex", "AI", "Alex", "PVE");
+        submitGame("Alex", "Blake", "Blake", "PVP_LOCAL");
+
+        mockMvc.perform(get("/api/leaderboard").param("mode", "PVE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Alex"))
+                .andExpect(jsonPath("$[0].gamesPlayed").value(1))
+                .andExpect(jsonPath("$[0].wins").value(1))
+                .andExpect(jsonPath("$[1].name").value("AI"))
+                .andExpect(jsonPath("$[1].gamesPlayed").value(1))
+                .andExpect(jsonPath("$[1].wins").value(0));
+    }
+
+    @Test
+    void combinesEveryModeWhenNoModeIsRequested() throws Exception {
+        submitGame("Alex", "AI", "Alex", "PVE");
+        submitGame("Alex", "Blake", "Blake", "PVP_LOCAL");
+
+        mockMvc.perform(get("/api/leaderboard"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Alex"))
+                .andExpect(jsonPath("$[0].gamesPlayed").value(2))
+                .andExpect(jsonPath("$[0].wins").value(1));
+    }
+
+    @Test
+    void rejectsAnUnknownMode() throws Exception {
+        mockMvc.perform(get("/api/leaderboard").param("mode", "NOT_A_MODE"))
+                .andExpect(status().isBadRequest());
+    }
+
     private void submitGame(String firstPlayer, String secondPlayer, String winner)
+            throws Exception {
+        submitGame(firstPlayer, secondPlayer, winner, "PVP_LOCAL");
+    }
+
+    private void submitGame(
+            String firstPlayer, String secondPlayer, String winner, String mode)
             throws Exception {
         mockMvc.perform(post("/api/game-results")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,10 +118,10 @@ class LeaderboardControllerTest {
                                     }
                                   ],
                                   "winner": "%s",
-                                  "mode": "PVP_LOCAL",
+                                  "mode": "%s",
                                   "questionMode": "PRESET"
                                 }
-                                """.formatted(firstPlayer, secondPlayer, winner)))
+                                """.formatted(firstPlayer, secondPlayer, winner, mode)))
                 .andExpect(status().isCreated());
     }
 }

@@ -1,5 +1,6 @@
 package com.guesswho.client;
 
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import java.io.IOException;
@@ -50,8 +51,11 @@ public class HttpLeaderboardClient implements LeaderboardClient {
     }
 
     @Override
-    public CompletableFuture<List<LeaderboardEntry>> fetch() {
-        return httpGetter.get(endpoint)
+    public CompletableFuture<List<LeaderboardEntry>> fetch(GameMode mode) {
+        URI request = mode == null
+                ? endpoint
+                : URI.create(endpoint + "?mode=" + mode.name());
+        return httpGetter.get(request)
                 .thenApply(response -> {
                     if (response.statusCode() != 200) {
                         throw new CompletionException(new IOException(

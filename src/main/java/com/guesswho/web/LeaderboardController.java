@@ -1,11 +1,13 @@
 package com.guesswho.web;
 
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 import com.guesswho.leaderboard.LeaderboardRepository;
 
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -28,10 +30,12 @@ public class LeaderboardController {
     /**
      * Returns current leaderboard standings.
      *
+     * @param mode game mode to report on, or {@code null} for every mode
      * @return standings ordered by wins and participant name
      */
     @GetMapping
-    public List<LeaderboardEntry> getLeaderboard() {
-        return leaderboardRepository.findStandings();
+    public List<LeaderboardEntry> getLeaderboard(
+            @RequestParam(required = false) GameMode mode) {
+        return leaderboardRepository.findStandings(mode);
     }
 }
