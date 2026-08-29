@@ -76,11 +76,19 @@ Maven compiles the application, copies its resources, and creates the build outp
 
 ## Run the Desktop App
 
-After building, start the Swing application with:
+The desktop client needs its dependencies on the classpath, so write them to a
+file once and reuse it:
 
 ```bash
-java -cp target/classes com.guesswho.ui.GUI
+mvn compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
 ```
+
+```bash
+java -cp "target/classes:$(cat target/cp.txt)" com.guesswho.ui.GUI
+```
+
+Run `mvn clean` separately if you need it, not in the same command as the
+second step — it deletes `target/cp.txt`.
 
 The bundled music file currently contains no audio data, so the game starts without background music.
 
@@ -92,7 +100,7 @@ submission succeeds. Point the desktop app at another server with the
 
 ```bash
 java -Dguesswho.server.url=https://games.example \
-  -cp target/classes com.guesswho.ui.GUI
+  -cp "target/classes:$(cat target/cp.txt)" com.guesswho.ui.GUI
 ```
 
 ## Run the Server
