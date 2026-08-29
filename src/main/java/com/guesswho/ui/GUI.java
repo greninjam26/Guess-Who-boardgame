@@ -11,6 +11,7 @@ import com.guesswho.game.Game;
 import com.guesswho.game.GameResources;
 import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.Question;
+import com.guesswho.game.QuestionMode;
 import com.guesswho.persistence.CsvGameResultRepository;
 
 /*Author: Gavin Liu
@@ -524,7 +525,7 @@ public class GUI {
 			public void actionPerformed(ActionEvent e) {
 				frame.remove(whosFirstChoicePanel);
 				try {
-					newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.COMPUTER);
+					newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.COMPUTER, questionMode());
 				} catch (Exception e1) {
 					handleGameStartFailure(e1);
 					return;
@@ -542,7 +543,7 @@ public class GUI {
 					try {
 						newGame.startPlayerGame(
 								username1, birthday1, username2, birthday2,
-								PlayerGameStart.FIRST_PLAYER);
+								PlayerGameStart.FIRST_PLAYER, questionMode());
 					} catch (Exception e1) {
 						handleGameStartFailure(e1);
 						return;
@@ -552,7 +553,7 @@ public class GUI {
 				}
 				else {//play aginst the computer
 					try {
-						newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.PLAYER);
+						newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.PLAYER, questionMode());
 					} catch (Exception e1) {
 						handleGameStartFailure(e1);
 						return;
@@ -570,7 +571,7 @@ public class GUI {
 				try {
 					newGame.startPlayerGame(
 							username1, birthday1, username2, birthday2,
-							PlayerGameStart.SECOND_PLAYER);
+							PlayerGameStart.SECOND_PLAYER, questionMode());
 				} catch (Exception e1) {
 					handleGameStartFailure(e1);
 					return;
@@ -587,7 +588,7 @@ public class GUI {
 				try {
 					newGame.startPlayerGame(
 							username1, birthday1, username2, birthday2,
-							PlayerGameStart.YOUNGER);
+							PlayerGameStart.YOUNGER, questionMode());
 				} catch (Exception e1) {
 					handleGameStartFailure(e1);
 					return;
@@ -605,7 +606,7 @@ public class GUI {
 					try {
 						newGame.startPlayerGame(
 								username1, birthday1, username2, birthday2,
-								PlayerGameStart.RANDOM);
+								PlayerGameStart.RANDOM, questionMode());
 					} catch (Exception e1) {
 						handleGameStartFailure(e1);
 						return;
@@ -615,7 +616,7 @@ public class GUI {
 				else {//pvc mode
 					try {
 						//call the method and start the game with randomly chosen who goes first between the AI and the player
-						newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.RANDOM);
+						newGame.startComputerGame(username1, computerDifficulty, ComputerGameStart.RANDOM, questionMode());
 						whosFirst = newGame.getCurrentPlayerName().equals(username1)
 								? "You are going first"
 								: "The AI is going first";
@@ -1114,6 +1115,17 @@ public class GUI {
 		getBackIcon();
 	}
 
+	/**
+	 * this method works out how questions are chosen from the selected game mode.
+	 * only the free-question player-versus-player mode lets players type their own,
+	 * because the AI can only answer the preset board questions
+	 * @return the question mode for the game being started
+	 */
+	private QuestionMode questionMode() {
+		return "player vs player ask questions".equals(modeChoice)
+				? QuestionMode.FREE_FORM
+				: QuestionMode.PRESET;
+	}
 	private void showInputError(String message) {
 		JOptionPane.showMessageDialog(
 				frame, message, "Invalid game setup", JOptionPane.ERROR_MESSAGE);

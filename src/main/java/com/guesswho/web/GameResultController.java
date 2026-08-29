@@ -3,6 +3,7 @@ package com.guesswho.web;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
+import com.guesswho.game.QuestionMode;
 import com.guesswho.persistence.GameResultHistoryRepository;
 import com.guesswho.persistence.GameResultRepository;
 import com.guesswho.persistence.StoredGameResult;
@@ -73,6 +74,10 @@ public class GameResultController {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Game mode must be supplied");
         }
+        if (gameResult.questionMode() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Question mode must be supplied");
+        }
         for (GameResult.Participant participant : gameResult.participants()) {
             if (participant == null || isBlank(participant.name())
                     || isBlank(participant.selectedCharacter())
@@ -112,6 +117,7 @@ public class GameResultController {
      * @param mode how the game was played
      * @param difficulty computer difficulty, or {@code null} outside a
      *        player-versus-computer game
+     * @param questionMode how questions were chosen during the game
      */
     public record GameResultHistoryResponse(
             long id,
@@ -119,7 +125,8 @@ public class GameResultController {
             List<GameResult.Participant> participants,
             String winner,
             GameMode mode,
-            ComputerDifficulty difficulty) {
+            ComputerDifficulty difficulty,
+            QuestionMode questionMode) {
         private static GameResultHistoryResponse from(StoredGameResult storedGameResult) {
             GameResult gameResult = storedGameResult.gameResult();
             return new GameResultHistoryResponse(
@@ -128,7 +135,8 @@ public class GameResultController {
                     gameResult.participants(),
                     gameResult.winner(),
                     gameResult.mode(),
-                    gameResult.difficulty());
+                    gameResult.difficulty(),
+                    gameResult.questionMode());
         }
     }
 }

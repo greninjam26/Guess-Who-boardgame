@@ -1,5 +1,6 @@
 package com.guesswho.client;
 
+import com.guesswho.game.QuestionMode;
 import com.guesswho.game.GameResult;
 import com.guesswho.persistence.GameResultRepository;
 
@@ -48,7 +49,7 @@ class GameResultSubmissionServiceTest {
                         new GameResult.Participant("AI", "Nick", List.of())),
                 "Player",
                 GameMode.PVE,
-                ComputerDifficulty.EASY);
+                ComputerDifficulty.EASY, QuestionMode.PRESET);
     }
 
     private static class CapturingRepository implements GameResultRepository {

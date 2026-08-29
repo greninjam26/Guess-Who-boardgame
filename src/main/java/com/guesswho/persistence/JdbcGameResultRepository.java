@@ -3,6 +3,7 @@ package com.guesswho.persistence;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
+import com.guesswho.game.QuestionMode;
 
 import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ public class JdbcGameResultRepository
                 game_result.winner,
                 game_result.mode,
                 game_result.difficulty,
+                game_result.question_mode,
                 participant.id AS participant_id,
                 participant.name AS participant_name,
                 participant.selected_character,
@@ -80,7 +82,8 @@ public class JdbcGameResultRepository
                             resultSet.getTimestamp("created_at").toLocalDateTime(),
                             resultSet.getString("winner"),
                             GameMode.valueOf(resultSet.getString("mode")),
-                            difficultyOf(resultSet.getString("difficulty")));
+                            difficultyOf(resultSet.getString("difficulty")),
+                            questionModeOf(resultSet.getString("question_mode")));
                     games.put(gameResultId, game);
                 }
 
@@ -113,13 +116,17 @@ public class JdbcGameResultRepository
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO game_results (winner, mode, difficulty) VALUES (?, ?, ?)",
+                    "INSERT INTO game_results (winner, mode, difficulty, question_mode)\n"
+                            + "VALUES (?, ?, ?, ?)",
                     new String[] {"id"});
             statement.setString(1, gameResult.winner());
             statement.setString(2, gameResult.mode().name());
             statement.setString(3, gameResult.difficulty() == null
                     ? null
                     : gameResult.difficulty().name());
+            statement.setString(4, gameResult.questionMode() == null
+                    ? null
+                    : gameResult.questionMode().name());
             return statement;
         }, keyHolder);
         return generatedId(keyHolder);
@@ -169,6 +176,10 @@ public class JdbcGameResultRepository
         return storedValue == null ? null : ComputerDifficulty.valueOf(storedValue);
     }
 
+    private static QuestionMode questionModeOf(String storedValue) {
+        return storedValue == null ? null : QuestionMode.valueOf(storedValue);
+    }
+
     private long generatedId(KeyHolder keyHolder) {
         Number key = keyHolder.getKey();
         if (key == null) {
@@ -183,6 +194,7 @@ public class JdbcGameResultRepository
         private final String winner;
         private final GameMode mode;
         private final ComputerDifficulty difficulty;
+        private final QuestionMode questionMode;
         private final Map<Long, ParticipantAccumulator> participants = new LinkedHashMap<>();
 
         private GameResultAccumulator(
@@ -190,12 +202,14 @@ public class JdbcGameResultRepository
                 LocalDateTime createdAt,
                 String winner,
                 GameMode mode,
-                ComputerDifficulty difficulty) {
+                ComputerDifficulty difficulty,
+                QuestionMode questionMode) {
             this.id = id;
             this.createdAt = createdAt;
             this.winner = winner;
             this.mode = mode;
             this.difficulty = difficulty;
+            this.questionMode = questionMode;
         }
 
         private StoredGameResult toStoredGameResult() {
@@ -205,7 +219,7 @@ public class JdbcGameResultRepository
             return new StoredGameResult(
                     id,
                     createdAt,
-                    new GameResult(savedParticipants, winner, mode, difficulty));
+                    new GameResult(savedParticipants, winner, mode, difficulty, questionMode));
         }
     }
 

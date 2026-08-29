@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
+import com.guesswho.game.QuestionMode;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ class GameResultTest {
         ArrayList<GameResult.Participant> participants = new ArrayList<>();
         participants.add(participant);
 
-        GameResult result = new GameResult(participants, "Player", GameMode.PVP_LOCAL, null);
+        GameResult result = new GameResult(participants, "Player", GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
         questionAnswers.clear();
         participants.clear();
 
@@ -31,7 +32,7 @@ class GameResultTest {
                 "Is your character wearing a hat?", true);
         GameResult.Participant participant = new GameResult.Participant(
                 "Player", "Olivia", List.of(questionAnswer));
-        GameResult result = new GameResult(List.of(participant), "Player", GameMode.PVP_LOCAL, null);
+        GameResult result = new GameResult(List.of(participant), "Player", GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
 
         assertThrows(UnsupportedOperationException.class,
                 () -> result.participants().add(participant));

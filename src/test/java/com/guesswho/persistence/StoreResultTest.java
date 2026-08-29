@@ -1,5 +1,6 @@
 package com.guesswho.persistence;
 
+import com.guesswho.game.QuestionMode;
 import com.guesswho.game.GameResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,14 +30,14 @@ class StoreResultTest {
                                         "Is your character's eye colour blue?", true)))),
                 "Player",
                 GameMode.PVE,
-                ComputerDifficulty.EASY);
+                ComputerDifficulty.EASY, QuestionMode.PRESET);
 
         storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "Player,Olivia,Is your character's eye colour brown?, no",
                 "AI,Nick,Is your character's eye colour blue?, yes",
-                "Player,PVE,EASY",
+                "Player,PVE,EASY,PRESET",
                 "");
         assertEquals(expected, output.toString());
     }
@@ -62,7 +63,7 @@ class StoreResultTest {
                                         "Is your character's eye colour blue?", true)))),
                 "Player 2",
                 GameMode.PVP_LOCAL,
-                null);
+                null, QuestionMode.PRESET);
 
         storeResult.addGameResult(result);
 
@@ -70,7 +71,7 @@ class StoreResultTest {
                 "Player 1,Olivia,Is your character's eye colour brown?, no,"
                         + "Does your character look friendly?, yes",
                 "Player 2,Nick,Is your character's eye colour blue?, yes",
-                "Player 2,PVP_LOCAL",
+                "Player 2,PVP_LOCAL,PRESET",
                 "");
         assertEquals(expected, output.toString());
     }
@@ -85,14 +86,14 @@ class StoreResultTest {
                         new GameResult.Participant("AI", "Nick", List.of())),
                 "AI",
                 GameMode.PVE,
-                ComputerDifficulty.EASY);
+                ComputerDifficulty.EASY, QuestionMode.PRESET);
 
         storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "Player,Olivia",
                 "AI,Nick",
-                "AI,PVE,EASY",
+                "AI,PVE,EASY,PRESET",
                 "");
         assertEquals(expected, output.toString());
     }
@@ -107,14 +108,14 @@ class StoreResultTest {
                         new GameResult.Participant("Opponent", "Nick", List.of())),
                 "Doe, \"Jane\"",
                 GameMode.PVP_LOCAL,
-                null);
+                null, QuestionMode.PRESET);
 
         storeResult.addGameResult(result);
 
         String expected = String.join(System.lineSeparator(),
                 "\"Doe, \"\"Jane\"\"\",Olivia",
                 "Opponent,Nick",
-                "\"Doe, \"\"Jane\"\"\",PVP_LOCAL",
+                "\"Doe, \"\"Jane\"\"\",PVP_LOCAL,PRESET",
                 "");
         assertEquals(expected, output.toString());
     }

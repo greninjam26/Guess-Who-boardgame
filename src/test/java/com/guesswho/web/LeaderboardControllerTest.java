@@ -78,7 +78,8 @@ class LeaderboardControllerTest {
                                     }
                                   ],
                                   "winner": "%s",
-                                  "mode": "PVP_LOCAL"
+                                  "mode": "PVP_LOCAL",
+                                  "questionMode": "PRESET"
                                 }
                                 """.formatted(firstPlayer, secondPlayer, winner)))
                 .andExpect(status().isCreated());
