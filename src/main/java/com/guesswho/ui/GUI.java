@@ -3,6 +3,7 @@ package com.guesswho.ui;
 import com.guesswho.client.GameResultSubmissionService;
 import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
+import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.AnswerCorrection;
 import com.guesswho.game.ComputerDifficulty;
@@ -12,7 +13,6 @@ import com.guesswho.game.GameResources;
 import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.Question;
 import com.guesswho.game.QuestionMode;
-import com.guesswho.persistence.CsvGameResultRepository;
 
 /*Author: Gavin Liu
  * Date: Jan 8 2024
@@ -37,11 +37,11 @@ public class GUI {
 	private JFrame frame;
 	//new game class for the game
 	private Game newGame;
-	//submits results to the server and falls back to the local CSV file
+	//submits results to the server, queueing them locally while it is unreachable
 	private final GameResultSubmissionService resultSubmissionService =
 			new GameResultSubmissionService(
 					new HttpGameResultClient(),
-					new CsvGameResultRepository("test.csv"));
+					new FilePendingGameResultStore("pending-game-results.jsonl"));
 	//retrieves server-backed leaderboard standings without blocking Swing
 	private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
 	//the music

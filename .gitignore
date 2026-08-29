@@ -6,6 +6,7 @@ bin/
 
 # Runtime-generated game data
 test.csv
+pending-game-results.jsonl
 guess-who-data.mv.db
 guess-who-data.trace.db
 

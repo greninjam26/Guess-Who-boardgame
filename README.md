@@ -11,10 +11,10 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Character and question data loaded from CSV files
 - Game-result recording and leaderboard foundations
 - HTTP submission of completed game results
-- Read-only HTTP history of completed games
+- Paginated HTTP history of completed games
 - Database-backed leaderboard standings
 - Leaderboard window available from the Swing application
-- Offline CSV fallback when the game-result server is unavailable
+- Completed games queued locally and uploaded once the server is reachable again
 
 ## Technology
 
@@ -35,9 +35,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
     ├── main/
     │   ├── java/com/guesswho/
     │   │   ├── GuessWhoServerApplication.java # Spring Boot entry point
-    │   │   ├── client/             # Desktop HTTP client and offline fallback flow
+    │   │   ├── client/             # Desktop HTTP clients and the pending-upload queue
     │   │   ├── game/               # Game flow, models, and resources
-    │   │   ├── persistence/        # Database and offline CSV persistence
+    │   │   ├── persistence/        # Database persistence
     │   │   ├── ui/                 # Swing interface and entry point
     │   │   └── web/                # HTTP controllers and responses
     │   └── resources/
@@ -85,8 +85,9 @@ java -cp target/classes com.guesswho.ui.GUI
 The bundled music file currently contains no audio data, so the game starts without background music.
 
 Completed games are submitted asynchronously to `http://localhost:8080` by
-default. If the server is unavailable or rejects the request, the result is
-stored locally in `test.csv`. Point the desktop app at another server with the
+default. If the server is unavailable, the result is queued in
+`pending-game-results.jsonl` and uploaded automatically the next time a
+submission succeeds. Point the desktop app at another server with the
 `guesswho.server.url` system property:
 
 ```bash
@@ -153,7 +154,9 @@ overridden with standard `spring.datasource.*` Spring Boot properties.
 
 ### View Game Result History
 
-Retrieve every stored game from newest to oldest with `GET /api/game-results`:
+Retrieve stored games from newest to oldest with `GET /api/game-results`. The
+response is paginated: `limit` defaults to 50 and caps at 200, and `offset`
+skips whole games.
 
 ```bash
 curl http://localhost:8080/api/game-results
@@ -186,6 +189,12 @@ question histories:
 
 When no results have been stored, the endpoint returns an empty JSON array.
 
+Request a specific page with `limit` and `offset`:
+
+```bash
+curl "http://localhost:8080/api/game-results?limit=10&offset=10"
+```
+
 ### View the Leaderboard
 
 Retrieve standings calculated from saved games with `GET /api/leaderboard`:
@@ -215,6 +224,16 @@ name when wins are tied:
 Standings include every participant name stored by the server, including the
 AI. When no results have been stored, the endpoint returns an empty JSON array.
 
+Restrict standings to one game mode with `mode`, and bound the response with
+`limit`, which defaults to 100 and caps at 500:
+
+```bash
+curl "http://localhost:8080/api/leaderboard?mode=PVE&limit=10"
+```
+
+Standings are never combined across modes in the desktop client, because beating
+the computer and beating another player are not comparable results.
+
 The desktop app's **Leaderboard** button opens the same standings in a separate
 window without blocking the game. The window shows loading, empty, and
 server-unavailable states, and its **Refresh** button retries the request.
@@ -241,7 +260,7 @@ aggregation, normalized database storage, and transactional rollback.
 | `LeaderboardController` | Returns standings calculated from saved games through `/api/leaderboard`. |
 | `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
 | `HttpLeaderboardClient` | Retrieves leaderboard standings without blocking Swing. |
-| `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
+| `GameResultSubmissionService` | Queues results while the server is unreachable and uploads them on the next success. |
 | `LeaderboardPanel` | Displays remote standings and handles loading, empty, error, and retry states. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
@@ -255,9 +274,7 @@ aggregation, normalized database storage, and transactional rollback.
 | `Question` | Represents a yes-or-no character question. |
 | `JdbcGameResultRepository` | Stores and reconstructs game results from relational tables. |
 | `JdbcLeaderboardRepository` | Aggregates games played and wins from relational tables. |
-| `CsvGameResultRepository` | Stores desktop results locally when the server is unavailable. |
-| `StoreResult` | Writes completed game information to a CSV file. |
-| `Leaderboard` | Retains the unused legacy CSV leaderboard scaffold. |
+| `FilePendingGameResultStore` | Queues results locally while the server is unreachable, so they can be uploaded later. |
 
 ## Current Limitations
 
