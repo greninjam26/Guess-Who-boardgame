@@ -196,6 +196,45 @@ class GameResultControllerTest {
         assertEquals(0, storedGameCount());
     }
 
+    @Test
+    void limitsHowManyGamesTheHistoryReturns() throws Exception {
+        submitGameResult("""
+                {
+                  "participants": [
+                    {"name": "Player", "selectedCharacter": "Olivia", "questionAnswers": []}
+                  ],
+                  "winner": "Player",
+                  "mode": "PVP_LOCAL",
+                  "questionMode": "PRESET"
+                }
+                """);
+        submitGameResult("""
+                {
+                  "participants": [
+                    {"name": "Other", "selectedCharacter": "Nick", "questionAnswers": []}
+                  ],
+                  "winner": "Other",
+                  "mode": "PVE",
+                  "difficulty": "EASY",
+                  "questionMode": "PRESET"
+                }
+                """);
+
+        mockMvc.perform(get("/api/game-results").param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void rejectsAHistoryLimitOutsideTheAllowedRange() throws Exception {
+        mockMvc.perform(get("/api/game-results").param("limit", "0"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/game-results").param("limit", "201"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/game-results").param("offset", "-1"))
+                .andExpect(status().isBadRequest());
+    }
+
     @ParameterizedTest
     @MethodSource("incompleteGameResults")
     void rejectsIncompleteGameResult(String requestBody) throws Exception {

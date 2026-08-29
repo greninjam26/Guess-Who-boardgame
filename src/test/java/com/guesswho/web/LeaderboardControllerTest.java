@@ -93,6 +93,24 @@ class LeaderboardControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void limitsHowManyStandingsAreReturned() throws Exception {
+        submitGame("Alex", "Blake", "Alex");
+        submitGame("Casey", "Drew", "Casey");
+
+        mockMvc.perform(get("/api/leaderboard").param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void rejectsALeaderboardLimitOutsideTheAllowedRange() throws Exception {
+        mockMvc.perform(get("/api/leaderboard").param("limit", "0"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/leaderboard").param("limit", "501"))
+                .andExpect(status().isBadRequest());
+    }
+
     private void submitGame(String firstPlayer, String secondPlayer, String winner)
             throws Exception {
         submitGame(firstPlayer, secondPlayer, winner, "PVP_LOCAL");

@@ -27,6 +27,7 @@ public class JdbcLeaderboardRepository implements LeaderboardRepository {
             %s
             GROUP BY participant.name
             ORDER BY wins DESC, participant.name
+            LIMIT ?
             """;
 
     private static final String ALL_MODES_SQL = STANDINGS_TEMPLATE.formatted("");
@@ -46,14 +47,14 @@ public class JdbcLeaderboardRepository implements LeaderboardRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LeaderboardEntry> findStandings(GameMode mode) {
+    public List<LeaderboardEntry> findStandings(GameMode mode, int limit) {
         RowMapper<LeaderboardEntry> rowMapper = (resultSet, rowNumber) -> new LeaderboardEntry(
                 resultSet.getString("name"),
                 resultSet.getInt("games_played"),
                 resultSet.getInt("wins"));
         if (mode == null) {
-            return jdbcTemplate.query(ALL_MODES_SQL, rowMapper);
+            return jdbcTemplate.query(ALL_MODES_SQL, rowMapper, limit);
         }
-        return jdbcTemplate.query(SINGLE_MODE_SQL, rowMapper, mode.name());
+        return jdbcTemplate.query(SINGLE_MODE_SQL, rowMapper, mode.name(), limit);
     }
 }
