@@ -11,12 +11,14 @@ import java.util.List;
  * @param mode how the game was played
  * @param difficulty computer difficulty, or {@code null} outside a
  *        player-versus-computer game
+ * @param questionMode how questions were chosen during the game
  */
 public record GameResult(
         List<Participant> participants,
         String winner,
         GameMode mode,
-        ComputerDifficulty difficulty) {
+        ComputerDifficulty difficulty,
+        QuestionMode questionMode) {
     /**
      * Creates a result with an immutable participant list.
      */

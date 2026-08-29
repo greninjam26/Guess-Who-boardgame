@@ -46,6 +46,7 @@ public class StoreResult {
 		if (gameResult.difficulty() != null) {
 			outcome.add(gameResult.difficulty().name());
 		}
+		outcome.add(gameResult.questionMode().name());
 		writeRow(outcome);
 		write.close();
 	}

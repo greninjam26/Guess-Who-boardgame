@@ -60,7 +60,8 @@ class GameResultControllerTest {
                     }
                   ],
                   "winner": "Player 1",
-                  "mode": "PVP_LOCAL"
+                  "mode": "PVP_LOCAL",
+                  "questionMode": "PRESET"
                 }
                 """);
         submitGameResult("""
@@ -81,7 +82,8 @@ class GameResultControllerTest {
                   ],
                   "winner": "AI",
                   "mode": "PVE",
-                  "difficulty": "HARD"
+                  "difficulty": "HARD",
+                  "questionMode": "FREE_FORM"
                 }
                 """);
 
@@ -124,7 +126,8 @@ class GameResultControllerTest {
                                     }
                                   ],
                                   "winner": "Player 1",
-                                  "mode": "PVP_LOCAL"
+                                  "mode": "PVP_LOCAL",
+                                  "questionMode": "PRESET"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -184,7 +187,8 @@ class GameResultControllerTest {
                                     }
                                   ],
                                   "winner": "Someone else",
-                                  "mode": "PVP_LOCAL"
+                                  "mode": "PVP_LOCAL",
+                                  "questionMode": "PRESET"
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
@@ -242,6 +246,15 @@ class GameResultControllerTest {
                             {"name": "Player", "selectedCharacter": "Olivia", "questionAnswers": []}
                           ],
                           "winner": "Player"
+                        }
+                        """,
+                """
+                        {
+                          "participants": [
+                            {"name": "Player", "selectedCharacter": "Olivia", "questionAnswers": []}
+                          ],
+                          "winner": "Player",
+                          "mode": "PVP_LOCAL"
                         }
                         """);
     }

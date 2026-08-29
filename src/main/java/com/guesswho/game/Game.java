@@ -23,6 +23,7 @@ public class Game {
 	private User secondPlayer;
 	private ComputerPlayer computerPlayer;
 	private ComputerDifficulty computerDifficulty;
+	private QuestionMode questionMode;
 	private Question pendingComputerQuestion;
 	private GameStatus status;
 	private Optional<String> winner;
@@ -82,7 +83,8 @@ public class Game {
 			participants.add(toGameResultParticipant(COMPUTER_WINNER, computerPlayer));
 		}
 		GameMode mode = computerPlayer != null ? GameMode.PVE : GameMode.PVP_LOCAL;
-		return new GameResult(participants, winner.orElseThrow(), mode, computerDifficulty);
+		return new GameResult(
+				participants, winner.orElseThrow(), mode, computerDifficulty, questionMode);
 	}
 
 	/**
@@ -241,6 +243,7 @@ public class Game {
 	 * @param username human player's username
 	 * @param difficulty computer difficulty
 	 * @param start opening-turn selection
+	 * @param questions how questions are chosen during the game
 	 * @throws IllegalArgumentException if the username is blank or reserved for
 	 *         the computer
 	 * @throws NullPointerException if {@code difficulty} or {@code start} is
@@ -248,13 +251,14 @@ public class Game {
 	 * @throws Exception if the board resources cannot be loaded
 	 */
 	public void startComputerGame(String username, ComputerDifficulty difficulty,
-			ComputerGameStart start) throws Exception {
+			ComputerGameStart start, QuestionMode questions) throws Exception {
 		requireUsername(username, "username");
 		if (COMPUTER_WINNER.equals(username)) {
 			throw new IllegalArgumentException("Username is reserved for the computer: " + username);
 		}
 		Objects.requireNonNull(difficulty, "difficulty");
 		Objects.requireNonNull(start, "start");
+		questionMode = Objects.requireNonNull(questions, "questions");
 
 		firstPlayer = new User("", 0, username);
 		secondPlayer = null;
@@ -282,16 +286,19 @@ public class Game {
 	 * @param secondUsername second player's username
 	 * @param secondBirthday second player's birthday value
 	 * @param start opening-turn selection
+	 * @param questions how questions are chosen during the game
 	 * @throws IllegalArgumentException if either username is blank or both
 	 *         usernames are equal
 	 * @throws NullPointerException if {@code start} is {@code null}
 	 * @throws Exception if the board resources cannot be loaded
 	 */
 	public void startPlayerGame(String firstUsername, int firstBirthday,
-			String secondUsername, int secondBirthday, PlayerGameStart start) throws Exception {
+			String secondUsername, int secondBirthday, PlayerGameStart start,
+			QuestionMode questions) throws Exception {
 		requireUsername(firstUsername, "firstUsername");
 		requireUsername(secondUsername, "secondUsername");
 		Objects.requireNonNull(start, "start");
+		questionMode = Objects.requireNonNull(questions, "questions");
 		if (firstUsername.equals(secondUsername)) {
 			throw new IllegalArgumentException("Player usernames must be different");
 		}

@@ -1,6 +1,7 @@
 package com.guesswho.persistence;
 
 import com.guesswho.GuessWhoServerApplication;
+import com.guesswho.game.QuestionMode;
 import com.guesswho.game.GameResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,7 +42,7 @@ class JdbcGameResultRepositoryTest {
                         new GameResult.Participant("AI", null, List.of())),
                 "Player",
                 GameMode.PVE,
-                ComputerDifficulty.HARD);
+                ComputerDifficulty.HARD, QuestionMode.PRESET);
 
         assertThrows(
                 DataIntegrityViolationException.class,
@@ -55,13 +56,13 @@ class JdbcGameResultRepositoryTest {
     void loadsStoredGamesNewestFirstWithCompleteParticipantHistory() {
         LocalDateTime olderCreatedAt = LocalDateTime.of(2026, 8, 27, 12, 0);
         LocalDateTime newerCreatedAt = LocalDateTime.of(2026, 8, 28, 15, 30);
-        insertGame(-10, "Player 1", olderCreatedAt, GameMode.PVP_LOCAL, null);
+        insertGame(-10, "Player 1", olderCreatedAt, GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
         insertParticipant(-101, -10, 0, "Player 1", "Olivia");
         insertParticipant(-102, -10, 1, "Player 2", "Nick");
         insertQuestionAnswer(-101, 0, "Does your character wear glasses?", true);
         insertQuestionAnswer(-101, 1, "Is your character wearing a hat?", false);
 
-        insertGame(-20, "AI", newerCreatedAt, GameMode.PVE, ComputerDifficulty.HARD);
+        insertGame(-20, "AI", newerCreatedAt, GameMode.PVE, ComputerDifficulty.HARD, QuestionMode.PRESET);
         insertParticipant(-201, -20, 0, "Player", "Sam");
         insertParticipant(-202, -20, 1, "AI", "Olivia");
         insertQuestionAnswer(-202, 0, "Does your character have dark hair?", true);
@@ -83,7 +84,7 @@ class JdbcGameResultRepositoryTest {
                                                                 true)))),
                                         "AI",
                                         GameMode.PVE,
-                                        ComputerDifficulty.HARD)),
+                                        ComputerDifficulty.HARD, QuestionMode.PRESET)),
                         new StoredGameResult(
                                 -10,
                                 olderCreatedAt,
@@ -103,7 +104,7 @@ class JdbcGameResultRepositoryTest {
                                                         "Player 2", "Nick", List.of())),
                                         "Player 1",
                                         GameMode.PVP_LOCAL,
-                                        null))),
+                                        null, QuestionMode.PRESET))),
                 gameResultHistoryRepository.findAll());
     }
 
@@ -112,17 +113,20 @@ class JdbcGameResultRepositoryTest {
             String winner,
             LocalDateTime createdAt,
             GameMode mode,
-            ComputerDifficulty difficulty) {
+            ComputerDifficulty difficulty,
+            QuestionMode questionMode) {
         jdbcTemplate.update(
                 """
-                INSERT INTO game_results (id, winner, created_at, mode, difficulty)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO game_results
+                    (id, winner, created_at, mode, difficulty, question_mode)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 id,
                 winner,
                 createdAt,
                 mode.name(),
-                difficulty == null ? null : difficulty.name());
+                difficulty == null ? null : difficulty.name(),
+                questionMode == null ? null : questionMode.name());
     }
 
     private void insertParticipant(
