@@ -1,6 +1,6 @@
 package com.guesswho.persistence;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,14 +10,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GameResultPersistenceConfiguration {
     /**
-     * Creates the CSV repository used by the HTTP server.
+     * Creates the JDBC repository used by the HTTP server.
      *
-     * @param resultsFile configured CSV file path
+     * @param jdbcTemplate configured database operations
      * @return configured game-result repository
      */
     @Bean
-    public GameResultRepository gameResultRepository(
-            @Value("${guesswho.results.file:test.csv}") String resultsFile) {
-        return new CsvGameResultRepository(resultsFile);
+    public GameResultRepository gameResultRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcGameResultRepository(jdbcTemplate);
     }
 }
