@@ -11,6 +11,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Character and question data loaded from CSV files
 - Game-result recording and leaderboard foundations
 - HTTP submission of completed game results
+- Read-only HTTP history of completed games
 - Offline CSV fallback when the game-result server is unavailable
 
 ## Technology
@@ -148,6 +149,41 @@ H2 database. The winner must match a participant, and names, selected
 characters, and questions cannot be blank. Database connection settings can be
 overridden with standard `spring.datasource.*` Spring Boot properties.
 
+### View Game Result History
+
+Retrieve every stored game from newest to oldest with `GET /api/game-results`:
+
+```bash
+curl http://localhost:8080/api/game-results
+```
+
+Each result includes its database ID, creation time, winner, participants, and
+question histories:
+
+```json
+[
+  {
+    "id": 1,
+    "createdAt": "2026-08-28T15:30:00",
+    "participants": [
+      {
+        "name": "Player 1",
+        "selectedCharacter": "Olivia",
+        "questionAnswers": [
+          {
+            "question": "Does your character wear glasses?",
+            "answer": true
+          }
+        ]
+      }
+    ],
+    "winner": "Player 1"
+  }
+]
+```
+
+When no results have been stored, the endpoint returns an empty JSON array.
+
 ## Test
 
 Run the JUnit suite with:
@@ -157,8 +193,8 @@ mvn test
 ```
 
 The tests cover packaged resources, board data, starting-turn rules, core
-computer-player behavior, HTTP result submission, normalized database storage,
-and transactional rollback.
+computer-player behavior, HTTP result submission and history, normalized
+database storage, and transactional rollback.
 
 ## Main Classes
 
@@ -166,7 +202,7 @@ and transactional rollback.
 | --- | --- |
 | `GuessWhoServerApplication` | Starts the Spring Boot HTTP server. |
 | `StatusController` | Reports whether the server is online through `/api/status`. |
-| `GameResultController` | Validates and accepts completed games through `POST /api/game-results`. |
+| `GameResultController` | Accepts completed games and returns saved history through `/api/game-results`. |
 | `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
 | `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
@@ -179,7 +215,7 @@ and transactional rollback.
 | `User` | Stores a human player's username and birthday. |
 | `Character` | Represents a character and their visual attributes. |
 | `Question` | Represents a yes-or-no character question. |
-| `JdbcGameResultRepository` | Stores server-submitted games transactionally in relational tables. |
+| `JdbcGameResultRepository` | Stores and reconstructs game results from relational tables. |
 | `CsvGameResultRepository` | Stores desktop results locally when the server is unavailable. |
 | `StoreResult` | Writes completed game information to a CSV file. |
 | `Leaderboard` | Loads, updates, and sorts leaderboard entries. |

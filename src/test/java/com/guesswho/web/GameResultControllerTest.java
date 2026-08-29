@@ -3,8 +3,10 @@ package com.guesswho.web;
 import com.guesswho.GuessWhoServerApplication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -32,6 +34,68 @@ class GameResultControllerTest {
     @BeforeEach
     void clearResults() {
         jdbcTemplate.update("DELETE FROM game_results");
+    }
+
+    @Test
+    void returnsEmptyHistoryWhenNoGamesAreStored() throws Exception {
+        mockMvc.perform(get("/api/game-results"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @Test
+    void returnsStoredHistoryNewestFirstWithFlatGameDetails() throws Exception {
+        submitGameResult("""
+                {
+                  "participants": [
+                    {
+                      "name": "Player 1",
+                      "selectedCharacter": "Olivia",
+                      "questionAnswers": []
+                    },
+                    {
+                      "name": "Player 2",
+                      "selectedCharacter": "Nick",
+                      "questionAnswers": []
+                    }
+                  ],
+                  "winner": "Player 1"
+                }
+                """);
+        submitGameResult("""
+                {
+                  "participants": [
+                    {
+                      "name": "Player",
+                      "selectedCharacter": "Sam",
+                      "questionAnswers": []
+                    },
+                    {
+                      "name": "AI",
+                      "selectedCharacter": "Olivia",
+                      "questionAnswers": [
+                        {"question": "Does your character have dark hair?", "answer": true}
+                      ]
+                    }
+                  ],
+                  "winner": "AI"
+                }
+                """);
+
+        mockMvc.perform(get("/api/game-results"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").isNumber())
+                .andExpect(jsonPath("$[0].createdAt").isString())
+                .andExpect(jsonPath("$[0].winner").value("AI"))
+                .andExpect(jsonPath("$[0].participants[0].name").value("Player"))
+                .andExpect(jsonPath("$[0].participants[1].name").value("AI"))
+                .andExpect(jsonPath("$[0].participants[1].questionAnswers[0].question")
+                        .value("Does your character have dark hair?"))
+                .andExpect(jsonPath("$[0].participants[1].questionAnswers[0].answer")
+                        .value(true))
+                .andExpect(jsonPath("$[0].gameResult").doesNotExist())
+                .andExpect(jsonPath("$[1].winner").value("Player 1"));
     }
 
     @Test
@@ -173,6 +237,13 @@ class GameResultControllerTest {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM game_results", Integer.class);
         return count == null ? 0 : count;
+    }
+
+    private void submitGameResult(String requestBody) throws Exception {
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated());
     }
 
     private record ParticipantRow(int playOrder, String name, String selectedCharacter) {

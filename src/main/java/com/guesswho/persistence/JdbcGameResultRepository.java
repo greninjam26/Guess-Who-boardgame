@@ -3,6 +3,11 @@ package com.guesswho.persistence;
 import com.guesswho.game.GameResult;
 
 import java.sql.PreparedStatement;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -11,7 +16,30 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Stores completed game snapshots in normalized relational tables.
  */
-public class JdbcGameResultRepository implements GameResultRepository {
+public class JdbcGameResultRepository
+        implements GameResultRepository, GameResultHistoryRepository {
+    private static final String FIND_ALL_SQL = """
+            SELECT
+                game_result.id AS game_result_id,
+                game_result.created_at,
+                game_result.winner,
+                participant.id AS participant_id,
+                participant.name AS participant_name,
+                participant.selected_character,
+                question_answer.question,
+                question_answer.answer
+            FROM game_results game_result
+            LEFT JOIN game_result_participants participant
+              ON participant.game_result_id = game_result.id
+            LEFT JOIN game_result_question_answers question_answer
+              ON question_answer.participant_id = participant.id
+            ORDER BY
+                game_result.created_at DESC,
+                game_result.id DESC,
+                participant.play_order,
+                question_answer.question_order
+            """;
+
     private final JdbcTemplate jdbcTemplate;
 
     /**
@@ -32,6 +60,47 @@ public class JdbcGameResultRepository implements GameResultRepository {
             long participantId = insertParticipant(gameResultId, playOrder, participant);
             insertQuestionAnswers(participantId, participant.questionAnswers());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StoredGameResult> findAll() {
+        return jdbcTemplate.query(FIND_ALL_SQL, resultSet -> {
+            Map<Long, GameResultAccumulator> games = new LinkedHashMap<>();
+            while (resultSet.next()) {
+                long gameResultId = resultSet.getLong("game_result_id");
+                GameResultAccumulator game = games.get(gameResultId);
+                if (game == null) {
+                    game = new GameResultAccumulator(
+                            gameResultId,
+                            resultSet.getTimestamp("created_at").toLocalDateTime(),
+                            resultSet.getString("winner"));
+                    games.put(gameResultId, game);
+                }
+
+                Long participantId = resultSet.getObject("participant_id", Long.class);
+                if (participantId == null) {
+                    continue;
+                }
+                ParticipantAccumulator participant = game.participants.get(participantId);
+                if (participant == null) {
+                    participant = new ParticipantAccumulator(
+                            resultSet.getString("participant_name"),
+                            resultSet.getString("selected_character"));
+                    game.participants.put(participantId, participant);
+                }
+
+                String question = resultSet.getString("question");
+                if (question != null) {
+                    participant.questionAnswers.add(new GameResult.QuestionAnswer(
+                            question,
+                            resultSet.getBoolean("answer")));
+                }
+            }
+            return games.values().stream()
+                    .map(GameResultAccumulator::toStoredGameResult)
+                    .toList();
+        });
     }
 
     private long insertGameResult(String winner) {
@@ -92,5 +161,43 @@ public class JdbcGameResultRepository implements GameResultRepository {
             throw new IllegalStateException("Database did not return a generated ID");
         }
         return key.longValue();
+    }
+
+    private static final class GameResultAccumulator {
+        private final long id;
+        private final LocalDateTime createdAt;
+        private final String winner;
+        private final Map<Long, ParticipantAccumulator> participants = new LinkedHashMap<>();
+
+        private GameResultAccumulator(long id, LocalDateTime createdAt, String winner) {
+            this.id = id;
+            this.createdAt = createdAt;
+            this.winner = winner;
+        }
+
+        private StoredGameResult toStoredGameResult() {
+            List<GameResult.Participant> savedParticipants = participants.values().stream()
+                    .map(ParticipantAccumulator::toParticipant)
+                    .toList();
+            return new StoredGameResult(
+                    id,
+                    createdAt,
+                    new GameResult(savedParticipants, winner));
+        }
+    }
+
+    private static final class ParticipantAccumulator {
+        private final String name;
+        private final String selectedCharacter;
+        private final List<GameResult.QuestionAnswer> questionAnswers = new ArrayList<>();
+
+        private ParticipantAccumulator(String name, String selectedCharacter) {
+            this.name = name;
+            this.selectedCharacter = selectedCharacter;
+        }
+
+        private GameResult.Participant toParticipant() {
+            return new GameResult.Participant(name, selectedCharacter, questionAnswers);
+        }
     }
 }

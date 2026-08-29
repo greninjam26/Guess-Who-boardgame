@@ -16,7 +16,7 @@ public class GameResultPersistenceConfiguration {
      * @return configured game-result repository
      */
     @Bean
-    public GameResultRepository gameResultRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcGameResultRepository gameResultRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcGameResultRepository(jdbcTemplate);
     }
 }
