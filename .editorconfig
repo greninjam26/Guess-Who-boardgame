@@ -1,0 +1,28 @@
+# Shared editor settings. See https://editorconfig.org
+#
+# IntelliJ and Eclipse read this natively; VS Code needs the EditorConfig
+# extension. It configures editors as you type — it does not reformat existing
+# files, so the tab-indented classes stay tabs until they are converted.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown uses two trailing spaces to mean a line break.
+[*.md]
+trim_trailing_whitespace = false
+
+# Game data carries meaningful whitespace: StoreResult writes " yes" / " no"
+# with leading spaces, and Board splits on commas without trimming.
+[*.csv]
+trim_trailing_whitespace = false
+insert_final_newline = false
