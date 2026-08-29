@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.GameMode;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -44,7 +46,9 @@ class GameResultSubmissionServiceTest {
                 List.of(
                         new GameResult.Participant("Player", "Olivia", List.of()),
                         new GameResult.Participant("AI", "Nick", List.of())),
-                "Player");
+                "Player",
+                GameMode.PVE,
+                ComputerDifficulty.EASY);
     }
 
     private static class CapturingRepository implements GameResultRepository {

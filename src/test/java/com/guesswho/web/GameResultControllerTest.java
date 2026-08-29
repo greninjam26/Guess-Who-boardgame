@@ -59,7 +59,8 @@ class GameResultControllerTest {
                       "questionAnswers": []
                     }
                   ],
-                  "winner": "Player 1"
+                  "winner": "Player 1",
+                  "mode": "PVP_LOCAL"
                 }
                 """);
         submitGameResult("""
@@ -78,7 +79,9 @@ class GameResultControllerTest {
                       ]
                     }
                   ],
-                  "winner": "AI"
+                  "winner": "AI",
+                  "mode": "PVE",
+                  "difficulty": "HARD"
                 }
                 """);
 
@@ -120,7 +123,8 @@ class GameResultControllerTest {
                                       ]
                                     }
                                   ],
-                                  "winner": "Player 1"
+                                  "winner": "Player 1",
+                                  "mode": "PVP_LOCAL"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -179,7 +183,8 @@ class GameResultControllerTest {
                                       "questionAnswers": []
                                     }
                                   ],
-                                  "winner": "Someone else"
+                                  "winner": "Someone else",
+                                  "mode": "PVP_LOCAL"
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
@@ -227,6 +232,14 @@ class GameResultControllerTest {
                               "selectedCharacter": "Olivia",
                               "questionAnswers": [{"question": " ", "answer": true}]
                             }
+                          ],
+                          "winner": "Player"
+                        }
+                        """,
+                """
+                        {
+                          "participants": [
+                            {"name": "Player", "selectedCharacter": "Olivia", "questionAnswers": []}
                           ],
                           "winner": "Player"
                         }

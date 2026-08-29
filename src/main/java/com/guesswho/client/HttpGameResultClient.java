@@ -80,6 +80,15 @@ public class HttpGameResultClient implements GameResultClient {
         }
         json.append("],\"winner\":");
         appendQuoted(json, gameResult.winner());
+        json.append(",\"mode\":");
+        appendQuoted(json, gameResult.mode().name());
+        json.append(",\"difficulty\":");
+        if (gameResult.difficulty() == null) {
+            json.append("null");
+        }
+        else {
+            appendQuoted(json, gameResult.difficulty().name());
+        }
         return json.append('}').toString();
     }
 

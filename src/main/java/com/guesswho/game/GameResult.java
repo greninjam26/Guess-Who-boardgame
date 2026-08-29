@@ -8,8 +8,15 @@ import java.util.List;
  *
  * @param participants participants in play order
  * @param winner winning participant name
+ * @param mode how the game was played
+ * @param difficulty computer difficulty, or {@code null} outside a
+ *        player-versus-computer game
  */
-public record GameResult(List<Participant> participants, String winner) {
+public record GameResult(
+        List<Participant> participants,
+        String winner,
+        GameMode mode,
+        ComputerDifficulty difficulty) {
     /**
      * Creates a result with an immutable participant list.
      */

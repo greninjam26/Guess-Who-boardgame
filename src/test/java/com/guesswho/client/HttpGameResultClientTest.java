@@ -1,5 +1,7 @@
 package com.guesswho.client;
 
+import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +36,8 @@ class HttpGameResultClientTest {
                 + "{\"name\":\"Player \\\"One\\\"\",\"selectedCharacter\":\"Olivia\","
                 + "\"questionAnswers\":[{\"question\":\"Glasses?\\nHat?\",\"answer\":true}]},"
                 + "{\"name\":\"AI\",\"selectedCharacter\":\"Nick\",\"questionAnswers\":[]}],"
-                + "\"winner\":\"Player \\\"One\\\"\"}";
+                + "\"winner\":\"Player \\\"One\\\"\","
+                + "\"mode\":\"PVE\",\"difficulty\":\"HARD\"}";
         assertEquals(expected, postedBody.get());
     }
 
@@ -55,6 +58,8 @@ class HttpGameResultClientTest {
                                 "Olivia",
                                 List.of(new GameResult.QuestionAnswer("Glasses?\nHat?", true))),
                         new GameResult.Participant("AI", "Nick", List.of())),
-                "Player \"One\"");
+                "Player \"One\"",
+                GameMode.PVE,
+                ComputerDifficulty.HARD);
     }
 }
