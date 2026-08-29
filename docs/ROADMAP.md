@@ -77,7 +77,7 @@ this is a build-out rather than a rewrite.
 
 # v0.5 — Playable desktop
 
-## Phase 00 — Repair the engine · S
+## Phase 00 — Repair the engine · S — done
 
 **Blocks:** 06 **Needs:** nothing
 **Branch:** `fix/repair-computer-engine`
@@ -85,24 +85,24 @@ this is a build-out rather than a rewrite.
 Small, self-contained, and everything downstream builds on the rules engine.
 Fixing it after the client and server depend on it means re-testing all of them.
 
-- [ ] Fix the `qIndex` elimination bug in `ComputerPlayer.chooseQuestion()` —
+- [x] Fix the `qIndex` elimination bug in `ComputerPlayer.chooseQuestion()` —
       derive the index from the chosen question in `askQuestion()` and delete the
       field. Add a regression test asserting the chosen question and the
       eliminated column always match.
-- [ ] Fix the same root cause in the baseline: `answerCount[0]` is hardcoded
+- [x] Fix the same root cause in the baseline: `answerCount[0]` is hardcoded
       against `unAskedQuestions.get(0)`, which drift apart once question 0 has
       been asked.
-- [ ] `ComputerPlayer`'s constructor calls `super(..., new Random())`, discarding
+- [x] `ComputerPlayer`'s constructor calls `super(..., new Random())`, discarding
       the injected source. The AI's own character is nondeterministic even in
       tests — thread the real one through.
-- [ ] Stop aliasing `Board.getCharacters()` and `getPeopleCount()`; elimination
+- [x] Stop aliasing `Board.getCharacters()` and `getPeopleCount()`; elimination
       currently mutates the board's own state.
-- [ ] Delete the dead `persistence/Leaderboard` class. It is unreferenced, reads a
+- [x] Delete the dead `persistence/Leaderboard` class. It is unreferenced, reads a
       `Leaderboard.csv` that does not exist, and sorts ascending so the worst
       score lands first. It is *not* related to the working server-backed
       leaderboard added in PR #23 — that one stays.
 
-## Phase 01 — Migrations, modes, and API limits · L
+## Phase 01 — Migrations, modes, and API limits · L — done
 
 **Blocks:** every later schema change **Needs:** nothing
 
@@ -120,35 +120,35 @@ Suggested as three branches:
 
 **`chore/adopt-flyway`**
 
-- [ ] Adopt Flyway (or Liquibase). Convert `schema.sql` into `V1__baseline.sql`
+- [x] Adopt Flyway (or Liquibase). Convert `schema.sql` into `V1__baseline.sql`
       and drop `spring.sql.init.mode`. Do this while there are three tables and
       almost no data.
 
 **`feat/record-game-mode`**
 
-- [ ] Add the mode columns to `game_results` as `V2`:
+- [x] Add the mode columns to `game_results` as `V2`:
       `mode VARCHAR(20) NOT NULL` (`PVE` / `PVP_LOCAL` / `PVP_ONLINE`),
       `difficulty VARCHAR(20)` (`EASY` / `HARD`, null for PvP), and
       `question_mode VARCHAR(20)` (`PRESET` / `FREE_FORM`) — the UI already makes
       that distinction and it is otherwise lost the same way.
-- [ ] Thread mode through the stack: `GameResult`, `Game.getGameResult()`,
+- [x] Thread mode through the stack: `GameResult`, `Game.getGameResult()`,
       `JdbcGameResultRepository.save()`, `HttpGameResultClient.toJson()`,
       `GameResultController.validate()`, plus tests.
-- [ ] Backfill existing rows. PvE is inferable from a participant named `AI`;
+- [x] Backfill existing rows. PvE is inferable from a participant named `AI`;
       difficulty is not recoverable, so leave it null.
-- [ ] Split the leaderboard by mode: `GET /api/leaderboard?mode=PVE`, with the
+- [x] Split the leaderboard by mode: `GET /api/leaderboard?mode=PVE`, with the
       parameter optional so the endpoint keeps working unchanged.
-- [ ] Two boards in the UI, not four — **vs Computer** and **vs Player** as tabs
+- [x] Two boards in the UI, not four — **vs Computer** and **vs Player** as tabs
       in `LeaderboardDialog`, with difficulty as a *column* inside the PvE board.
       Four boards means four nearly-empty tables at your player count.
 
 **`feat/bound-history-apis`**
 
-- [ ] Add limits and pagination to `GET /api/game-results`. It currently returns
+- [x] Add limits and pagination to `GET /api/game-results`. It currently returns
       every game joined with every participant and every question answer, with no
       bound — the worst of the two endpoints and already shipped.
-- [ ] Add a result limit to `GET /api/leaderboard`.
-- [ ] Decide and implement offline synchronization. Games written to `test.csv`
+- [x] Add a result limit to `GET /api/leaderboard`.
+- [x] Decide and implement offline synchronization. Games written to `test.csv`
       when the server is down are never uploaded, so they silently never appear
       in history or standings. Pick one: auto-upload on reconnect, manual import,
       or permanently local and excluded — and say which in the README.
@@ -476,25 +476,30 @@ preset question. Both are defensible — drifting into it by accident isn't.
 
 ## Still to decide
 
-1. What happens to offline results in `test.csv` — auto-upload on reconnect,
-   manual import, or permanently local? Needed in Phase 01.
-2. Should closing the app mid-game lose it? There is no save/resume today.
+1. Should closing the app mid-game lose it? There is no save/resume today.
    Phase 09's session state covers *online* games; local PvE and hotseat have
    nothing. Worth deciding before Phase 02 settles the UI state model.
-3. Does free-form PvE stay unsupported, or do you map free text onto preset
+2. Does free-form PvE stay unsupported, or do you map free text onto preset
    questions with fuzzy matching?
-4. How long is a turn timer, and does it forfeit the game or just pass the turn?
-5. Do guests get to play online at all, or only PvE and hotseat? Letting them
+3. How long is a turn timer, and does it forfeit the game or just pass the turn?
+4. Do guests get to play online at all, or only PvE and hotseat? Letting them
    online means unranked rooms and throwaway identities.
-6. Does the store-my-character setting belong to the account or the machine?
-7. Does the hotseat board stay on the leaderboard as a casual tier, or come off
+5. Does the store-my-character setting belong to the account or the machine?
+6. Does the hotseat board stay on the leaderboard as a casual tier, or come off
    entirely because you referee both sides?
+
+## Decided
+
+- **Offline results upload themselves.** Games queued while the server is
+  unreachable are uploaded on the next successful submission. The write-only CSV
+  fallback was replaced by `pending-game-results.jsonl`, which can be read back.
+- **Indentation is four spaces**, enforced by `.editorconfig`.
 
 ---
 
-Phases 00 through 04 get harder or more expensive the longer they wait — 01
-because unclassifiable and unbounded data keeps accumulating, 04 because it
-changes an API that Phase 09 will freeze, the rest because later work builds on
-them. Everything after 05 can be reordered as interest dictates.
+Phases 00 and 01 are done. Of what remains, 02 and 04 get more expensive the
+longer they wait — 02 because every feature added first has to be dismantled,
+04 because it changes an API that Phase 09 will freeze. Everything after 05 can
+be reordered as interest dictates.
 
-**Next branch:** `fix/repair-computer-engine`
+**Next branch:** `refactor/ui-state-model` — the first of Phase 02's five.
