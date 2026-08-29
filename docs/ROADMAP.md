@@ -1,0 +1,500 @@
+# Guess Who — Roadmap
+
+Fourteen phases across three releases, from a working desktop board game to an
+online multiplayer app with accounts, verified answers, and leaderboards that
+mean something.
+
+Sequencing reflects the repo at `f856ba8`, immediately after the server-backed
+leaderboard (PR #23) merged.
+
+## Releases
+
+| Release | What it is | Phases |
+| --- | --- | --- |
+| **v0.5** | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07 |
+| **v1.0** | The same game with accounts and room-code online multiplayer, deployed and reachable | 08–10 |
+| **Post-v1** | History, replay, chat, spectating, and scaling if it's ever measured | 11–13 |
+
+Shipping v0.5 before the backend work matters. It is a real milestone you can
+install and hand to someone, and it arrives well before the two XL phases.
+
+## Locked decisions
+
+| Area | Decision | Why |
+| --- | --- | --- |
+| Stack | Java end to end | No web client. One language, one rules engine, no port. |
+| Client | Swing + FlatLaf | The work ahead is architectural, not visual. Switching toolkits would stack a rewrite on a refactor. |
+| Server | One Spring Boot app | A monolith, deliberately. The load never justifies anything else. |
+| Transport | Polling, not sockets | Turns take a human ten seconds. A 1–2s poll is indistinguishable from realtime. |
+| Delivery | `jpackage` installers | Native `.dmg` / `.exe` with a bundled JRE. Nobody installs Java. |
+
+## The dependency spine
+
+```text
+v0.5    00  Repair the engine   ─┐
+                                 ├→ 02 → 03 → 04 → 05 → 07
+        01  Migrations + mode   ─┘
+                                   06  needs 00 only — slot in anywhere
+
+v1.0    08  Accounts  →  09  Online PvP  →  10  Ship
+
+post    11  Stats and replay  →  12  Chat and spectating
+        13  External session storage — only if measured
+```
+
+Four phases block everything downstream:
+
+- **01** — no schema change is possible until migration tooling exists, and every
+  game recorded without a mode is permanently unclassifiable.
+- **02** — async server state cannot be wired into a 770-line method.
+- **04** — committing the character changes the core `Game` API, so it must land
+  before networking freezes it.
+- **08** — both the leaderboard rework and online play need identity to hang off.
+
+Phases **00** and **01** are independent of each other; either order works.
+
+Sizes (S / M / L / XL) compare phases to each other. They are not calendar
+estimates.
+
+## What already helps
+
+Five things in the current repo do real work for what's coming, which is why
+this is a build-out rather than a rewrite.
+
+- `Game` is already a state machine with `requireTurn()` and
+  `requireInProgress()` guards — server-side turn validation is largely written.
+- The `game_result_question_answers` table already stores complete question
+  histories, so history and replay are mostly a UI.
+- `GameResultSubmissionService` establishes the server-first-with-fallback
+  pattern the online client will reuse.
+- `HttpGameResultClient` and `HttpLeaderboardClient` are where the polling client
+  starts — the HTTP plumbing and async handling already exist.
+- `LeaderboardPanel` and `LeaderboardPanelTest` prove the Swing layer *can* be
+  separated and unit-tested. That's the pattern Phase 02 applies to everything
+  else.
+
+---
+
+# v0.5 — Playable desktop
+
+## Phase 00 — Repair the engine · S
+
+**Blocks:** 06 **Needs:** nothing
+**Branch:** `fix/repair-computer-engine`
+
+Small, self-contained, and everything downstream builds on the rules engine.
+Fixing it after the client and server depend on it means re-testing all of them.
+
+- [ ] Fix the `qIndex` elimination bug in `ComputerPlayer.chooseQuestion()` —
+      derive the index from the chosen question in `askQuestion()` and delete the
+      field. Add a regression test asserting the chosen question and the
+      eliminated column always match.
+- [ ] Fix the same root cause in the baseline: `answerCount[0]` is hardcoded
+      against `unAskedQuestions.get(0)`, which drift apart once question 0 has
+      been asked.
+- [ ] `ComputerPlayer`'s constructor calls `super(..., new Random())`, discarding
+      the injected source. The AI's own character is nondeterministic even in
+      tests — thread the real one through.
+- [ ] Stop aliasing `Board.getCharacters()` and `getPeopleCount()`; elimination
+      currently mutates the board's own state.
+- [ ] Delete the dead `persistence/Leaderboard` class. It is unreferenced, reads a
+      `Leaderboard.csv` that does not exist, and sorts ascending so the worst
+      score lands first. It is *not* related to the working server-backed
+      leaderboard added in PR #23 — that one stays.
+
+## Phase 01 — Migrations, modes, and API limits · L
+
+**Blocks:** every later schema change **Needs:** nothing
+
+Everything here is urgent for one reason: data is accruing in a shape you cannot
+change, classify, or bound later.
+
+**Migration tooling first.** `application.properties` sets
+`spring.sql.init.mode=always` and every statement in `schema.sql` is
+`CREATE TABLE IF NOT EXISTS`. That is fine for a fresh database and silently
+useless for adding a column — against an existing `guess-who-data.mv.db` the
+statement is a no-op, the column never appears, and inserts referencing it fail
+at runtime.
+
+Suggested as three branches:
+
+**`chore/adopt-flyway`**
+
+- [ ] Adopt Flyway (or Liquibase). Convert `schema.sql` into `V1__baseline.sql`
+      and drop `spring.sql.init.mode`. Do this while there are three tables and
+      almost no data.
+
+**`feat/record-game-mode`**
+
+- [ ] Add the mode columns to `game_results` as `V2`:
+      `mode VARCHAR(20) NOT NULL` (`PVE` / `PVP_LOCAL` / `PVP_ONLINE`),
+      `difficulty VARCHAR(20)` (`EASY` / `HARD`, null for PvP), and
+      `question_mode VARCHAR(20)` (`PRESET` / `FREE_FORM`) — the UI already makes
+      that distinction and it is otherwise lost the same way.
+- [ ] Thread mode through the stack: `GameResult`, `Game.getGameResult()`,
+      `JdbcGameResultRepository.save()`, `HttpGameResultClient.toJson()`,
+      `GameResultController.validate()`, plus tests.
+- [ ] Backfill existing rows. PvE is inferable from a participant named `AI`;
+      difficulty is not recoverable, so leave it null.
+- [ ] Split the leaderboard by mode: `GET /api/leaderboard?mode=PVE`, with the
+      parameter optional so the endpoint keeps working unchanged.
+- [ ] Two boards in the UI, not four — **vs Computer** and **vs Player** as tabs
+      in `LeaderboardDialog`, with difficulty as a *column* inside the PvE board.
+      Four boards means four nearly-empty tables at your player count.
+
+**`feat/bound-history-apis`**
+
+- [ ] Add limits and pagination to `GET /api/game-results`. It currently returns
+      every game joined with every participant and every question answer, with no
+      bound — the worst of the two endpoints and already shipped.
+- [ ] Add a result limit to `GET /api/leaderboard`.
+- [ ] Decide and implement offline synchronization. Games written to `test.csv`
+      when the server is down are never uploaded, so they silently never appear
+      in history or standings. Pick one: auto-upload on reconnect, manual import,
+      or permanently local and excluded — and say which in the README.
+
+> **Why splitting the leaderboard beats excluding modes.** Beating easy AI and
+> beating a human are not comparable achievements, and one combined number
+> averages them into nonsense. Per-mode boards make each one internally fair
+> without hiding any data — and an `AI` row stops being strange, because on a
+> vs-Computer board *"AI has won 40 of 60"* is a genuinely interesting stat about
+> how well the AI plays.
+
+> **Hotseat stays farmable.** You control both sides of a local PvP game, so that
+> board is self-refereed no matter how it's sliced. Either leave it unranked or
+> label it casual — just don't pretend it's competitive.
+
+## Phase 02 — Split the client · L
+
+**Blocks:** 03, 04, 05, 08 **Needs:** 00
+
+`GUI.java` is ~1,160 lines with one 770-line method holding roughly 35 anonymous
+listeners and mutable fields like `curPlayer`, `modeChoice`, and `AIQuestion`.
+Async state updates cannot be threaded into that safely.
+
+**Five branches, state model first.** The order matters: you cannot extract the
+setup screen cleanly while `username1`, `birthday1`, and `modeChoice` live as
+`GUI` fields — you would either pass the god-object into each extracted class or
+invent throwaway state holders, then undo that at the end. Introduce a thin state
+model first and extract onto it.
+
+1. **`refactor/ui-state-model`** — introduce the state model and a controller
+   skeleton. `GUI` stays monolithic but reads and writes all state through them.
+   Replace the stringly-typed mode flags
+   (`modeChoice.endsWith("preset questions")`) with enums here.
+2. **`refactor/extract-setup-screen`** — usernames, birthdays, mode and
+   difficulty selection, opening-turn choice.
+3. **`refactor/extract-board-view`** — the character grids and flip-down
+   behavior.
+4. **`refactor/extract-question-controls`** — asking, answering, and guessing.
+5. **`refactor/extract-ending-screen`** — result, reveal, and answer review.
+
+- [ ] Every branch leaves the app working and the suite green.
+- [ ] Establish the EDT discipline in branch 1: every state change arrives through
+      one `SwingUtilities.invokeLater` boundary rather than scattered through
+      listeners.
+- [ ] Bring each extracted piece under test as it lands. `LeaderboardPanel` is the
+      model to copy — its test covers loading, success, empty, error, and retry,
+      and the README lists untested Swing as a known limitation.
+
+> **Do this before it gets harder.** Every feature added ahead of this phase gets
+> built into the structure that has to be dismantled, then rebuilt. It's the
+> least fun phase and the one most worth front-loading.
+
+## Phase 03 — Split the build · S
+
+**Blocks:** 07 **Needs:** 02
+**Branch:** `chore/multi-module-build`
+
+Everything currently lives in one Maven module, so `jpackage` would bundle Spring
+Boot, H2, HikariCP, and Jackson into the desktop installer — shipping a web
+server and a database engine to every player.
+
+Done here rather than at packaging time because Phase 02 has just finished
+drawing these boundaries; doing both in one pass beats discovering it later.
+
+- [ ] Parent pom with three modules: `game-core`, `desktop-client`, `server`.
+- [ ] `game-core` — the `game` package plus the CSV, image, and audio resources,
+      and the shared types both sides need (`GameResult`, `LeaderboardEntry`).
+- [ ] `desktop-client` — `ui`, `client`, and the CSV-writing half of
+      `persistence` (`CsvGameResultRepository`, `StoreResult`). Depends on
+      `game-core` only.
+- [ ] `server` — `web`, `leaderboard`, and the JDBC half of `persistence`.
+      Depends on `game-core` only.
+- [ ] Split the `persistence` package deliberately: the `GameResultRepository`
+      interface is used by both sides and belongs in core; the JDBC and CSV
+      implementations do not.
+- [ ] Verify the desktop artifact resolves no Spring dependencies.
+
+## Phase 04 — Commit the character · M
+
+**Blocks:** 09 **Needs:** 02
+
+Storing the chosen character and verifying honest answers are the same
+mechanism, not two features. Today `Player`'s constructor assigns a *random*
+character and the human declares theirs at the end — which is why
+`selectCharacter()` requires `FINISHED` and why verification can only ever check
+a self-report.
+
+Must land before Phase 09, because it changes the `Game` API that networking
+will freeze.
+
+- [ ] Move character selection to game start. `Player` stops auto-assigning;
+      `Game.selectCharacter()` moves from `FINISHED` to setup.
+- [ ] Add the store-my-character setting. On: the server knows it and
+      verification is automatic. Off: the game plays as it does now and
+      verification is unavailable — say so in the UI rather than offering a check
+      that can't work.
+- [ ] Add the commitment scheme so PvP verification becomes possible: the client
+      sends `SHA-256(character + nonce)` at game start, reveals both at the end,
+      and the server recomputes and compares.
+- [ ] Rework `getComputerAnswerCorrections()` to run against the committed
+      character rather than the post-hoc claim.
+
+> **Why the commitment matters.** It closes the cheat you actually care about —
+> changing your character once you see how the questions are going. Nobody learns
+> the character during play, but you're locked in from move one.
+>
+> It does not defend against a modified client, and that's fine. Say so in the
+> README; knowing the boundary of your own threat model is the part worth
+> showing.
+
+## Phase 05 — Make it feel finished · L
+
+**Blocks:** 07 **Needs:** 02
+
+The first phase with visible payoff, and the one that makes the app demoable.
+
+- [ ] FlatLaf. Roughly five lines of setup for flat theming, light/dark, and
+      HiDPI — the highest ratio of appearance to effort in the whole plan.
+- [ ] A real ending screen. Right now the outcome is panels bolted onto the
+      frame; it should be one composed screen with the result, both characters,
+      the question history, and a rematch button.
+- [ ] Music controls: volume, mute, pause, persisted between sessions.
+- [ ] A settings screen to house audio, the store-my-character toggle, and
+      difficulty.
+- [ ] Improve the existing **How To Play** screen. The button is already there at
+      `GUI.java:173`, but it dumps one HTML blob into the welcome panel — it needs
+      structure, and it should explain the verification rules from Phase 04.
+- [ ] Replace the empty `Bloom of Youth.wav`, which currently causes the game to
+      start silently by design.
+
+> **Volume is in decibels.** `FloatControl.MASTER_GAIN` is logarithmic, not a
+> 0–100 linear scale. A slider wired straight to it feels broken across the
+> bottom half of its travel. Map it logarithmically and treat the minimum as
+> mute.
+
+## Phase 06 — Give the AI a brain · M
+
+**Blocks:** nothing **Needs:** 00
+
+Self-contained pure logic with no UI or network dependencies — slot it in
+wherever another phase gets tiring.
+
+- [ ] Replace the closest-to-half heuristic with real information gain. Scoring
+      by expected entropy reduction is a small change that plays noticeably
+      better.
+- [ ] Teach the AI to take a risk. It currently guesses only when `onlyOne()` is
+      true, so it never gambles at two or three candidates — which is most of
+      what makes hard mode feel hard.
+- [ ] Expand easy/hard into real tiers, differentiated by question quality *and*
+      guess aggression rather than random-versus-optimal.
+- [ ] Consider making the AI answer imperfectly on the easiest tier, so beginners
+      can win.
+- [ ] Record the new tiers in the `difficulty` column from Phase 01 so the PvE
+      board can break standings down by tier.
+
+## Phase 07 — Ship v0.5 · S
+
+**Needs:** 03, 04, 05
+
+- [ ] `jpackage` installers for macOS and Windows with a bundled JRE.
+- [ ] README pass covering the desktop game, the verification rules, and how to
+      run the local server for leaderboards.
+- [ ] Tag `v0.5`.
+
+---
+
+# v1.0 — Online
+
+## Phase 08 — Accounts · L
+
+**Blocks:** 09, 11 **Needs:** 02
+
+Identity is the hook both the leaderboard rework and online play hang from.
+Local PvP stays exactly as it is: one account, one computer, two people — the
+account owns the record and player two is just a name.
+
+- [ ] Registration and login, Spring Security with BCrypt. Token storage on the
+      desktop side, since there's no browser to hold a session.
+- [ ] Guest mode. People should be able to try the game without registering —
+      this matters more for "usable" than any other single decision here.
+- [ ] Persistent login so the app doesn't ask on every launch.
+- [ ] Move production storage to Postgres, keeping H2 in-memory for tests. By now
+      this is a Flyway migration, not a schema rewrite.
+- [ ] Re-key leaderboard entries from typed names to account IDs. Until this
+      lands, two people typing `Gavin` share a row and anyone can claim any name.
+- [ ] Decide what happens to pre-accounts standings — most likely archive or
+      discard rather than trying to attribute them.
+- [ ] Fix ranking while you're in there: ties currently break alphabetically, so
+      `Aaron` permanently outranks `Zoe` at equal wins. Sort on win rate, or on
+      wins then fewer games.
+- [ ] Server-side length and content validation on usernames and questions.
+      `question` is `VARCHAR(2000)` with nothing enforcing it client-side.
+
+## Phase 09 — Online PvP · XL
+
+**Blocks:** 12 **Needs:** 04, 08
+
+The headline feature. The server holds the authoritative `Game`; clients stay
+thin and never decide anything.
+
+- [ ] A `GameSession` registry mapping room codes to games and connected players.
+      Six-character codes, no public matchmaking.
+- [ ] Endpoints wrapping the moves that already exist: ask, answer, guess, plus
+      `GET /api/rooms/{code}/state` for polling.
+- [ ] **Server-side state filtering.** Never send the opponent's character to a
+      client. Push full state to both players and anyone can read it off the wire
+      — and the entire verification story collapses with it.
+- [ ] Idempotency keys on every move. A request times out, the client retries,
+      and the question gets recorded twice. This is the bug you will hit first.
+- [ ] Persist session state **in Postgres**, on the single instance you already
+      run. Not for scale — in-memory sessions die on every restart, so deploying
+      while two friends are mid-game destroys their game. Redis is a Phase 13
+      upgrade, not a starting point.
+- [ ] Turn timers, forfeit, and opponent-left handling, so an abandoned game
+      doesn't hang forever.
+- [ ] Reconnect: both the plumbing and the screen states — reconnecting, opponent
+      reconnecting, game expired.
+- [ ] API versioning with a clear rejection message for stale clients. Installers
+      live on disk and will fall behind the server.
+- [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game
+      end.
+- [ ] Rate-limit move and room-creation endpoints before this is reachable from
+      outside your network.
+
+> **Deliberately a monolith.** One instance handles tens of thousands of
+> concurrent games at these state sizes and turn rates. The distributed-systems
+> work worth doing here is durable sessions, idempotent moves, and reconnect —
+> not microservices or a message queue.
+>
+> Put that reasoning in the README. Explaining why you *didn't* distribute reads
+> better than having distributed something that didn't need it.
+
+## Phase 10 — Ship v1.0 · M
+
+**Needs:** everything above
+
+- [ ] Deploy the server — Railway, Fly, or Render with managed Postgres.
+- [ ] Structured logging and a database-aware health endpoint. `/api/status`
+      returns a hardcoded string and says nothing about connectivity.
+- [ ] Error responses that don't leak stack traces to clients.
+- [ ] Rebuild installers against the deployed server.
+- [ ] Rewrite the README around what it became: architecture, the commitment
+      scheme, why it's a monolith, and screenshots.
+- [ ] Tag `v1.0`.
+
+---
+
+# Post-v1
+
+## Phase 11 — Stats and replay · M
+
+**Needs:** 08
+
+Cheap — the question logs have been accumulating since the history endpoint
+shipped. Almost all of this is presentation.
+
+- [ ] Game history browser over the question logs already in the database.
+- [ ] Post-game replay — step through a finished game question by question. This
+      is the cheap 80% of spectating, with none of its problems.
+- [ ] Per-mode statistics beyond wins and losses: win rate, average questions to
+      a correct guess, most-asked questions.
+
+## Phase 12 — Chat and spectating · L
+
+**Needs:** 09
+
+- [ ] Chat as its own channel, strictly separate from questions. The question
+      channel is game state — recorded, verified, replayed — and free-form
+      chatter mixed into it would corrupt the log that verification runs against.
+- [ ] Chat rides the existing state-update channel: a message list on the
+      session, no new transport.
+- [ ] Live spectating needs a *third* projection of game state alongside each
+      player's view, since a spectator sees both characters.
+- [ ] Invite-only spectating, and block self-spectating.
+
+> **Spectating is a cheat vector.** A spectator sees both characters, so a player
+> who opens a spectator connection to their own game learns the opponent's.
+> Blocking yourself is easy; blocking a second account you also control isn't.
+> Invite-only contains it — public spectating doesn't.
+>
+> Room-code-only games are also what keeps chat cheap. Open it to strangers and
+> you inherit moderation and reporting, which is not a small feature.
+
+## Phase 13 — Scale, only if measured · S
+
+**Needs:** a real reason
+
+- [ ] Move session state from Postgres to Redis, if session reads ever show up in
+      profiling.
+- [ ] Run more than one instance, if a single one is ever saturated.
+
+Do not start this phase speculatively. "We measured X and it hurt" is the entry
+condition.
+
+---
+
+## The mode matrix
+
+Worth settling explicitly, because one cell is already impossible in the current
+code. `Game.askComputer()` routes to `ComputerPlayer.answerQuestion()`, which
+calls `findQuestion()` and throws on anything outside the preset list — the AI
+has no way to answer free text.
+
+| Mode | Preset questions | Free-form questions | Verification |
+| --- | --- | --- | --- |
+| PvE | Yes | **Not possible** | Automatic |
+| PvP local (hotseat) | Yes | Yes | Optional |
+| PvP online | Yes | Yes | Via commitment |
+
+Either document free-form PvE as unsupported, or map free text onto the nearest
+preset question. Both are defensible — drifting into it by accident isn't.
+
+## Deliberately not doing
+
+- **A web client** — the whole reason this plan is one language and one rules
+  engine. Reconsider only if reach beats maintenance cost.
+- **Custom character packs** — uploads, storage, and moderation. A large surface
+  for a nice-to-have. Revisit after v1.0.
+- **Public matchmaking** — room codes cover playing with friends and keep chat
+  moderation entirely out of scope.
+- **Microservices and message queues** — no load problem exists to solve.
+  Building one anyway is the negative signal, not the positive one.
+- **WebSockets** — polling is indistinguishable for a turn-based game. Add them
+  only as a deliberate exercise, not a requirement.
+
+## Still to decide
+
+1. What happens to offline results in `test.csv` — auto-upload on reconnect,
+   manual import, or permanently local? Needed in Phase 01.
+2. Should closing the app mid-game lose it? There is no save/resume today.
+   Phase 09's session state covers *online* games; local PvE and hotseat have
+   nothing. Worth deciding before Phase 02 settles the UI state model.
+3. Does free-form PvE stay unsupported, or do you map free text onto preset
+   questions with fuzzy matching?
+4. How long is a turn timer, and does it forfeit the game or just pass the turn?
+5. Do guests get to play online at all, or only PvE and hotseat? Letting them
+   online means unranked rooms and throwaway identities.
+6. Does the store-my-character setting belong to the account or the machine?
+7. Does the hotseat board stay on the leaderboard as a casual tier, or come off
+   entirely because you referee both sides?
+
+---
+
+Phases 00 through 04 get harder or more expensive the longer they wait — 01
+because unclassifiable and unbounded data keeps accumulating, 04 because it
+changes an API that Phase 09 will freeze, the rest because later work builds on
+them. Everything after 05 can be reordered as interest dictates.
+
+**Next branch:** `fix/repair-computer-engine`
