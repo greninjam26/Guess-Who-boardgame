@@ -1,5 +1,6 @@
 package com.guesswho.client;
 
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import java.util.List;
@@ -13,7 +14,8 @@ public interface LeaderboardClient {
     /**
      * Retrieves standings without blocking the calling thread.
      *
+     * @param mode game mode to report on, or {@code null} for every mode
      * @return future containing current leaderboard standings
      */
-    CompletableFuture<List<LeaderboardEntry>> fetch();
+    CompletableFuture<List<LeaderboardEntry>> fetch(GameMode mode);
 }

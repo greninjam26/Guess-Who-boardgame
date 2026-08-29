@@ -45,7 +45,7 @@ class LeaderboardPanel extends JPanel {
         statusLabel.setText("Loading leaderboard...");
         statusLabel.setVisible(true);
         standingsTable.setVisible(false);
-        leaderboardClient.fetch().whenComplete((standings, failure) ->
+        leaderboardClient.fetch(null).whenComplete((standings, failure) ->
                 SwingUtilities.invokeLater(() -> {
                     refreshButton.setEnabled(true);
                     if (failure != null) {

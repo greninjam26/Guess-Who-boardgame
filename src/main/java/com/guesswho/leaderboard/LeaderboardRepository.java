@@ -1,5 +1,7 @@
 package com.guesswho.leaderboard;
 
+import com.guesswho.game.GameMode;
+
 import java.util.List;
 
 /**
@@ -9,7 +11,8 @@ public interface LeaderboardRepository {
     /**
      * Returns standings ordered by wins and then participant name.
      *
+     * @param mode game mode to report on, or {@code null} for every mode
      * @return leaderboard standings
      */
-    List<LeaderboardEntry> findStandings();
+    List<LeaderboardEntry> findStandings(GameMode mode);
 }

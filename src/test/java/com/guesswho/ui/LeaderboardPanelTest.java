@@ -24,7 +24,7 @@ class LeaderboardPanelTest {
         CompletableFuture<List<LeaderboardEntry>> response = new CompletableFuture<>();
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(
-                new LeaderboardPanel(() -> response)));
+                new LeaderboardPanel(mode -> response)));
 
         LeaderboardPanel panel = panelReference.get();
         JLabel statusLabel = findComponent(panel, JLabel.class);
@@ -53,7 +53,7 @@ class LeaderboardPanelTest {
     void showsEmptyStateWhenNoGamesHaveBeenRecorded() throws Exception {
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(
-                () -> CompletableFuture.completedFuture(List.of()))));
+                mode -> CompletableFuture.completedFuture(List.of()))));
         SwingUtilities.invokeAndWait(() -> {
         });
 
@@ -70,7 +70,7 @@ class LeaderboardPanelTest {
     void showsUnavailableStateWhenLeaderboardRequestFails() throws Exception {
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(
-                () -> CompletableFuture.failedFuture(
+                mode -> CompletableFuture.failedFuture(
                         new IllegalStateException("Server unavailable")))));
         SwingUtilities.invokeAndWait(() -> {
         });
@@ -88,7 +88,7 @@ class LeaderboardPanelTest {
     void retriesLeaderboardRequestAfterFailure() throws Exception {
         AtomicInteger requests = new AtomicInteger();
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(() -> {
+        SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(mode -> {
             if (requests.getAndIncrement() == 0) {
                 return CompletableFuture.failedFuture(
                         new IllegalStateException("Server unavailable"));
