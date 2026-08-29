@@ -9,49 +9,49 @@ package com.guesswho.game;
  * Human player with a username and birthday value used by game setup.
  */
 public class User extends Player{
-	//all the attributes
-	private String username;//the username of the user
-	private int birthday;//the birthday of the user
-	/**
-	 * Creates a human player using the standard board.
-	 *
-	 * @param defaultState initial player state
-	 * @param defaultBirthday birthday value used for younger-player turn order
-	 * @param defaultUsername displayed player name
-	 * @throws Exception if the board resources cannot be loaded
-	 */
-	public User(String defaultState, int defaultBirthday, String defaultUsername) throws Exception{
-		super(defaultState);//call the super class
-		//set the attributes to inputed values
-		birthday = defaultBirthday;
-		username = defaultUsername;
-	}
-	/**
-	 * this method will return the username of the User
-	 * @return the username
-	 */
-	public String getUsername() {
-		return username;
-	}
-	/**
-	 * this method will set the new username for the User
-	 * @param newUsername the new username
-	 */
-	public void setUsername(String newUsername) {
-		username = newUsername;
-	}
-	/**
-	 * this method will return the birthday of the User
-	 * @return the birthday
-	 */
-	public int getBirthday() {
-		return birthday;
-	}
-	/**
-	 * this method will set the birthday of the User
-	 * @param newBirthday the new birthday
-	 */
-	public void setBirthday(int newBirthday) {
-		birthday = newBirthday;
-	}
+    //all the attributes
+    private String username;//the username of the user
+    private int birthday;//the birthday of the user
+    /**
+     * Creates a human player using the standard board.
+     *
+     * @param defaultState initial player state
+     * @param defaultBirthday birthday value used for younger-player turn order
+     * @param defaultUsername displayed player name
+     * @throws Exception if the board resources cannot be loaded
+     */
+    public User(String defaultState, int defaultBirthday, String defaultUsername) throws Exception{
+        super(defaultState);//call the super class
+        //set the attributes to inputed values
+        birthday = defaultBirthday;
+        username = defaultUsername;
+    }
+    /**
+     * this method will return the username of the User
+     * @return the username
+     */
+    public String getUsername() {
+        return username;
+    }
+    /**
+     * this method will set the new username for the User
+     * @param newUsername the new username
+     */
+    public void setUsername(String newUsername) {
+        username = newUsername;
+    }
+    /**
+     * this method will return the birthday of the User
+     * @return the birthday
+     */
+    public int getBirthday() {
+        return birthday;
+    }
+    /**
+     * this method will set the birthday of the User
+     * @param newBirthday the new birthday
+     */
+    public void setBirthday(int newBirthday) {
+        birthday = newBirthday;
+    }
 }
