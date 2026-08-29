@@ -21,7 +21,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Java 17
 - Java Swing and AWT
 - Spring Boot 4.1.1 and Spring MVC
-- Spring JDBC and H2
+- Spring JDBC, Flyway, and H2
 - Maven
 - CSV-based game data
 
@@ -44,8 +44,8 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
     │       ├── application.properties # Server database configuration
     │       ├── audio/               # Background music
     │       ├── data/                # Character and question CSV files
-    │       ├── images/              # Character-card artwork
-    │       └── schema.sql           # Game-result database schema
+    │       ├── db/migration/       # Flyway schema migrations
+    │       └── images/              # Character-card artwork
     └── test/
         └── java/                    # Regression checks
 ```
@@ -118,8 +118,10 @@ curl http://localhost:8080/api/status
 The response is `{"status":"online"}`. The server is available only on the local machine until it is deployed to a host.
 
 The server stores submitted games in the file-backed H2 database
-`guess-who-data.mv.db`. The schema is created automatically at startup, and
-the data remains available after the server restarts.
+`guess-who-data.mv.db`. Flyway applies the migrations under
+`src/main/resources/db/migration` at startup, and the data remains available
+after the server restarts. A database created before Flyway was adopted is
+baselined rather than rejected.
 
 ### Submit a Game Result
 
@@ -143,13 +145,18 @@ curl -X POST http://localhost:8080/api/game-results \
         "questionAnswers": []
       }
     ],
-    "winner": "Player 1"
+    "winner": "Player 1",
+    "mode": "PVP_LOCAL",
+    "questionMode": "PRESET"
   }'
 ```
 
 A valid result returns HTTP `201 Created` and is stored transactionally in the
-H2 database. The winner must match a participant, and names, selected
-characters, and questions cannot be blank. Database connection settings can be
+H2 database. The winner must match a participant; names, selected characters,
+and questions cannot be blank; and both `mode` and `questionMode` are
+required. `mode` is `PVE`, `PVP_LOCAL`, or `PVP_ONLINE`, and `questionMode` is
+`PRESET` or `FREE_FORM`. Add `difficulty` (`EASY` or `HARD`) for games against
+the computer. Database connection settings can be
 overridden with standard `spring.datasource.*` Spring Boot properties.
 
 ### View Game Result History
@@ -182,7 +189,10 @@ question histories:
         ]
       }
     ],
-    "winner": "Player 1"
+    "winner": "Player 1",
+    "mode": "PVP_LOCAL",
+    "difficulty": null,
+    "questionMode": "PRESET"
   }
 ]
 ```
