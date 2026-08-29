@@ -105,7 +105,45 @@ class JdbcGameResultRepositoryTest {
                                         "Player 1",
                                         GameMode.PVP_LOCAL,
                                         null, QuestionMode.PRESET))),
-                gameResultHistoryRepository.findAll());
+                gameResultHistoryRepository.findPage(50, 0));
+    }
+
+    @Test
+    void limitsWholeGamesRatherThanJoinedRows() {
+        LocalDateTime olderCreatedAt = LocalDateTime.of(2026, 8, 20, 10, 0);
+        LocalDateTime newerCreatedAt = LocalDateTime.of(2026, 8, 21, 10, 0);
+        insertGame(-10, "Player 1", olderCreatedAt, GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
+        insertParticipant(-101, -10, 0, "Player 1", "Olivia");
+        insertQuestionAnswer(-101, 0, "Does your character wear glasses?", true);
+        insertQuestionAnswer(-101, 1, "Is your character wearing a hat?", false);
+        insertGame(-20, "AI", newerCreatedAt, GameMode.PVE, ComputerDifficulty.HARD,
+                QuestionMode.PRESET);
+        insertParticipant(-201, -20, 0, "Player", "Sam");
+        insertParticipant(-202, -20, 1, "AI", "Olivia");
+        insertQuestionAnswer(-202, 0, "Does your character have dark hair?", true);
+
+        List<StoredGameResult> firstPage = gameResultHistoryRepository.findPage(1, 0);
+
+        assertEquals(1, firstPage.size());
+        assertEquals(-20, firstPage.get(0).id());
+        assertEquals(2, firstPage.get(0).gameResult().participants().size(),
+                "A limited page must still carry every participant of the games it returns");
+    }
+
+    @Test
+    void skipsGamesWithAnOffset() {
+        LocalDateTime olderCreatedAt = LocalDateTime.of(2026, 8, 20, 10, 0);
+        LocalDateTime newerCreatedAt = LocalDateTime.of(2026, 8, 21, 10, 0);
+        insertGame(-10, "Player 1", olderCreatedAt, GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
+        insertParticipant(-101, -10, 0, "Player 1", "Olivia");
+        insertGame(-20, "AI", newerCreatedAt, GameMode.PVE, ComputerDifficulty.HARD,
+                QuestionMode.PRESET);
+        insertParticipant(-201, -20, 0, "Player", "Sam");
+
+        List<StoredGameResult> secondPage = gameResultHistoryRepository.findPage(1, 1);
+
+        assertEquals(1, secondPage.size());
+        assertEquals(-10, secondPage.get(0).id());
     }
 
     private void insertGame(

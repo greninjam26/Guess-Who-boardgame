@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class JdbcGameResultRepository
         implements GameResultRepository, GameResultHistoryRepository {
-    private static final String FIND_ALL_SQL = """
+    private static final String FIND_PAGE_SQL = """
             SELECT
                 game_result.id AS game_result_id,
                 game_result.created_at,
@@ -34,7 +34,12 @@ public class JdbcGameResultRepository
                 participant.selected_character,
                 question_answer.question,
                 question_answer.answer
-            FROM game_results game_result
+            FROM (
+                SELECT id, created_at, winner, mode, difficulty, question_mode
+                FROM game_results
+                ORDER BY created_at DESC, id DESC
+                LIMIT ? OFFSET ?
+            ) game_result
             LEFT JOIN game_result_participants participant
               ON participant.game_result_id = game_result.id
             LEFT JOIN game_result_question_answers question_answer
@@ -70,8 +75,8 @@ public class JdbcGameResultRepository
 
     @Override
     @Transactional(readOnly = true)
-    public List<StoredGameResult> findAll() {
-        return jdbcTemplate.query(FIND_ALL_SQL, resultSet -> {
+    public List<StoredGameResult> findPage(int limit, int offset) {
+        return jdbcTemplate.query(FIND_PAGE_SQL, resultSet -> {
             Map<Long, GameResultAccumulator> games = new LinkedHashMap<>();
             while (resultSet.next()) {
                 long gameResultId = resultSet.getLong("game_result_id");
@@ -109,7 +114,7 @@ public class JdbcGameResultRepository
             return games.values().stream()
                     .map(GameResultAccumulator::toStoredGameResult)
                     .toList();
-        });
+        }, limit, offset);
     }
 
     private long insertGameResult(GameResult gameResult) {

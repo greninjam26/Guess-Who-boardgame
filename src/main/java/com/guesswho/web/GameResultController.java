@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,6 +26,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/game-results")
 public class GameResultController {
+    private static final int DEFAULT_LIMIT = 50;
+    private static final int MAX_LIMIT = 200;
+
     private final GameResultRepository gameResultRepository;
     private final GameResultHistoryRepository gameResultHistoryRepository;
 
@@ -42,15 +46,29 @@ public class GameResultController {
     }
 
     /**
-     * Returns saved game results from newest to oldest.
+     * Returns one page of saved game results, newest first.
      *
+     * @param limit maximum number of games to return
+     * @param offset number of games to skip
      * @return completed-game history
      */
     @GetMapping
-    public List<GameResultHistoryResponse> getGameResults() {
-        return gameResultHistoryRepository.findAll().stream()
+    public List<GameResultHistoryResponse> getGameResults(
+            @RequestParam(defaultValue = "" + DEFAULT_LIMIT) int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        requireRange("limit", limit, 1, MAX_LIMIT);
+        requireRange("offset", offset, 0, Integer.MAX_VALUE);
+        return gameResultHistoryRepository.findPage(limit, offset).stream()
                 .map(GameResultHistoryResponse::from)
                 .toList();
+    }
+
+    private void requireRange(String name, int value, int minimum, int maximum) {
+        if (value < minimum || value > maximum) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    name + " must be between " + minimum + " and " + maximum);
+        }
     }
 
     /**
