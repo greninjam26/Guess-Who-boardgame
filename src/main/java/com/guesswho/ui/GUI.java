@@ -36,9 +36,8 @@ public class GUI {
     // Main frame of the application
     private JFrame frame;
     //new game class for the game
-    private Game newGame;
-    //choices collected by the setup screens
-    private GameSetup setup;
+    //drives the game from the choices the setup screens collected
+    private GameController controller;
     //submits results to the server, queueing them locally while it is unreachable
     private final GameResultSubmissionService resultSubmissionService =
             new GameResultSubmissionService(
@@ -111,6 +110,7 @@ public class GUI {
     private JLabel player2SelectedCharacter;
     private JLabel AISelectedCharacter;
     private JPanel whosFirstChoicePanel;
+    private JPanel characterSelectionPanel;
     private JButton player1FirstButton;
     private JButton player2FirstButton;
     private JButton randomlyChooseButton;
@@ -133,8 +133,7 @@ public class GUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
         //inialization of some of the veriables
-        newGame = new Game();
-        setup = new GameSetup();
+        controller = new GameController(new Game(), new GameSetup());
         questionPanelShowing = false;
         iconStates1 = new ArrayList<String>();
         iconStates2 = new ArrayList<String>();
@@ -218,7 +217,7 @@ public class GUI {
         birthdayAskingPanel2.add(birthdayField2);
         birthdayAskingPanel2.add(birthdayAskingButton2);
 
-        JPanel characterSelectionPanel = new JPanel();
+        characterSelectionPanel = new JPanel();
         JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
                 + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character. <html>");
         JButton readyButton = new JButton("Ready");
@@ -374,7 +373,7 @@ public class GUI {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     frame.remove(guessBoardPanel);
-                    String guessingUsername = newGame.getCurrentPlayerName();//find whose turn it is
+                    String guessingUsername = controller.game().getCurrentPlayerName();//find whose turn it is
                     guessPVP(guessingUsername, i);//current user does the guess
                 }
             });
@@ -422,19 +421,19 @@ public class GUI {
         usernameAskingButton1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.firstUsername(usernameField1.getText());//read the username from the JTextField
-                if (setup.firstUsername() == null || setup.firstUsername().isBlank()) {
+                controller.setup().firstUsername(usernameField1.getText());//read the username from the JTextField
+                if (controller.setup().firstUsername() == null || controller.setup().firstUsername().isBlank()) {
                     showInputError("Username must not be blank.");
                     return;
                 }
-                if (setup.isAgainstComputer() && setup.firstUsername().equals("AI")) {
+                if (controller.setup().isAgainstComputer() && controller.setup().firstUsername().equals("AI")) {
                     showInputError("AI is reserved for the computer player.");
                     return;
                 }
                 frame.remove(usernameAskingPanel1);
-                player1FirstButton.setText(setup.firstUsername() + " goes first");
-                recordStepsLabel1Text += setup.firstUsername() + ": <br>";
-                if (setup.isAgainstPlayer()) {//if the user choose to do player vs player
+                player1FirstButton.setText(controller.setup().firstUsername() + " goes first");
+                recordStepsLabel1Text += controller.setup().firstUsername() + ": <br>";
+                if (controller.setup().isAgainstPlayer()) {//if the user choose to do player vs player
                     frame.add(birthdayAskingPanel1);
                 }
                 else {//when it is player vs computer
@@ -448,7 +447,7 @@ public class GUI {
         birthdayAskingButton1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.firstBirthday(Integer.parseInt(birthdayField1.getText()));
+                controller.setup().firstBirthday(Integer.parseInt(birthdayField1.getText()));
                 frame.remove(birthdayAskingPanel1);
                 frame.add(usernameAskingPanel2, BorderLayout.CENTER);
                 refreshFrame();
@@ -458,17 +457,17 @@ public class GUI {
         usernameAskingButton2.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.secondUsername(usernameField2.getText());
-                if (setup.secondUsername() == null || setup.secondUsername().isBlank()) {
+                controller.setup().secondUsername(usernameField2.getText());
+                if (controller.setup().secondUsername() == null || controller.setup().secondUsername().isBlank()) {
                     showInputError("Username must not be blank.");
                     return;
                 }
-                if (setup.secondUsername().equals(setup.firstUsername())) {
+                if (controller.setup().secondUsername().equals(controller.setup().firstUsername())) {
                     showInputError("Player usernames must be different.");
                     return;
                 }
-                player2FirstButton.setText(setup.secondUsername() + " goes first");
-                recordStepsLabel2Text += setup.secondUsername() + ": <br>";
+                player2FirstButton.setText(controller.setup().secondUsername() + " goes first");
+                recordStepsLabel2Text += controller.setup().secondUsername() + ": <br>";
                 frame.remove(usernameAskingPanel2);
                 frame.add(birthdayAskingPanel2, BorderLayout.CENTER);
                 refreshFrame();
@@ -478,7 +477,7 @@ public class GUI {
         birthdayAskingButton2.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.secondBirthday(Integer.parseInt(birthdayField2.getText()));
+                controller.setup().secondBirthday(Integer.parseInt(birthdayField2.getText()));
                 frame.remove(birthdayAskingPanel2);
                 frame.add(whosFirstChoicePanel);
                 refreshFrame();
@@ -488,28 +487,28 @@ public class GUI {
         easyPVC.addActionListener(new ActionListener() {//play against easy AI
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.againstComputer(ComputerDifficulty.EASY);
+                controller.setup().againstComputer(ComputerDifficulty.EASY);
                 askUsernamePVC();
             }
         });
         hardPVC.addActionListener(new ActionListener() {//play against hard AI
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.againstComputer(ComputerDifficulty.HARD);
+                controller.setup().againstComputer(ComputerDifficulty.HARD);
                 askUsernamePVC();
             }
         });
         presetQuestionPVP.addActionListener(new ActionListener() {//play against another player with predefined questions
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.againstPlayer(QuestionMode.PRESET);
+                controller.setup().againstPlayer(QuestionMode.PRESET);
                 askUsernamePVP();
             }
         });
         freeQuestionPVP.addActionListener(new ActionListener() {//play against another player with whatever questions you enter
             @Override
             public void actionPerformed(ActionEvent e) {
-                setup.againstPlayer(QuestionMode.FREE_FORM);
+                controller.setup().againstPlayer(QuestionMode.FREE_FORM);
                 askUsernamePVP();
             }
         });
@@ -517,111 +516,35 @@ public class GUI {
         AIFirstButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.remove(whosFirstChoicePanel);
-                try {
-                    newGame.startComputerGame(setup.firstUsername(), setup.difficulty(), ComputerGameStart.COMPUTER, setup.questionMode());
-                } catch (Exception e1) {
-                    handleGameStartFailure(e1);
-                    return;
-                }
-                frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                refreshFrame();
+                startGame(OpeningTurn.COMPUTER);
             }
         });
         //action listener for when user choose, that they should go first
         player1FirstButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.remove(whosFirstChoicePanel);
-                if (setup.isAgainstPlayer()) {//when it is pvp mode
-                    try {
-                        newGame.startPlayerGame(
-                                setup.firstUsername(), setup.firstBirthday(), setup.secondUsername(), setup.secondBirthday(),
-                                PlayerGameStart.FIRST_PLAYER, setup.questionMode());
-                    } catch (Exception e1) {
-                        handleGameStartFailure(e1);
-                        return;
-                    }
-                    frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                    refreshFrame();
-                }
-                else {//play aginst the computer
-                    try {
-                        newGame.startComputerGame(setup.firstUsername(), setup.difficulty(), ComputerGameStart.PLAYER, setup.questionMode());
-                    } catch (Exception e1) {
-                        handleGameStartFailure(e1);
-                        return;
-                    }
-                    frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                    refreshFrame();
-                }
+                startGame(OpeningTurn.FIRST_PLAYER);
             }
         });
         //action listener for when user choose to let the second player go first
         player2FirstButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.remove(whosFirstChoicePanel);
-                try {
-                    newGame.startPlayerGame(
-                            setup.firstUsername(), setup.firstBirthday(), setup.secondUsername(), setup.secondBirthday(),
-                            PlayerGameStart.SECOND_PLAYER, setup.questionMode());
-                } catch (Exception e1) {
-                    handleGameStartFailure(e1);
-                    return;
-                }
-                frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                refreshFrame();
+                startGame(OpeningTurn.SECOND_PLAYER);
             }
         });
         //action listener for when user choose to let the younger player go first in PVP mode
         birthdayDecideButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.remove(whosFirstChoicePanel);
-                try {
-                    newGame.startPlayerGame(
-                            setup.firstUsername(), setup.firstBirthday(), setup.secondUsername(), setup.secondBirthday(),
-                            PlayerGameStart.YOUNGER, setup.questionMode());
-                } catch (Exception e1) {
-                    handleGameStartFailure(e1);
-                    return;
-                }
-                frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                refreshFrame();
+                startGame(OpeningTurn.YOUNGER);
             }
         });
         //action listener for when user want the program to randomly choose who goes first
         randomlyChooseButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.remove(whosFirstChoicePanel);
-                if(setup.isAgainstPlayer()){//play against another player
-                    try {
-                        newGame.startPlayerGame(
-                                setup.firstUsername(), setup.firstBirthday(), setup.secondUsername(), setup.secondBirthday(),
-                                PlayerGameStart.RANDOM, setup.questionMode());
-                    } catch (Exception e1) {
-                        handleGameStartFailure(e1);
-                        return;
-                    }
-                    frame.add(characterSelectionPanel);//add in the character selection for the user to get ready to start the game
-                }
-                else {//pvc mode
-                    try {
-                        //call the method and start the game with randomly chosen who goes first between the AI and the player
-                        newGame.startComputerGame(setup.firstUsername(), setup.difficulty(), ComputerGameStart.RANDOM, setup.questionMode());
-                        whosFirst = newGame.getCurrentPlayerName().equals(setup.firstUsername())
-                                ? "You are going first"
-                                : "The AI is going first";
-                    } catch (Exception e1) {
-                        handleGameStartFailure(e1);
-                        return;
-                    }
-                    result1.setText(whosFirst);
-                    frame.add(characterSelectionPanel);
-                }
-                refreshFrame();
+                startGame(OpeningTurn.RANDOM);
             }
         });
         //action listener for the ready button when the user is ready to start play the game
@@ -629,8 +552,8 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 frame.remove(characterSelectionPanel);
-                if (setup.isAgainstPlayer()) {//when it is PVP mode
-                    if (setup.isFreeFormQuestions()) {//if the user want to ask whatever questions they want during the game
+                if (controller.setup().isAgainstPlayer()) {//when it is PVP mode
+                    if (controller.setup().isFreeFormQuestions()) {//if the user want to ask whatever questions they want during the game
                         //ask
                         freeAsk();
                     }
@@ -664,7 +587,7 @@ public class GUI {
                     stepLabel.setText("Please choice the question you want to ask: ");
                     stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height of the stepLabel
                     //set up the question comboBox for the user with the question the user haven't asked
-                    String[] questions = newGame.getCurrentPlayerQuestionTexts();
+                    String[] questions = controller.game().getCurrentPlayerQuestionTexts();
                     questionComboBox = new JComboBox<String>(questions);
                     questionComboBox.setBounds(490, 675, 300, 30); // x, y, width, height
                     //add the questionsComboBox and questionChoiceButton
@@ -673,10 +596,10 @@ public class GUI {
                     refreshFrame();
                 }
                 else {//if user want to make a guess
-                    stepLabel.setText(newGame.getCurrentPlayerName() + ", please enter your guess: ");
+                    stepLabel.setText(controller.game().getCurrentPlayerName() + ", please enter your guess: ");
                     stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height
                     //set up a guessComboBox to store all the possible characters that the user can guess
-                    String[] characters = newGame.getCharacterNames();
+                    String[] characters = controller.game().getCharacterNames();
                     guessComboBox = new JComboBox<String>(characters);
                     guessComboBox.setBounds(565, 675, 150, 30); // x, y, width, height
                     stepPanel.add(guessComboBox);
@@ -690,7 +613,7 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 newQuestion = (String) questionComboBox.getSelectedItem();
-                String AIAnswer = newGame.askComputer(newQuestion);//store the AI's answer to user's question
+                String AIAnswer = controller.game().askComputer(newQuestion);//store the AI's answer to user's question
                 result1.setText("AI: " + AIAnswer);
                 result1.setVisible(true);
                 recordStepsLabel1Text += newQuestion + " : " + AIAnswer + "<br>";//record the question and the answer to the recordStepsLabel1
@@ -721,7 +644,7 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 questionAnswer = (String) questionAnswerComboBox.getSelectedItem();//read the question answer
-                newGame.answerComputerQuestion(questionAnswer.equals("yes"));
+                controller.game().answerComputerQuestion(questionAnswer.equals("yes"));
                 recordStepsLabel2Text += questionAnswer + "<br>";//store the result
                 recordStepsLabel2.setText(recordStepsLabel2Text);
                 stepPanel.remove(questionAnswerButton);
@@ -734,11 +657,11 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 finalGuess = (String) guessComboBox.getSelectedItem();//get the guess
-                resultLabel.setText(newGame.guessComputer(finalGuess));
+                resultLabel.setText(controller.game().guessComputer(finalGuess));
                 frame.remove(boardPanel1);
                 frame.remove(stepPanel);
                 //add in the panel for the user to enter their selected character
-                String[] characters = newGame.getCharacterNames();
+                String[] characters = controller.game().getCharacterNames();
                 charactersComboBox1= new JComboBox<String>(characters);
                 inputSelectedCharacterPanel1.add(charactersComboBox1);
                 inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
@@ -752,17 +675,17 @@ public class GUI {
             public void actionPerformed(ActionEvent e) {
                 String userCharacterName1 = (String) charactersComboBox1.getSelectedItem();//get the character
                 //change it to Character type and set the selected character
-                newGame.selectCharacter(setup.firstUsername(), userCharacterName1);
-                player1SelectedCharacter = getCharacterImage(setup.firstUsername());//get the image of the character
+                controller.game().selectCharacter(controller.setup().firstUsername(), userCharacterName1);
+                player1SelectedCharacter = getCharacterImage(controller.setup().firstUsername());//get the image of the character
                 frame.remove(inputSelectedCharacterPanel1);
-                if (setup.isAgainstComputer()) {//when it is against computer
+                if (controller.setup().isAgainstComputer()) {//when it is against computer
                     AISelectedCharacter = getAICharacterImage();//get the AI character image
                     //add in the information to the endingPanel
                     endingPanel.add(AISelectedCharacter);
                     endingPanel.add(resultLabel);
                     endingPanel.add(player1SelectedCharacter);
                     String validateResult = "";
-                    List<AnswerCorrection> corrections = newGame.getComputerAnswerCorrections();
+                    List<AnswerCorrection> corrections = controller.game().getComputerAnswerCorrections();
                     if (corrections.isEmpty()) {//there are not wrong answers
                         validateResult = "<html>Your answer to the questions is all correct!!! <br>Thank you for doing to correctly!! :) <br>your game result will be stored";
                         submitGameResult();
@@ -783,7 +706,7 @@ public class GUI {
                 }
                 else {//when it is against another player
                     //set up another comboBox for the second user to enter their selected character
-                    String[] characters = newGame.getCharacterNames();
+                    String[] characters = controller.game().getCharacterNames();
                     charactersComboBox2 = new JComboBox<String>(characters);
                     inputSelectedCharacterPanel2.add(charactersComboBox2);
                     inputSelectedCharacterPanel2.add(inputSelectedCharacterButton2);
@@ -798,8 +721,8 @@ public class GUI {
             public void actionPerformed(ActionEvent e) {
                 String userCharacterName2 = (String) charactersComboBox2.getSelectedItem();//get the character
                 //change it to Character type and set the selected character
-                newGame.selectCharacter(setup.secondUsername(), userCharacterName2);
-                player2SelectedCharacter = getCharacterImage(setup.secondUsername());//get the image of the character
+                controller.game().selectCharacter(controller.setup().secondUsername(), userCharacterName2);
+                player2SelectedCharacter = getCharacterImage(controller.setup().secondUsername());//get the image of the character
                 frame.remove(inputSelectedCharacterPanel2);
                 endingPanel.add(player2SelectedCharacter);
                 endingPanel.add(resultLabel);
@@ -816,19 +739,19 @@ public class GUI {
         askButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!setup.isFreeFormQuestions()) {//if it is preset question user questionComboBox
+                if (!controller.setup().isFreeFormQuestions()) {//if it is preset question user questionComboBox
                     newQuestion = questionComboBox.getSelectedItem().toString();
                 }
                 else {//use the textField
                     newQuestion = questionTextField.getText();
                     questionTextField.setText("");
                 }
-                String question = newGame.getCurrentPlayerName() + ", " + newQuestion;//get the question
+                String question = controller.game().getCurrentPlayerName() + ", " + newQuestion;//get the question
                 //pop up window to ask the user question
                 int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-                newGame.recordPlayerQuestion(newGame.getCurrentPlayerName(), newQuestion, result == JOptionPane.YES_OPTION);
+                controller.game().recordPlayerQuestion(controller.game().getCurrentPlayerName(), newQuestion, result == JOptionPane.YES_OPTION);
                 if (result == JOptionPane.YES_OPTION) {// User chose YES
-                    if(newGame.getCurrentPlayerName().equals(setup.firstUsername())){//when it is player 1 asking
+                    if(controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())){//when it is player 1 asking
                         recordStepsLabel1Text += newQuestion+"  "+"yes.<br>";//add to Label 1
                     }
                     else{//player 2 asking
@@ -837,7 +760,7 @@ public class GUI {
                     result1.setText("yes");//displace the result on the frame
                 }
                 else {// User chose NO
-                    if(newGame.getCurrentPlayerName().equals(setup.firstUsername())){//when it is player 1 asking
+                    if(controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())){//when it is player 1 asking
                         recordStepsLabel1Text+=newQuestion+"  "+"no.<br>";
                     }
                     else {//player 2 asking
@@ -854,7 +777,7 @@ public class GUI {
         guess.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (newGame.getCurrentPlayerName().equals(setup.firstUsername())) {//user1's turn
+                if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {//user1's turn
                     frame.remove(boardPanel1);
                 }
                 else {//user2's turn
@@ -869,7 +792,7 @@ public class GUI {
         next.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (newGame.getCurrentPlayerName().equals(setup.firstUsername())) {//when it is userboad's board
+                if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {//when it is userboad's board
                     //remove the board1 and board2 need to remove and add the stepPanel for it to work
                     frame.remove(boardPanel1);
                     frame.remove(stepPanel);
@@ -883,12 +806,12 @@ public class GUI {
                     frame.add(boardPanel1);
                     frame.add(stepPanel);
                 }
-                newGame.advanceTurn();
-                if (!setup.isFreeFormQuestions()) {
+                controller.game().advanceTurn();
+                if (!controller.setup().isFreeFormQuestions()) {
                     questionComboBox.setModel(new DefaultComboBoxModel<String>(
-                            newGame.getCurrentPlayerQuestionTexts()));
+                            controller.game().getCurrentPlayerQuestionTexts()));
                 }
-                stepLabel.setText(newGame.getCurrentPlayerName() + ", Choose to ask a question or guess the answer: ");
+                stepLabel.setText(controller.game().getCurrentPlayerName() + ", Choose to ask a question or guess the answer: ");
                 result1.setText("");
                 askButton.setEnabled(true);
                 refreshFrame();
@@ -899,27 +822,27 @@ public class GUI {
      * this method will run the code for one turn of the game, which could be player's turn or AI's.
      */
     private void oneTurn() {
-        if (newGame.getCurrentPlayerName().equals(setup.firstUsername())) {//player turn
+        if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {//player turn
             stepLabel.setText("Please make your choice: 1. ask question. 2. guess the character");
             stepPanel.add(stepInput);
             stepPanel.add(stepChoiceButton);
             refreshFrame();
         }
         else {//AI turn
-            Optional<String> computerGuess = newGame.getComputerGuessName();
+            Optional<String> computerGuess = controller.game().getComputerGuessName();
             if (computerGuess.isPresent()) {//if there is only one possible character left
                 String question = "Is " + computerGuess.orElseThrow() + " the character? ";
                 int result = JOptionPane.showConfirmDialog(
                         null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
                 boolean correct = result == JOptionPane.YES_OPTION;
-                String winner = newGame.resolveComputerGuess(correct);
+                String winner = controller.game().resolveComputerGuess(correct);
                 String ans;
-                if (winner.equals(setup.firstUsername())) {//the AI guessed the wrong character
-                    ans = "Congraulation, " + setup.firstUsername()
+                if (winner.equals(controller.setup().firstUsername())) {//the AI guessed the wrong character
+                    ans = "Congraulation, " + controller.setup().firstUsername()
                             + ", you won!!!! Because the AI guessed the wrong character";
                 }
                 else {//the AI guessed the correct character
-                    ans = "Sorry, " + setup.firstUsername()
+                    ans = "Sorry, " + controller.setup().firstUsername()
                             + " the AI guessed your character, you lost.";
                 }
                 resultLabel.setText(ans);
@@ -929,7 +852,7 @@ public class GUI {
                 frame.remove(boardPanel1);
                 frame.remove(stepPanel);
                 //set up the comboBox
-                String[] characters = newGame.getCharacterNames();
+                String[] characters = controller.game().getCharacterNames();
                 charactersComboBox1 = new JComboBox<String>(characters);
                 inputSelectedCharacterPanel1.add(charactersComboBox1);
                 inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
@@ -937,7 +860,7 @@ public class GUI {
                 refreshFrame();
             }
             else {// there are morn than one possible characters
-                AIQuestion = newGame.playComputerQuestion();//get the question
+                AIQuestion = controller.game().playComputerQuestion();//get the question
                 String choosenQuestion = AIQuestion.getQuestion();
                 //displace the question
                 stepLabel.setText(choosenQuestion);
@@ -958,7 +881,7 @@ public class GUI {
      * @return the JLabel with the selected Character icon
      */
     private JLabel getCharacterImage(String username) {
-        int characterIndex = newGame.getSelectedCharacterIndex(username);
+        int characterIndex = controller.game().getSelectedCharacterIndex(username);
         ImageIcon characterIcon = characterImages.get(characterIndex);
         JLabel characterLabel = new JLabel(characterIcon);
         return characterLabel;
@@ -968,7 +891,7 @@ public class GUI {
      * @return it will return a JLabel with the image of the AI's selected character
      */
     private JLabel getAICharacterImage() {
-        int characterIndex = newGame.getComputerSelectedCharacterIndex();
+        int characterIndex = controller.game().getComputerSelectedCharacterIndex();
         ImageIcon characterIcon = characterImages.get(characterIndex);
         JLabel characterLabel = new JLabel(characterIcon);
         return characterLabel;
@@ -1026,16 +949,16 @@ public class GUI {
      * this method will be called when the it pvp predefined question mode is starting, it add in all the boards and panels
      */
     private void p2pGamePreQuestion() {
-        if (newGame.getCurrentPlayerName().equals(setup.firstUsername())) {
+        if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {
             frame.add(boardPanel1);
         }
         else {
             frame.add(boardPanel2);
         }
 
-        stepLabel.setText(newGame.getCurrentPlayerName() + ", Choose a question or guess the character");
+        stepLabel.setText(controller.game().getCurrentPlayerName() + ", Choose a question or guess the character");
         //creating the questionComboBox
-        String[] questions = newGame.getCurrentPlayerQuestionTexts();
+        String[] questions = controller.game().getCurrentPlayerQuestionTexts();
         questionComboBox = new JComboBox<String>(questions);
         questionComboBox.setBounds(490, 675, 300, 30); // x, y, width, height
         //add the questionsComboBox
@@ -1047,14 +970,14 @@ public class GUI {
      * this method will be run when the pvp ask question game is starting, it set up the board and question asking
      */
     private void freeAsk() {
-        if (newGame.getCurrentPlayerName().equals(setup.firstUsername())) {
+        if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {
             frame.add(boardPanel1);
         }
         else {
             frame.add(boardPanel2);
         }
 
-        stepLabel.setText(newGame.getCurrentPlayerName() + ", input a question or guess the character (don't make the question go over 43 letters including space)");
+        stepLabel.setText(controller.game().getCurrentPlayerName() + ", input a question or guess the character (don't make the question go over 43 letters including space)");
 //		stepLabel.setBounds(200, 900, 850, 60);
         questionTextField = new JTextField();//43 max
         questionTextField.setBounds(490, 675, 300, 30); // x, y, width, height
@@ -1071,10 +994,10 @@ public class GUI {
      * @param index the index of the character of the user1's guess
      */
     private void guessPVP(String guessingUsername, int index) {
-        String[] characters = newGame.getCharacterNames();//get the guessed character
+        String[] characters = controller.game().getCharacterNames();//get the guessed character
         String question = "Is " + characters[index] + " the character? ";//question statement
         int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-        String winningUsername = newGame.resolvePlayerGuess(
+        String winningUsername = controller.game().resolvePlayerGuess(
                 guessingUsername, characters[index], result == JOptionPane.YES_OPTION);
         if (result == JOptionPane.YES_OPTION) {// User chose YES
             resultLabel.setText("Congraulation, " + winningUsername + " you guessed the character, you won!!!!");
@@ -1111,6 +1034,23 @@ public class GUI {
                 frame, message, "Invalid game setup", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * this method starts the game with the chosen opening turn and moves on to
+     * character selection, or reports why the game could not be started
+     * @param openingTurn who the player chose to take the first turn
+     */
+    private void startGame(OpeningTurn openingTurn) {
+        frame.remove(whosFirstChoicePanel);
+        try {
+            controller.start(openingTurn);
+        }
+        catch (Exception exception) {
+            handleGameStartFailure(exception);
+            return;
+        }
+        frame.add(characterSelectionPanel);
+        refreshFrame();
+    }
     private void handleGameStartFailure(Exception exception) {
         String message = exception.getMessage() == null
                 ? "The game could not be started."
@@ -1122,7 +1062,7 @@ public class GUI {
     }
 
     private void submitGameResult() {
-        resultSubmissionService.submit(newGame.getGameResult())
+        resultSubmissionService.submit(controller.game().getGameResult())
                 .exceptionally(failure -> {
                     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
                             frame,
