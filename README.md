@@ -13,6 +13,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - HTTP submission of completed game results
 - Read-only HTTP history of completed games
 - Database-backed leaderboard standings
+- Leaderboard window available from the Swing application
 - Offline CSV fallback when the game-result server is unavailable
 
 ## Technology
@@ -214,6 +215,10 @@ name when wins are tied:
 Standings include every participant name stored by the server, including the
 AI. When no results have been stored, the endpoint returns an empty JSON array.
 
+The desktop app's **Leaderboard** button opens the same standings in a separate
+window without blocking the game. The window shows loading, empty, and
+server-unavailable states, and its **Refresh** button retries the request.
+
 ## Test
 
 Run the JUnit suite with:
@@ -237,6 +242,7 @@ aggregation, normalized database storage, and transactional rollback.
 | `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
 | `HttpLeaderboardClient` | Retrieves leaderboard standings without blocking Swing. |
 | `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
+| `LeaderboardPanel` | Displays remote standings and handles loading, empty, error, and retry states. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
 | `GameResult` | Provides an immutable completed-game snapshot for external consumers. |

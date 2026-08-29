@@ -2,6 +2,8 @@ package com.guesswho.ui;
 
 import com.guesswho.client.GameResultSubmissionService;
 import com.guesswho.client.HttpGameResultClient;
+import com.guesswho.client.HttpLeaderboardClient;
+import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.AnswerCorrection;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.ComputerGameStart;
@@ -39,6 +41,8 @@ public class GUI {
 			new GameResultSubmissionService(
 					new HttpGameResultClient(),
 					new CsvGameResultRepository("test.csv"));
+	//retrieves server-backed leaderboard standings without blocking Swing
+	private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
 	//the music
 	private static Optional<Clip> music = Optional.empty();
 	//the list of characters image
@@ -140,8 +144,10 @@ public class GUI {
 		JPanel controlPanel = new JPanel();
 		JButton quitButton = new JButton("Quit");
 		JButton restartButton = new JButton("Restart");
+		JButton leaderboardButton = new JButton("Leaderboard");
 		controlPanel.add(quitButton);
 		controlPanel.add(restartButton);
+		controlPanel.add(leaderboardButton);
 		//welcomePanel setup
 		JPanel welcomePanel = new JPanel();
 		JLabel welcomeLabel = new JLabel("Welcome to the Guess Who? Board Game!!");
@@ -156,7 +162,7 @@ public class GUI {
 	               "<br>Guess Who Online has two game modes: <strong>Player-versus-player</strong> and " +
 	               "<strong>Player-versus-computer</strong>. The player-versus-computer game mode has three difficulties: easy, hard. <br>" +
 	               "The player-versus-player mode has two game options: predetermined questions and free questions. <br>" +
-	               "After each round, the scores will be validated and added to the leaderboard." +
+	               "Completed games are sent to the server and included in the leaderboard. " +
 	               "In the game, you can ask a yes or no question about your opponent's characters using the " +
 	               "<strong>\"Ask Question\"</strong> button. <br>When you wish to guess who your opponent character is, click the " +
 	               "<strong>\"Guess\"</strong> button, then select a character on the board. Characters can be flipped down by clicking <br>" +
@@ -390,6 +396,12 @@ public class GUI {
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();//close the frame
 				gameGUI();//make a new one
+			}
+		});
+		leaderboardButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				LeaderboardDialog.show(frame, leaderboardClient);
 			}
 		});
 		//this action listener will add in the instruction to the game when the button is clicked
