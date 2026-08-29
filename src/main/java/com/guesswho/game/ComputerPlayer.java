@@ -14,7 +14,6 @@ import java.util.Random;
  */
 public class ComputerPlayer extends Player{
 	private String mode;//the mode of the AI, easy or hard
-	private int qIndex;//the index of the question
 	private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();//the questions that is not asked by the AI
 	private ArrayList<Character> possibleCharacters = new ArrayList<Character>();//the characters
 	private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question
@@ -43,12 +42,12 @@ public class ComputerPlayer extends Player{
 		this(defaultMode, defaultState, new Board(), random);
 	}
 	ComputerPlayer(String defaultMode, String defaultState, Board board, Random random) {
-		super(defaultState, board, new Random());
+		super(defaultState, board, random);
 		mode = defaultMode;
 		this.random = random;
 		unAskedQuestions.addAll(getGameBoard().getQuestionsList());
-		possibleCharacters = getGameBoard().getCharacters();
-		answerCount = getGameBoard().getPeopleCount();
+		possibleCharacters = new ArrayList<Character>(getGameBoard().getCharacters());
+		answerCount = getGameBoard().getPeopleCount().clone();
 	}
 	/**
 	 * method will return the mode of the AI
@@ -84,11 +83,12 @@ public class ComputerPlayer extends Player{
 	 * @return the question that the Ai is asking the user
 	 */
 	public Question playQuestion() {
-		Question questionChoosen = chooseQuestion();//set the question to be the one the hard AI will ask
-		if (mode.equals("easy")) {//when the mode is easy
-			int questionPosition = random.nextInt(unAskedQuestions.size());
-			questionChoosen = unAskedQuestions.get(questionPosition);//reset the question to the one the easy AI asks
-			qIndex = questionChoosen.getQuestionIndex();
+		Question questionChoosen;
+		if (mode.equals("easy")) {//when the mode is easy, pick at random
+			questionChoosen = unAskedQuestions.get(random.nextInt(unAskedQuestions.size()));
+		}
+		else {//hard mode picks the question that splits the field most evenly
+			questionChoosen = chooseQuestion();
 		}
 		setQuestionAsked(questionChoosen.getQuestion());
 		return questionChoosen;
@@ -101,15 +101,16 @@ public class ComputerPlayer extends Player{
 	public void askQuestion(String askedQuestion, String questionAnswer) {
 		Question newQuestionAsked = getGameBoard().findQuestion(askedQuestion);//get the new question asked
 		unAskedQuestions.remove(newQuestionAsked);
-		String qAnswer = questionAnswer;//store the question index
+		int questionIndex = newQuestionAsked.getQuestionIndex();//always filter on the question that was asked
 		for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {//for loop though all the characters
 			if (!possibleCharacters.get(i).getIsActive()) {//if the character is not active
 				continue;//next character
 			}
-			if (qAnswer.equals("yes") && !getGameBoard().getAnswers()[i][qIndex]) {//when the answer is yes
+			boolean characterAnswer = getGameBoard().getAnswers()[i][questionIndex];
+			if (questionAnswer.equals("yes") && !characterAnswer) {//when the answer is yes
 				updateValues(i);
 			}
-			else if (qAnswer.equals("no") && getGameBoard().getAnswers()[i][qIndex]) {//when answer is no
+			else if (questionAnswer.equals("no") && characterAnswer) {//when answer is no
 				updateValues(i);
 			}
 		}
@@ -120,15 +121,14 @@ public class ComputerPlayer extends Player{
 	 */
 	private Question chooseQuestion() {
 		Question result = unAskedQuestions.get(0);//set the result to the first question
-		int number = Math.abs(answerCount[0]-possibleCharactersCount/2);//get the value for the first question
+		int number = Math.abs(answerCount[result.getQuestionIndex()]-possibleCharactersCount/2);//get the value for the first question
 		for (int i = 1; i < unAskedQuestions.size(); i++) {//checking all the questions from the second one
-			int questionNumber = unAskedQuestions.get(i).getQuestionIndex();
-			int count = Math.abs(answerCount[questionNumber]-possibleCharactersCount/2);//calculate how close the number of questions is to half
+			Question candidate = unAskedQuestions.get(i);
+			int count = Math.abs(answerCount[candidate.getQuestionIndex()]-possibleCharactersCount/2);//calculate how close the number of questions is to half
 			if (count < number) {//if the count is smaller, in other words closer to the half point
 				//save the new value
 				number = count;
-				result = unAskedQuestions.get(i);
-				qIndex = questionNumber;
+				result = candidate;
 			}
 		}
 		return result;

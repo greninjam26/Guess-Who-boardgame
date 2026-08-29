@@ -1,5 +1,6 @@
 package com.guesswho.game;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -127,6 +128,55 @@ class ComputerPlayerTest {
                 "easy", "", reducedBoard, alwaysChooseFirst());
 
         assertEquals(18, easyComputer.getUnAskedQuestions().size());
+    }
+
+    @Test
+    void filtersOnTheQuestionAskedRatherThanAPreviouslyChosenOne() throws Exception {
+        Board board = new Board();
+        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(1));
+        Question glasses = board.findQuestion("Does your character wear glasses?");
+
+        hardComputer.askQuestion(glasses.getQuestion(), "yes");
+
+        for (Character character : hardComputer.getPossibleCharacters()) {
+            assertEquals(character.getIsGlasses(), character.getIsActive(),
+                    character.getName() + " should survive a \"yes\" to the glasses question"
+                            + " only if they wear glasses");
+        }
+    }
+
+    @Test
+    void hardModeNeverEliminatesTheCharacterItIsTruthfullyToldAbout() throws Exception {
+        Board board = new Board();
+        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(42));
+        Character target = hardComputer.findCharacter("Sam");
+
+        while (!hardComputer.getUnAskedQuestions().isEmpty() && !hardComputer.onlyOne()) {
+            Question question = hardComputer.playQuestion();
+            boolean matchesTarget = board.getAnswers()
+                    [target.getCharacterIndex()][question.getQuestionIndex()];
+
+            hardComputer.askQuestion(question.getQuestion(), matchesTarget ? "yes" : "no");
+
+            assertTrue(target.getIsActive(),
+                    "Filtering must use the question that was asked, not a stale index");
+        }
+
+        assertTrue(hardComputer.onlyOne());
+        assertEquals("Sam", hardComputer.lastOne());
+    }
+
+    @Test
+    void ownsItsEliminationStateInsteadOfMutatingTheBoard() throws Exception {
+        Board board = new Board();
+        int[] boardCountsBefore = board.getPeopleCount().clone();
+        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(7));
+
+        Question question = hardComputer.playQuestion();
+        hardComputer.askQuestion(question.getQuestion(), "yes");
+
+        assertArrayEquals(boardCountsBefore, board.getPeopleCount(),
+                "Eliminating characters must not mutate the board's own counts");
     }
 
     private Random alwaysChooseFirst() {
