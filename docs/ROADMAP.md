@@ -364,6 +364,15 @@ thin and never decide anything.
       upgrade, not a starting point.
 - [ ] Turn timers, forfeit, and opponent-left handling, so an abandoned game
       doesn't hang forever.
+- [ ] Expire sessions on three clocks: an unjoined room after ~10 minutes, an
+      idle game after ~30, and any game after 24 hours regardless. The cheapest
+      abuse is creating a room and never joining it — one request holding a row
+      and a code forever — so that case gets the shortest life.
+- [ ] Cap concurrent open rooms per account at a small number. A rate limit
+      bounds how *fast* rooms appear; only a cap bounds how many exist at once.
+- [ ] A scheduled sweep that deletes expired sessions. Expiring lazily on read
+      never reaches the rows that actually accumulate, which are the unread
+      ones.
 - [ ] Reconnect: both the plumbing and the screen states — reconnecting, opponent
       reconnecting, game expired.
 - [ ] API versioning with a clear rejection message for stale clients. Installers
@@ -371,7 +380,9 @@ thin and never decide anything.
 - [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game
       end.
 - [ ] Rate-limit move and room-creation endpoints before this is reachable from
-      outside your network.
+      outside your network. Rate limiting alone does not bound storage: creation
+      that stays within the limit, sustained, still fills the database. It is the
+      expiry above that bounds the total.
 
 > **Deliberately a monolith.** One instance handles tens of thousands of
 > concurrent games at these state sizes and turn rates. The distributed-systems
