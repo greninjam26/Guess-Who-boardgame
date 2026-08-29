@@ -60,18 +60,6 @@ public class GUI {
     private ArrayList<String> iconStates2;//the state of the icon for the second user's or the AI's board
     private JPanel boardPanel2;//second user's or the AI's board
     private JPanel guessBoardPanel;
-    private JTextField usernameField1;
-    private JPanel usernameAskingPanel1;
-    private JButton usernameAskingButton1;
-    private JTextField birthdayField1;
-    private JPanel birthdayAskingPanel1;
-    private JButton birthdayAskingButton1;
-    private JTextField usernameField2;
-    private JPanel usernameAskingPanel2;
-    private JButton usernameAskingButton2;
-    private JTextField birthdayField2;
-    private JPanel birthdayAskingPanel2;
-    private JButton birthdayAskingButton2;
     private JPanel stepPanel;
     private JComboBox<String> stepInput;
     private JButton stepChoiceButton;
@@ -109,14 +97,9 @@ public class GUI {
     private JLabel player1SelectedCharacter;
     private JLabel player2SelectedCharacter;
     private JLabel AISelectedCharacter;
-    private JPanel whosFirstChoicePanel;
     private JPanel characterSelectionPanel;
-    private JButton player1FirstButton;
-    private JButton player2FirstButton;
-    private JButton randomlyChooseButton;
-    private JButton birthdayDecideButton;
-    private JPanel modeChoicePanel;
-    private JButton AIFirstButton;
+    //welcome, mode, names, birthdays, and who goes first
+    private SetupScreens setupScreens;
     private JButton askButton;
     private JButton guess;
     private JButton next;
@@ -133,7 +116,9 @@ public class GUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
         //inialization of some of the veriables
-        controller = new GameController(new Game(), new GameSetup());
+        GameSetup setup = new GameSetup();
+        controller = new GameController(new Game(), setup);
+        setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
         questionPanelShowing = false;
         iconStates1 = new ArrayList<String>();
         iconStates2 = new ArrayList<String>();
@@ -144,94 +129,12 @@ public class GUI {
         controlPanel.add(quitButton);
         controlPanel.add(restartButton);
         controlPanel.add(leaderboardButton);
-        //welcomePanel setup
-        JPanel welcomePanel = new JPanel();
-        JLabel welcomeLabel = new JLabel("Welcome to the Guess Who? Board Game!!");
-        String instructions = "<html><body style='font-family:Arial; font-size:14;'>" +
-                   "<br><br><h1>Welcome to Guess Who Online!</h1>" +
-                   "The game starts with two players, each drawing a unique character card from a deck of 24 characters. " +
-                   "Each player has a game board containing each of the 24 characters. <br>Players try to determine their opponent's " +
-                   "hidden character by asking a series of yes or no questions based on their character's attributes. <br>" +
-                   "Characters are eliminated using the process of elimination; they use the gameboard to record possible suspects " +
-                   "by flipping down the character cards that don't match. <br>The first player to correctly guess their opponent's " +
-                   "character wins the game, but if the players guess incorrectly, they lose.<br>" +
-                   "<br>Guess Who Online has two game modes: <strong>Player-versus-player</strong> and " +
-                   "<strong>Player-versus-computer</strong>. The player-versus-computer game mode has three difficulties: easy, hard. <br>" +
-                   "The player-versus-player mode has two game options: predetermined questions and free questions. <br>" +
-                   "Completed games are sent to the server and included in the leaderboard. " +
-                   "In the game, you can ask a yes or no question about your opponent's characters using the " +
-                   "<strong>\"Ask Question\"</strong> button. <br>When you wish to guess who your opponent character is, click the " +
-                   "<strong>\"Guess\"</strong> button, then select a character on the board. Characters can be flipped down by clicking <br>" +
-                   "on their icons on the board.<br>" +
-                   "<br>We hope you enjoy the game!<br>" +
-                   "</body></html>";
-        JLabel instructionLabel = new JLabel(instructions);
-        JButton instructionButton = new JButton("How To Play");
-        JButton startButton = new JButton("Start The Game");
-        welcomePanel.add(welcomeLabel);
-        welcomePanel.add(instructionButton);
-        welcomePanel.add(startButton);
-        //the panel is use to let the player to choose the game mode
-        modeChoicePanel = new JPanel();
-        //four buttons for the four different game modes
-        JButton easyPVC = new JButton("player vs computer easy mode");
-        JButton hardPVC = new JButton("player vs computer hard mode");
-        JButton presetQuestionPVP = new JButton("player vs player preset questions");
-        JButton freeQuestionPVP = new JButton("player vs player ask questions");
-        JLabel modeChoiceLabel = new JLabel("Please choose your game mode: ");
-        modeChoicePanel.add(modeChoiceLabel);
-        modeChoicePanel.add(easyPVC);
-        modeChoicePanel.add(hardPVC);
-        modeChoicePanel.add(presetQuestionPVP);
-        modeChoicePanel.add(freeQuestionPVP);
-        //the panel is used to ask the first player to enter their username
-        usernameAskingPanel1 = new JPanel();
-        JLabel usernameAskingLabel1 = new JLabel("Please enter your username (you have been warned don't make the username too long): ");
-        usernameField1 = new JTextField(20);
-        usernameAskingButton1 = new JButton("Comfirm");
-        usernameAskingPanel1.add(usernameAskingLabel1);
-        usernameAskingPanel1.add(usernameField1);
-        usernameAskingPanel1.add(usernameAskingButton1);
-        //the panel is used to ask the first player to enter their birthday
-        birthdayAskingPanel1 = new JPanel();
-        JLabel birthdayAskingLabel1 = new JLabel("Please enter your birthday in the form of(YYYYMMDD): ");
-        birthdayField1 = new JTextField(20);
-        birthdayAskingButton1 = new JButton("Comfirm");
-        birthdayAskingPanel1.add(birthdayAskingLabel1);
-        birthdayAskingPanel1.add(birthdayField1);
-        birthdayAskingPanel1.add(birthdayAskingButton1);
-        //the panel is used to ask the second player to enter their username
-        usernameAskingPanel2 = new JPanel();
-        JLabel usernameAskingLabel2 = new JLabel("Second player, please enter your username(please don't enter the same username as the first player): ");
-        usernameField2 = new JTextField(20);
-        usernameAskingButton2 = new JButton("Comfirm");
-        usernameAskingPanel2.add(usernameAskingLabel2);
-        usernameAskingPanel2.add(usernameField2);
-        usernameAskingPanel2.add(usernameAskingButton2);
-        //the panel is used to ask the second player to enter their birthday
-        birthdayAskingPanel2 = new JPanel();
-        JLabel birthdayAskingLabel2 = new JLabel("Please enter your birthday in the form of(YYYYMMDD): ");
-        birthdayField2 = new JTextField(20);
-        birthdayAskingButton2 = new JButton("Comfirm");
-        birthdayAskingPanel2.add(birthdayAskingLabel2);
-        birthdayAskingPanel2.add(birthdayField2);
-        birthdayAskingPanel2.add(birthdayAskingButton2);
-
         characterSelectionPanel = new JPanel();
         JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
                 + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character. <html>");
         JButton readyButton = new JButton("Ready");
         characterSelectionPanel.add(characterSelectionLabel);
         characterSelectionPanel.add(readyButton);
-
-        whosFirstChoicePanel = new JPanel();
-        JLabel whosFirstChoiceLabel = new JLabel("Please choice who do you want to do first or just random: ");
-        AIFirstButton = new JButton("AI goes first");
-        player1FirstButton = new JButton();
-        player2FirstButton = new JButton();
-        randomlyChooseButton = new JButton("Randomly choose who go first");
-        birthdayDecideButton = new JButton("Younger person go first");
-        whosFirstChoicePanel.add(whosFirstChoiceLabel);
 
         // Game panel with character buttons
         //board1 is the game board for the first player
@@ -340,7 +243,7 @@ public class GUI {
         guess.setBounds(1015, 675, 100, 30); // x, y, width, height
 
         // Add start panel to the frame
-        frame.add(welcomePanel, BorderLayout.CENTER);
+        frame.add(setupScreens.panel(), BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.NORTH);
         // Show the frame
         frame.pack();
@@ -398,153 +301,6 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 LeaderboardDialog.show(frame, leaderboardClient);
-            }
-        });
-        //this action listener will add in the instruction to the game when the button is clicked
-        instructionButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                welcomePanel.add(instructionLabel);
-                refreshFrame();
-            }
-        });
-        //this action Listener will start that game
-        startButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                frame.remove(welcomePanel);
-                frame.add(modeChoicePanel, BorderLayout.CENTER);
-                refreshFrame();
-            }
-        });
-        //action listener for the when user 1 finish entering their username
-        usernameAskingButton1.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().firstUsername(usernameField1.getText());//read the username from the JTextField
-                if (controller.setup().firstUsername() == null || controller.setup().firstUsername().isBlank()) {
-                    showInputError("Username must not be blank.");
-                    return;
-                }
-                if (controller.setup().isAgainstComputer() && controller.setup().firstUsername().equals("AI")) {
-                    showInputError("AI is reserved for the computer player.");
-                    return;
-                }
-                frame.remove(usernameAskingPanel1);
-                player1FirstButton.setText(controller.setup().firstUsername() + " goes first");
-                recordStepsLabel1Text += controller.setup().firstUsername() + ": <br>";
-                if (controller.setup().isAgainstPlayer()) {//if the user choose to do player vs player
-                    frame.add(birthdayAskingPanel1);
-                }
-                else {//when it is player vs computer
-                    recordStepsLabel2Text += "AI: <br>";
-                    frame.add(whosFirstChoicePanel);
-                }
-                refreshFrame();
-            }
-        });
-        //action listener for when the first player finish inputing their birthday, the second player start to input their username
-        birthdayAskingButton1.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().firstBirthday(Integer.parseInt(birthdayField1.getText()));
-                frame.remove(birthdayAskingPanel1);
-                frame.add(usernameAskingPanel2, BorderLayout.CENTER);
-                refreshFrame();
-            }
-        });
-        //action listener for when the second player finish inputing their username, and start input their birthday
-        usernameAskingButton2.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().secondUsername(usernameField2.getText());
-                if (controller.setup().secondUsername() == null || controller.setup().secondUsername().isBlank()) {
-                    showInputError("Username must not be blank.");
-                    return;
-                }
-                if (controller.setup().secondUsername().equals(controller.setup().firstUsername())) {
-                    showInputError("Player usernames must be different.");
-                    return;
-                }
-                player2FirstButton.setText(controller.setup().secondUsername() + " goes first");
-                recordStepsLabel2Text += controller.setup().secondUsername() + ": <br>";
-                frame.remove(usernameAskingPanel2);
-                frame.add(birthdayAskingPanel2, BorderLayout.CENTER);
-                refreshFrame();
-            }
-        });
-        //action listener for when the second player finish inputing their birthday, and start choosing who goes first
-        birthdayAskingButton2.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().secondBirthday(Integer.parseInt(birthdayField2.getText()));
-                frame.remove(birthdayAskingPanel2);
-                frame.add(whosFirstChoicePanel);
-                refreshFrame();
-            }
-        });
-        //choosing the gamemode buttons actionListener
-        easyPVC.addActionListener(new ActionListener() {//play against easy AI
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().againstComputer(ComputerDifficulty.EASY);
-                askUsernamePVC();
-            }
-        });
-        hardPVC.addActionListener(new ActionListener() {//play against hard AI
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().againstComputer(ComputerDifficulty.HARD);
-                askUsernamePVC();
-            }
-        });
-        presetQuestionPVP.addActionListener(new ActionListener() {//play against another player with predefined questions
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().againstPlayer(QuestionMode.PRESET);
-                askUsernamePVP();
-            }
-        });
-        freeQuestionPVP.addActionListener(new ActionListener() {//play against another player with whatever questions you enter
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                controller.setup().againstPlayer(QuestionMode.FREE_FORM);
-                askUsernamePVP();
-            }
-        });
-        //action listener for when user choose to let AI go first
-        AIFirstButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startGame(OpeningTurn.COMPUTER);
-            }
-        });
-        //action listener for when user choose, that they should go first
-        player1FirstButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startGame(OpeningTurn.FIRST_PLAYER);
-            }
-        });
-        //action listener for when user choose to let the second player go first
-        player2FirstButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startGame(OpeningTurn.SECOND_PLAYER);
-            }
-        });
-        //action listener for when user choose to let the younger player go first in PVP mode
-        birthdayDecideButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startGame(OpeningTurn.YOUNGER);
-            }
-        });
-        //action listener for when user want the program to randomly choose who goes first
-        randomlyChooseButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startGame(OpeningTurn.RANDOM);
             }
         });
         //action listener for the ready button when the user is ready to start play the game
@@ -921,31 +677,6 @@ public class GUI {
         frame.repaint();
     }
     /**
-     * this method will add in the choosing who goes first buttons for playing against another player
-     */
-    private void askUsernamePVP() {
-        frame.remove(modeChoicePanel);
-        // Get the selected item
-        frame.add(usernameAskingPanel1, BorderLayout.CENTER);
-        whosFirstChoicePanel.add(player1FirstButton);
-        whosFirstChoicePanel.add(player2FirstButton);
-        whosFirstChoicePanel.add(birthdayDecideButton);
-        whosFirstChoicePanel.add(randomlyChooseButton);
-        refreshFrame();
-    }
-    /**
-     * this method will add in the choosing who goes first buttons for playing against AI
-     */
-    private void askUsernamePVC() {
-        frame.remove(modeChoicePanel);
-        // Get the selected item
-        frame.add(usernameAskingPanel1, BorderLayout.CENTER);
-        whosFirstChoicePanel.add(player1FirstButton);
-        whosFirstChoicePanel.add(AIFirstButton);
-        whosFirstChoicePanel.add(randomlyChooseButton);
-        refreshFrame();
-    }
-    /**
      * this method will be called when the it pvp predefined question mode is starting, it add in all the boards and panels
      */
     private void p2pGamePreQuestion() {
@@ -1040,7 +771,6 @@ public class GUI {
      * @param openingTurn who the player chose to take the first turn
      */
     private void startGame(OpeningTurn openingTurn) {
-        frame.remove(whosFirstChoicePanel);
         try {
             controller.start(openingTurn);
         }
@@ -1048,6 +778,13 @@ public class GUI {
             handleGameStartFailure(exception);
             return;
         }
+        frame.remove(setupScreens.panel());
+        recordStepsLabel1Text += controller.setup().firstUsername() + ": <br>";
+        recordStepsLabel2Text += controller.setup().isAgainstComputer()
+                ? "AI: <br>"
+                : controller.setup().secondUsername() + ": <br>";
+        recordStepsLabel1.setText(recordStepsLabel1Text);
+        recordStepsLabel2.setText(recordStepsLabel2Text);
         frame.add(characterSelectionPanel);
         refreshFrame();
     }
@@ -1057,7 +794,6 @@ public class GUI {
                 : exception.getMessage();
         JOptionPane.showMessageDialog(
                 frame, message, "Unable to start game", JOptionPane.ERROR_MESSAGE);
-        frame.add(whosFirstChoicePanel, BorderLayout.CENTER);
         refreshFrame();
     }
 
