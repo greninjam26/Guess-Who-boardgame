@@ -235,6 +235,7 @@ aggregation, normalized database storage, and transactional rollback.
 | `GameResultController` | Accepts completed games and returns saved history through `/api/game-results`. |
 | `LeaderboardController` | Returns standings calculated from saved games through `/api/leaderboard`. |
 | `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
+| `HttpLeaderboardClient` | Retrieves leaderboard standings without blocking Swing. |
 | `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
 | `Game` | Coordinates game modes, turns, questions, guesses, and results. |
