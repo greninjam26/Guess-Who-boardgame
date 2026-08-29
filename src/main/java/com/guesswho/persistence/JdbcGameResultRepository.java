@@ -1,5 +1,7 @@
 package com.guesswho.persistence;
 
+import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
 
 import java.sql.PreparedStatement;
@@ -23,6 +25,8 @@ public class JdbcGameResultRepository
                 game_result.id AS game_result_id,
                 game_result.created_at,
                 game_result.winner,
+                game_result.mode,
+                game_result.difficulty,
                 participant.id AS participant_id,
                 participant.name AS participant_name,
                 participant.selected_character,
@@ -54,7 +58,7 @@ public class JdbcGameResultRepository
     @Override
     @Transactional
     public void save(GameResult gameResult) {
-        long gameResultId = insertGameResult(gameResult.winner());
+        long gameResultId = insertGameResult(gameResult);
         for (int playOrder = 0; playOrder < gameResult.participants().size(); playOrder++) {
             GameResult.Participant participant = gameResult.participants().get(playOrder);
             long participantId = insertParticipant(gameResultId, playOrder, participant);
@@ -74,7 +78,9 @@ public class JdbcGameResultRepository
                     game = new GameResultAccumulator(
                             gameResultId,
                             resultSet.getTimestamp("created_at").toLocalDateTime(),
-                            resultSet.getString("winner"));
+                            resultSet.getString("winner"),
+                            GameMode.valueOf(resultSet.getString("mode")),
+                            difficultyOf(resultSet.getString("difficulty")));
                     games.put(gameResultId, game);
                 }
 
@@ -103,13 +109,17 @@ public class JdbcGameResultRepository
         });
     }
 
-    private long insertGameResult(String winner) {
+    private long insertGameResult(GameResult gameResult) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO game_results (winner) VALUES (?)",
+                    "INSERT INTO game_results (winner, mode, difficulty) VALUES (?, ?, ?)",
                     new String[] {"id"});
-            statement.setString(1, winner);
+            statement.setString(1, gameResult.winner());
+            statement.setString(2, gameResult.mode().name());
+            statement.setString(3, gameResult.difficulty() == null
+                    ? null
+                    : gameResult.difficulty().name());
             return statement;
         }, keyHolder);
         return generatedId(keyHolder);
@@ -155,6 +165,10 @@ public class JdbcGameResultRepository
         }
     }
 
+    private static ComputerDifficulty difficultyOf(String storedValue) {
+        return storedValue == null ? null : ComputerDifficulty.valueOf(storedValue);
+    }
+
     private long generatedId(KeyHolder keyHolder) {
         Number key = keyHolder.getKey();
         if (key == null) {
@@ -167,12 +181,21 @@ public class JdbcGameResultRepository
         private final long id;
         private final LocalDateTime createdAt;
         private final String winner;
+        private final GameMode mode;
+        private final ComputerDifficulty difficulty;
         private final Map<Long, ParticipantAccumulator> participants = new LinkedHashMap<>();
 
-        private GameResultAccumulator(long id, LocalDateTime createdAt, String winner) {
+        private GameResultAccumulator(
+                long id,
+                LocalDateTime createdAt,
+                String winner,
+                GameMode mode,
+                ComputerDifficulty difficulty) {
             this.id = id;
             this.createdAt = createdAt;
             this.winner = winner;
+            this.mode = mode;
+            this.difficulty = difficulty;
         }
 
         private StoredGameResult toStoredGameResult() {
@@ -182,7 +205,7 @@ public class JdbcGameResultRepository
             return new StoredGameResult(
                     id,
                     createdAt,
-                    new GameResult(savedParticipants, winner));
+                    new GameResult(savedParticipants, winner, mode, difficulty));
         }
     }
 

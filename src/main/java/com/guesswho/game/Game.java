@@ -22,6 +22,7 @@ public class Game {
 	private User firstPlayer;
 	private User secondPlayer;
 	private ComputerPlayer computerPlayer;
+	private ComputerDifficulty computerDifficulty;
 	private Question pendingComputerQuestion;
 	private GameStatus status;
 	private Optional<String> winner;
@@ -80,7 +81,8 @@ public class Game {
 		else {
 			participants.add(toGameResultParticipant(COMPUTER_WINNER, computerPlayer));
 		}
-		return new GameResult(participants, winner.orElseThrow());
+		GameMode mode = computerPlayer != null ? GameMode.PVE : GameMode.PVP_LOCAL;
+		return new GameResult(participants, winner.orElseThrow(), mode, computerDifficulty);
 	}
 
 	/**
@@ -257,6 +259,7 @@ public class Game {
 		firstPlayer = new User("", 0, username);
 		secondPlayer = null;
 		computerPlayer = new ComputerPlayer(difficulty.mode(), "");
+		computerDifficulty = difficulty;
 
 		boolean playerStarts = switch (start) {
 			case PLAYER -> true;
@@ -296,6 +299,7 @@ public class Game {
 		firstPlayer = new User("", firstBirthday, firstUsername);
 		secondPlayer = new User("", secondBirthday, secondUsername);
 		computerPlayer = null;
+		computerDifficulty = null;
 
 		boolean firstPlayerStarts = switch (start) {
 			case FIRST_PLAYER -> true;

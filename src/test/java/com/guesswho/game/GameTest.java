@@ -156,7 +156,9 @@ class GameTest {
                                 "Nick",
                                 List.of(new GameResult.QuestionAnswer(
                                         "Is your character's eye colour blue?", false)))),
-                "AI"), result);
+                "AI",
+                GameMode.PVE,
+                ComputerDifficulty.EASY), result);
     }
 
     @Test

@@ -40,7 +40,13 @@ public class StoreResult {
 		for (GameResult.Participant participant : gameResult.participants()) {
 			storeParticipant(participant);
 		}
-		writeRow(List.of(gameResult.winner()));
+		ArrayList<String> outcome = new ArrayList<>();
+		outcome.add(gameResult.winner());
+		outcome.add(gameResult.mode().name());
+		if (gameResult.difficulty() != null) {
+			outcome.add(gameResult.difficulty().name());
+		}
+		writeRow(outcome);
 		write.close();
 	}
 	private void storeParticipant(GameResult.Participant participant) {

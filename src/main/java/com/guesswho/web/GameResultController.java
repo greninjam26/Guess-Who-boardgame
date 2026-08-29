@@ -1,5 +1,7 @@
 package com.guesswho.web;
 
+import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
 import com.guesswho.persistence.GameResultHistoryRepository;
 import com.guesswho.persistence.GameResultRepository;
@@ -67,6 +69,10 @@ public class GameResultController {
                 || gameResult.participants().isEmpty() || isBlank(gameResult.winner())) {
             throw incompleteResult();
         }
+        if (gameResult.mode() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Game mode must be supplied");
+        }
         for (GameResult.Participant participant : gameResult.participants()) {
             if (participant == null || isBlank(participant.name())
                     || isBlank(participant.selectedCharacter())
@@ -103,19 +109,26 @@ public class GameResultController {
      * @param createdAt time the result was stored
      * @param participants participants in play order
      * @param winner winning participant name
+     * @param mode how the game was played
+     * @param difficulty computer difficulty, or {@code null} outside a
+     *        player-versus-computer game
      */
     public record GameResultHistoryResponse(
             long id,
             LocalDateTime createdAt,
             List<GameResult.Participant> participants,
-            String winner) {
+            String winner,
+            GameMode mode,
+            ComputerDifficulty difficulty) {
         private static GameResultHistoryResponse from(StoredGameResult storedGameResult) {
             GameResult gameResult = storedGameResult.gameResult();
             return new GameResultHistoryResponse(
                     storedGameResult.id(),
                     storedGameResult.createdAt(),
                     gameResult.participants(),
-                    gameResult.winner());
+                    gameResult.winner(),
+                    gameResult.mode(),
+                    gameResult.difficulty());
         }
     }
 }
