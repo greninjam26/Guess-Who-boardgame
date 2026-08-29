@@ -67,10 +67,6 @@ public class GUI {
     private String questionAnswer;
     private String whosFirst;
     private Question AIQuestion;
-    private JLabel recordStepsLabel1;
-    private String recordStepsLabel1Text;
-    private JLabel recordStepsLabel2;
-    private String recordStepsLabel2Text;
     //true while the question panel is on screen, so it can be torn down again
     private boolean questionPanelShowing;
     private JPanel characterSelectionPanel;
@@ -78,8 +74,8 @@ public class GUI {
     private SetupScreens setupScreens;
     //character reveal and answer review once the game is over
     private EndingScreens endingScreens;
-    private JPanel recordStepsPanel1;
-    private JPanel recordStepsPanel2;
+    //the running transcript shown either side of the board
+    private QuestionHistory history;
     private JButton askButton;
     private JButton guess;
     private JButton next;
@@ -156,23 +152,7 @@ public class GUI {
         stepPanel.add(nextTurnButton);
         nextTurnButton.setVisible(false);
 
-        // Create a line border with the specified color and width
-        Border border1 = BorderFactory.createLineBorder(Color.BLACK, 2);
-        Border border2 = BorderFactory.createLineBorder(Color.BLACK, 2);
-        //records all the questions asked by the first player, and the answer they got in return
-        recordStepsLabel1Text = "<html>";
-        recordStepsPanel1 = new JPanel();
-        recordStepsLabel1 = new JLabel(recordStepsLabel1Text);
-        recordStepsPanel1.add(recordStepsLabel1);
-        // Set the border for the JPanel
-        recordStepsPanel1.setBorder(border1);
-        //records all the questions asked by the opponent of the first player, and the answer the first player inputed.
-        recordStepsLabel2Text = "<html>";
-        recordStepsPanel2 = new JPanel();
-        recordStepsLabel2 = new JLabel(recordStepsLabel2Text);
-        recordStepsPanel2.add(recordStepsLabel2);
-        // Set the border for the JPanel
-        recordStepsPanel2.setBorder(border2);
+        history = new QuestionHistory();
         //this panel is used to display the ending massages
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
@@ -284,8 +264,8 @@ public class GUI {
                 String AIAnswer = controller.game().askComputer(newQuestion);//store the AI's answer to user's question
                 result1.setText("AI: " + AIAnswer);
                 result1.setVisible(true);
-                recordStepsLabel1Text += newQuestion + " : " + AIAnswer + "<br>";//record the question and the answer to the recordStepsLabel1
-                recordStepsLabel1.setText(recordStepsLabel1Text);
+                history.recordForFirst(
+                        QuestionHistory.escaped(newQuestion) + " : " + AIAnswer);
                 stepPanel.remove(questionComboBox);
                 stepPanel.remove(questionChoiceButton);
                 nextTurnButton.setVisible(true);//add in the nextTurn button for the user to move on to the next turn
@@ -313,8 +293,9 @@ public class GUI {
             public void actionPerformed(ActionEvent e) {
                 questionAnswer = (String) questionAnswerComboBox.getSelectedItem();//read the question answer
                 controller.game().answerComputerQuestion(questionAnswer.equals("yes"));
-                recordStepsLabel2Text += questionAnswer + "<br>";//store the result
-                recordStepsLabel2.setText(recordStepsLabel2Text);
+                history.recordForSecond(
+                        QuestionHistory.escaped(AIQuestion.getQuestion())
+                                + " : " + questionAnswer);
                 stepPanel.remove(questionAnswerButton);
                 stepPanel.remove(questionAnswerComboBox);
                 nextTurnButton.setVisible(true);//add in the nextTurn button
@@ -346,26 +327,16 @@ public class GUI {
                 //pop up window to ask the user question
                 int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
                 controller.game().recordPlayerQuestion(controller.game().getCurrentPlayerName(), newQuestion, result == JOptionPane.YES_OPTION);
-                if (result == JOptionPane.YES_OPTION) {// User chose YES
-                    if(controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())){//when it is player 1 asking
-                        recordStepsLabel1Text += newQuestion+"  "+"yes.<br>";//add to Label 1
-                    }
-                    else{//player 2 asking
-                        recordStepsLabel2Text += newQuestion+"  "+"yes.<br>";//Label 2
-                    }
-                    result1.setText("yes");//displace the result on the frame
+                String answer = result == JOptionPane.YES_OPTION ? "yes" : "no";
+                String entry = QuestionHistory.escaped(newQuestion) + "  " + answer + ".";
+                if (controller.game().getCurrentPlayerName()
+                        .equals(controller.setup().firstUsername())) {
+                    history.recordForFirst(entry);
                 }
-                else {// User chose NO
-                    if(controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())){//when it is player 1 asking
-                        recordStepsLabel1Text+=newQuestion+"  "+"no.<br>";
-                    }
-                    else {//player 2 asking
-                        recordStepsLabel2Text+=newQuestion+"  "+"no.<br>";
-                    }
-                    result1.setText("no");
+                else {
+                    history.recordForSecond(entry);
                 }
-                recordStepsLabel1.setText(recordStepsLabel1Text);
-                recordStepsLabel2.setText(recordStepsLabel2Text);
+                result1.setText(answer);
                 askButton.setEnabled(false);
             }
         });
@@ -457,9 +428,6 @@ public class GUI {
                 stepLabel.setVisible(true);
                 stepPanel.add(questionAnswerButton);
                 stepPanel.add(questionAnswerComboBox);
-                //store the result
-                recordStepsLabel2Text += choosenQuestion + " : ";
-                recordStepsLabel2.setText(recordStepsLabel2Text);
                 refreshFrame();
             }
         }
@@ -563,12 +531,11 @@ public class GUI {
             return;
         }
         frame.remove(setupScreens.panel());
-        recordStepsLabel1Text += controller.setup().firstUsername() + ": <br>";
-        recordStepsLabel2Text += controller.setup().isAgainstComputer()
-                ? "AI: <br>"
-                : controller.setup().secondUsername() + ": <br>";
-        recordStepsLabel1.setText(recordStepsLabel1Text);
-        recordStepsLabel2.setText(recordStepsLabel2Text);
+        history.begin(
+                controller.setup().firstUsername(),
+                controller.setup().isAgainstComputer()
+                        ? "AI"
+                        : controller.setup().secondUsername());
         frame.add(characterSelectionPanel);
         refreshFrame();
     }
@@ -588,8 +555,8 @@ public class GUI {
      */
     private void showEnding(String outcome) {
         frame.add(endingScreens.panel(), BorderLayout.CENTER);
-        frame.add(recordStepsPanel1, BorderLayout.EAST);
-        frame.add(recordStepsPanel2, BorderLayout.WEST);
+        frame.add(history.firstPanel(), BorderLayout.EAST);
+        frame.add(history.secondPanel(), BorderLayout.WEST);
         endingScreens.begin(outcome);
         refreshFrame();
     }
