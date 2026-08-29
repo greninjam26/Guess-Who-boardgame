@@ -5,7 +5,6 @@ import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
-import com.guesswho.game.AnswerCorrection;
 import com.guesswho.game.Game;
 import com.guesswho.game.GameResources;
 import com.guesswho.game.Question;
@@ -19,7 +18,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.List;
 import java.util.Optional;
 import javax.sound.sampled.Clip;
 import javax.swing.border.Border;
@@ -73,24 +71,15 @@ public class GUI {
     private String recordStepsLabel1Text;
     private JLabel recordStepsLabel2;
     private String recordStepsLabel2Text;
-    private JPanel endingPanel;
-    private JLabel resultLabel;
     //true while the question panel is on screen, so it can be torn down again
     private boolean questionPanelShowing;
-    private JPanel inputSelectedCharacterPanel1;
-    private JLabel inputSelectedCharacterLabel1;
-    private JButton inputSelectedCharacterButton1;
-    private JComboBox<String> charactersComboBox1;
-    private JPanel inputSelectedCharacterPanel2;
-    private JLabel inputSelectedCharacterLabel2;
-    private JButton inputSelectedCharacterButton2;
-    private JComboBox<String> charactersComboBox2;
-    private JLabel player1SelectedCharacter;
-    private JLabel player2SelectedCharacter;
-    private JLabel AISelectedCharacter;
     private JPanel characterSelectionPanel;
     //welcome, mode, names, birthdays, and who goes first
     private SetupScreens setupScreens;
+    //character reveal and answer review once the game is over
+    private EndingScreens endingScreens;
+    private JPanel recordStepsPanel1;
+    private JPanel recordStepsPanel2;
     private JButton askButton;
     private JButton guess;
     private JButton next;
@@ -110,6 +99,12 @@ public class GUI {
         GameSetup setup = new GameSetup();
         controller = new GameController(new Game(), setup);
         setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
+        endingScreens = new EndingScreens(controller, images, trustworthy -> {
+            if (trustworthy) {
+                submitGameResult();
+            }
+            refreshFrame();
+        });
         questionPanelShowing = false;
         JPanel controlPanel = new JPanel();
         JButton quitButton = new JButton("Quit");
@@ -166,34 +161,21 @@ public class GUI {
         Border border2 = BorderFactory.createLineBorder(Color.BLACK, 2);
         //records all the questions asked by the first player, and the answer they got in return
         recordStepsLabel1Text = "<html>";
-        JPanel recordStepsPanel1 = new JPanel();
+        recordStepsPanel1 = new JPanel();
         recordStepsLabel1 = new JLabel(recordStepsLabel1Text);
         recordStepsPanel1.add(recordStepsLabel1);
         // Set the border for the JPanel
         recordStepsPanel1.setBorder(border1);
         //records all the questions asked by the opponent of the first player, and the answer the first player inputed.
         recordStepsLabel2Text = "<html>";
-        JPanel recordStepsPanel2 = new JPanel();
+        recordStepsPanel2 = new JPanel();
         recordStepsLabel2 = new JLabel(recordStepsLabel2Text);
         recordStepsPanel2.add(recordStepsLabel2);
         // Set the border for the JPanel
         recordStepsPanel2.setBorder(border2);
         //this panel is used to display the ending massages
-        endingPanel = new JPanel(new FlowLayout());
-        resultLabel = new JLabel("");
-        resultLabel.setHorizontalAlignment(SwingConstants.CENTER); // Center the label text
-        endingPanel.add(resultLabel);
-        JLabel validateLabel = new JLabel("");
         //this panel is used to leftthe first player to enter their selected character
-        inputSelectedCharacterPanel1 = new JPanel();
-        inputSelectedCharacterLabel1 = new JLabel("<html>The Game is Over!! <br>Please selected the Character you selected for the game: <html>");
-        inputSelectedCharacterButton1 = new JButton("Confirm");
-        inputSelectedCharacterPanel1.add(inputSelectedCharacterLabel1);
         //this the for the second player to enter the selected character
-        inputSelectedCharacterPanel2 = new JPanel();
-        inputSelectedCharacterLabel2 = new JLabel("<html>Second Player <br>Please selected the Character you selected for the game: <html>");
-        inputSelectedCharacterButton2 = new JButton("Confirm");
-        inputSelectedCharacterPanel2.add(inputSelectedCharacterLabel2);
         //ask question button for PVP
         askButton = new JButton("ask question");
         askButton.setBounds(790, 675, 150, 30); // x, y, width, height
@@ -343,82 +325,10 @@ public class GUI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 finalGuess = (String) guessComboBox.getSelectedItem();//get the guess
-                resultLabel.setText(controller.game().guessComputer(finalGuess));
+                String outcome = controller.game().guessComputer(finalGuess);
                 frame.remove(boardPanel1);
                 frame.remove(stepPanel);
-                //add in the panel for the user to enter their selected character
-                String[] characters = controller.game().getCharacterNames();
-                charactersComboBox1= new JComboBox<String>(characters);
-                inputSelectedCharacterPanel1.add(charactersComboBox1);
-                inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
-                frame.add(inputSelectedCharacterPanel1);
-                refreshFrame();
-            }
-        });
-        //action listener
-        inputSelectedCharacterButton1.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String userCharacterName1 = (String) charactersComboBox1.getSelectedItem();//get the character
-                //change it to Character type and set the selected character
-                controller.game().selectCharacter(controller.setup().firstUsername(), userCharacterName1);
-                player1SelectedCharacter = getCharacterImage(controller.setup().firstUsername());//get the image of the character
-                frame.remove(inputSelectedCharacterPanel1);
-                if (controller.setup().isAgainstComputer()) {//when it is against computer
-                    AISelectedCharacter = getAICharacterImage();//get the AI character image
-                    //add in the information to the endingPanel
-                    endingPanel.add(AISelectedCharacter);
-                    endingPanel.add(resultLabel);
-                    endingPanel.add(player1SelectedCharacter);
-                    String validateResult = "";
-                    List<AnswerCorrection> corrections = controller.game().getComputerAnswerCorrections();
-                    if (corrections.isEmpty()) {//there are not wrong answers
-                        validateResult = "<html>Your answer to the questions is all correct!!! <br>Thank you for doing to correctly!! :) <br>your game result will be stored";
-                        submitGameResult();
-                    }
-                    else {//when there are wrong answers
-                        validateResult = "<html>you answered " + corrections.size() + " questions wrong!!! :( <br> your game result will not be saved";//displace the number of wrong questions
-                        for (AnswerCorrection correction : corrections) {//get all the questions in the list
-                            validateResult += correction.question() + " : "
-                                    + (correction.expectedAnswer() ? "yes" : "no") + " <br>";
-                        }
-                    }
-                    validateResult += "<html>";
-                    validateLabel.setText(validateResult);
-                    endingPanel.add(validateLabel);
-                    frame.add(endingPanel, BorderLayout.CENTER);
-                    frame.add(recordStepsPanel1, BorderLayout.EAST);
-                    frame.add(recordStepsPanel2, BorderLayout.WEST);
-                }
-                else {//when it is against another player
-                    //set up another comboBox for the second user to enter their selected character
-                    String[] characters = controller.game().getCharacterNames();
-                    charactersComboBox2 = new JComboBox<String>(characters);
-                    inputSelectedCharacterPanel2.add(charactersComboBox2);
-                    inputSelectedCharacterPanel2.add(inputSelectedCharacterButton2);
-                    frame.add(inputSelectedCharacterPanel2);
-                }
-                refreshFrame();
-            }
-        });
-        //action listener for when the second player finished inputing there selected character
-        inputSelectedCharacterButton2.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String userCharacterName2 = (String) charactersComboBox2.getSelectedItem();//get the character
-                //change it to Character type and set the selected character
-                controller.game().selectCharacter(controller.setup().secondUsername(), userCharacterName2);
-                player2SelectedCharacter = getCharacterImage(controller.setup().secondUsername());//get the image of the character
-                frame.remove(inputSelectedCharacterPanel2);
-                endingPanel.add(player2SelectedCharacter);
-                endingPanel.add(resultLabel);
-                endingPanel.add(player1SelectedCharacter);
-                //add in the ending and steps history panels
-                frame.add(endingPanel, BorderLayout.CENTER);
-                frame.add(recordStepsPanel1, BorderLayout.EAST);
-                frame.add(recordStepsPanel2, BorderLayout.WEST);
-                submitGameResult();
-                refreshFrame();
+                showEnding(outcome);
             }
         });
         //action listener for when the user is asking each other question
@@ -531,19 +441,12 @@ public class GUI {
                     ans = "Sorry, " + controller.setup().firstUsername()
                             + " the AI guessed your character, you lost.";
                 }
-                resultLabel.setText(ans);
                 JOptionPane.showMessageDialog(
                         null, ans, "Message", JOptionPane.INFORMATION_MESSAGE);
                 //remove the board and the steps
                 frame.remove(boardPanel1);
                 frame.remove(stepPanel);
-                //set up the comboBox
-                String[] characters = controller.game().getCharacterNames();
-                charactersComboBox1 = new JComboBox<String>(characters);
-                inputSelectedCharacterPanel1.add(charactersComboBox1);
-                inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
-                frame.add(inputSelectedCharacterPanel1);
-                refreshFrame();
+                showEnding(ans);
             }
             else {// there are morn than one possible characters
                 AIQuestion = controller.game().playComputerQuestion();//get the question
@@ -560,27 +463,6 @@ public class GUI {
                 refreshFrame();
             }
         }
-    }
-    /**
-     * this method will use the inputed username to find and output the image of the selected character icon
-     * @param username the username that was inputed
-     * @return the JLabel with the selected Character icon
-     */
-    private JLabel getCharacterImage(String username) {
-        int characterIndex = controller.game().getSelectedCharacterIndex(username);
-        ImageIcon characterIcon = images.portrait(characterIndex);
-        JLabel characterLabel = new JLabel(characterIcon);
-        return characterLabel;
-    }
-    /**
-     * this method will get the image of the selected image of the AI
-     * @return it will return a JLabel with the image of the AI's selected character
-     */
-    private JLabel getAICharacterImage() {
-        int characterIndex = controller.game().getComputerSelectedCharacterIndex();
-        ImageIcon characterIcon = images.portrait(characterIndex);
-        JLabel characterLabel = new JLabel(characterIcon);
-        return characterLabel;
     }
     /**
      * this method will be flipping or changing the character buttons when it is clicked
@@ -649,17 +531,11 @@ public class GUI {
         int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
         String winningUsername = controller.game().resolvePlayerGuess(
                 guessingUsername, characters[index], result == JOptionPane.YES_OPTION);
-        if (result == JOptionPane.YES_OPTION) {// User chose YES
-            resultLabel.setText("Congraulation, " + winningUsername + " you guessed the character, you won!!!!");
-        }
-        else {// User chose NO
-            resultLabel.setText("<html>Congraulation, " + winningUsername + ", you won!!!! <br>Because " + guessingUsername + " you guessed the wrong character<html>");
-        }
-        charactersComboBox1 = new JComboBox<String>(characters);
-        inputSelectedCharacterPanel1.add(charactersComboBox1);
-        inputSelectedCharacterPanel1.add(inputSelectedCharacterButton1);
-        frame.add(inputSelectedCharacterPanel1);
-        refreshFrame();
+        String outcome = result == JOptionPane.YES_OPTION
+                ? "Congraulation, " + winningUsername + " you guessed the character, you won!!!!"
+                : "<html>Congraulation, " + winningUsername + ", you won!!!! <br>Because "
+                        + guessingUsername + " you guessed the wrong character<html>";
+        showEnding(outcome);
     }
     /**
      * this method will read the eliminated character icon and storing it
@@ -705,6 +581,18 @@ public class GUI {
         refreshFrame();
     }
 
+    /**
+     * this method hands over to the ending screens, which ask each player which
+     * character they were holding before revealing them
+     * @param outcome the message describing who won and why
+     */
+    private void showEnding(String outcome) {
+        frame.add(endingScreens.panel(), BorderLayout.CENTER);
+        frame.add(recordStepsPanel1, BorderLayout.EAST);
+        frame.add(recordStepsPanel2, BorderLayout.WEST);
+        endingScreens.begin(outcome);
+        refreshFrame();
+    }
     private void submitGameResult() {
         resultSubmissionService.submit(controller.game().getGameResult())
                 .exceptionally(failure -> {
