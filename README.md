@@ -18,6 +18,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Java 17
 - Java Swing and AWT
 - Spring Boot 4.1.1 and Spring MVC
+- Spring JDBC and H2
 - Maven
 - CSV-based game data
 
@@ -33,13 +34,15 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
     │   │   ├── GuessWhoServerApplication.java # Spring Boot entry point
     │   │   ├── client/             # Desktop HTTP client and offline fallback flow
     │   │   ├── game/               # Game flow, models, and resources
-    │   │   ├── persistence/        # CSV result and leaderboard storage
+    │   │   ├── persistence/        # Database and offline CSV persistence
     │   │   ├── ui/                 # Swing interface and entry point
     │   │   └── web/                # HTTP controllers and responses
     │   └── resources/
+    │       ├── application.properties # Server database configuration
     │       ├── audio/               # Background music
     │       ├── data/                # Character and question CSV files
-    │       └── images/              # Character-card artwork
+    │       ├── images/              # Character-card artwork
+    │       └── schema.sql           # Game-result database schema
     └── test/
         └── java/                    # Regression checks
 ```
@@ -110,6 +113,10 @@ curl http://localhost:8080/api/status
 
 The response is `{"status":"online"}`. The server is available only on the local machine until it is deployed to a host.
 
+The server stores submitted games in the file-backed H2 database
+`guess-who-data.mv.db`. The schema is created automatically at startup, and
+the data remains available after the server restarts.
+
 ### Submit a Game Result
 
 Submit a completed game to `POST /api/game-results`:
@@ -136,15 +143,10 @@ curl -X POST http://localhost:8080/api/game-results \
   }'
 ```
 
-A valid result returns HTTP `201 Created` and is appended to `test.csv` by
-default. The winner must match a participant, and names, selected characters,
-and questions cannot be blank. Override the result file when starting the
-server if needed:
-
-```bash
-java -jar target/guess-who-boardgame-1.0-SNAPSHOT.jar \
-  --guesswho.results.file=game-results.csv
-```
+A valid result returns HTTP `201 Created` and is stored transactionally in the
+H2 database. The winner must match a participant, and names, selected
+characters, and questions cannot be blank. Database connection settings can be
+overridden with standard `spring.datasource.*` Spring Boot properties.
 
 ## Test
 
@@ -154,7 +156,9 @@ Run the JUnit suite with:
 mvn test
 ```
 
-The tests cover packaged resources, board data, starting-turn rules, and core computer-player behavior.
+The tests cover packaged resources, board data, starting-turn rules, core
+computer-player behavior, HTTP result submission, normalized database storage,
+and transactional rollback.
 
 ## Main Classes
 
@@ -175,7 +179,8 @@ The tests cover packaged resources, board data, starting-turn rules, and core co
 | `User` | Stores a human player's username and birthday. |
 | `Character` | Represents a character and their visual attributes. |
 | `Question` | Represents a yes-or-no character question. |
-| `CsvGameResultRepository` | Persists server-submitted game results to a configurable CSV file. |
+| `JdbcGameResultRepository` | Stores server-submitted games transactionally in relational tables. |
+| `CsvGameResultRepository` | Stores desktop results locally when the server is unavailable. |
 | `StoreResult` | Writes completed game information to a CSV file. |
 | `Leaderboard` | Loads, updates, and sorts leaderboard entries. |
 
@@ -192,12 +197,13 @@ The application now loads its CSV and image assets from the Maven classpath. The
 2. Expand tests for question elimination, guessing, and result storage.
 3. Improve input validation and naming consistency.
 4. Split the large Swing class into smaller view and controller modules.
-5. Replace CSV result persistence with a database-backed implementation.
+5. Add PostgreSQL configuration for production deployment.
 
 ## Data and Assets
 
 - `GuessWhoDB.csv` defines the 24 characters and their attributes.
 - `QuestionDB.csv` defines the preset yes-or-no questions.
+- `schema.sql` defines the game-result database tables and relationships.
 - Character artwork is stored under `src/main/resources/images`.
 - Audio is stored under `src/main/resources/audio`.
 

@@ -3,13 +3,11 @@ package com.guesswho.web;
 import com.guesswho.GuessWhoServerApplication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,28 +17,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(classes = GuessWhoServerApplication.class)
 @AutoConfigureMockMvc
 class GameResultControllerTest {
-    private static final Path RESULTS_FILE = Path.of(
-            "target", "test-results", "game-results.csv").toAbsolutePath();
-
     @Autowired
     private MockMvc mockMvc;
 
-    @DynamicPropertySource
-    static void configureResultFile(DynamicPropertyRegistry registry) {
-        registry.add("guesswho.results.file", RESULTS_FILE::toString);
-    }
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void resetResultFile() throws Exception {
-        Files.createDirectories(RESULTS_FILE.getParent());
-        Files.deleteIfExists(RESULTS_FILE);
+    void clearResults() {
+        jdbcTemplate.update("DELETE FROM game_results");
     }
 
     @Test
@@ -71,12 +62,39 @@ class GameResultControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().string(""));
 
-        String expected = String.join(System.lineSeparator(),
-                "Player 1,Olivia,Does your character wear glasses?, yes",
-                "Player 2,Nick,Is your character wearing a hat?, no",
-                "Player 1",
-                "");
-        assertEquals(expected, Files.readString(RESULTS_FILE));
+        assertEquals(1, storedGameCount());
+        assertEquals("Player 1", jdbcTemplate.queryForObject(
+                "SELECT winner FROM game_results", String.class));
+        assertEquals(
+                List.of(
+                        new ParticipantRow(0, "Player 1", "Olivia"),
+                        new ParticipantRow(1, "Player 2", "Nick")),
+                jdbcTemplate.query(
+                        """
+                        SELECT play_order, name, selected_character
+                        FROM game_result_participants
+                        ORDER BY play_order
+                        """,
+                        (resultSet, rowNumber) -> new ParticipantRow(
+                                resultSet.getInt("play_order"),
+                                resultSet.getString("name"),
+                                resultSet.getString("selected_character"))));
+        assertEquals(
+                List.of(
+                        new QuestionAnswerRow(0, "Does your character wear glasses?", true),
+                        new QuestionAnswerRow(1, "Is your character wearing a hat?", false)),
+                jdbcTemplate.query(
+                        """
+                        SELECT participant.play_order, answer.question, answer.answer
+                        FROM game_result_question_answers answer
+                        JOIN game_result_participants participant
+                          ON participant.id = answer.participant_id
+                        ORDER BY participant.play_order, answer.question_order
+                        """,
+                        (resultSet, rowNumber) -> new QuestionAnswerRow(
+                                resultSet.getInt("play_order"),
+                                resultSet.getString("question"),
+                                resultSet.getBoolean("answer"))));
     }
 
     @Test
@@ -102,7 +120,7 @@ class GameResultControllerTest {
                                 """))
                 .andExpect(status().isBadRequest());
 
-        assertFalse(Files.exists(RESULTS_FILE));
+        assertEquals(0, storedGameCount());
     }
 
     @ParameterizedTest
@@ -113,7 +131,7 @@ class GameResultControllerTest {
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
 
-        assertFalse(Files.exists(RESULTS_FILE));
+        assertEquals(0, storedGameCount());
     }
 
     private static Stream<String> incompleteGameResults() {
@@ -149,5 +167,17 @@ class GameResultControllerTest {
                           "winner": "Player"
                         }
                         """);
+    }
+
+    private int storedGameCount() {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_results", Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    private record ParticipantRow(int playOrder, String name, String selectedCharacter) {
+    }
+
+    private record QuestionAnswerRow(int playOrder, String question, boolean answer) {
     }
 }

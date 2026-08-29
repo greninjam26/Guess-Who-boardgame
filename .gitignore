@@ -6,6 +6,8 @@ bin/
 
 # Runtime-generated game data
 test.csv
+guess-who-data.mv.db
+guess-who-data.trace.db
 
 # IDE settings
 .idea/
