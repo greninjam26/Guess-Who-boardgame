@@ -6,13 +6,9 @@ import com.guesswho.client.HttpLeaderboardClient;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.AnswerCorrection;
-import com.guesswho.game.ComputerDifficulty;
-import com.guesswho.game.ComputerGameStart;
 import com.guesswho.game.Game;
 import com.guesswho.game.GameResources;
-import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.Question;
-import com.guesswho.game.QuestionMode;
 
 /*Author: Gavin Liu
  * Date: Jan 8 2024
@@ -23,7 +19,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.sound.sampled.Clip;
@@ -48,18 +43,14 @@ public class GUI {
     //the music
     private static Optional<Clip> music = Optional.empty();
     //the list of characters image
-    private ArrayList<ImageIcon> characterImages = new ArrayList<ImageIcon>();
     //image for the characters that were elimated
-    private ImageIcon back;
     //the size of the image
-    private final int width = 100;
-    private final int height = 150;
     //the veriables needed for the GUI to work
-    private ArrayList<String> iconStates1;//the state of the icon for the first user's board
-    private JPanel boardPanel1;//first user's board
-    private ArrayList<String> iconStates2;//the state of the icon for the second user's or the AI's board
-    private JPanel boardPanel2;//second user's or the AI's board
-    private JPanel guessBoardPanel;
+    private CharacterBoard boardPanel1;//first user's board
+    private CharacterBoard boardPanel2;//second user's or the AI's board
+    private CharacterBoard guessBoardPanel;
+    //portraits shared by all three boards
+    private CharacterImages images;
     private JPanel stepPanel;
     private JComboBox<String> stepInput;
     private JButton stepChoiceButton;
@@ -107,7 +98,7 @@ public class GUI {
      * Creates and displays the game interface.
      */
     public GUI() {
-        readAllImages();
+        images = new CharacterImages();
         gameGUI();
     }
     private void gameGUI() {
@@ -120,8 +111,6 @@ public class GUI {
         controller = new GameController(new Game(), setup);
         setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
         questionPanelShowing = false;
-        iconStates1 = new ArrayList<String>();
-        iconStates2 = new ArrayList<String>();
         JPanel controlPanel = new JPanel();
         JButton quitButton = new JButton("Quit");
         JButton restartButton = new JButton("Restart");
@@ -129,6 +118,12 @@ public class GUI {
         controlPanel.add(quitButton);
         controlPanel.add(restartButton);
         controlPanel.add(leaderboardButton);
+        boardPanel1 = CharacterBoard.tracking(images);
+        boardPanel2 = CharacterBoard.tracking(images);
+        guessBoardPanel = CharacterBoard.selecting(images, characterIndex -> {
+            frame.remove(guessBoardPanel);
+            guessPVP(controller.game().getCurrentPlayerName(), characterIndex);
+        });
         characterSelectionPanel = new JPanel();
         JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
                 + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character. <html>");
@@ -136,39 +131,6 @@ public class GUI {
         characterSelectionPanel.add(characterSelectionLabel);
         characterSelectionPanel.add(readyButton);
 
-        // Game panel with character buttons
-        //board1 is the game board for the first player
-        //board2 is the game board for the second player
-        //the guess board is used for the players to enter their guess in pvp mode
-        boardPanel1 = new JPanel(null); // 4 rows and 6 columns for 24 characters
-        boardPanel1.setBounds(340, 35, 670, height*4+3*5); // x, y, width, height
-        ArrayList<JButton> buttons1 = new ArrayList<JButton>();
-        boardPanel2 = new JPanel(null); // 4 rows and 6 columns for 24 characters
-        boardPanel2.setBounds(340, 35, 670, height*4+3*5); // x, y, width, height
-        ArrayList<JButton> buttons2 = new ArrayList<JButton>();
-        guessBoardPanel = new JPanel(null); // 4 rows and 6 columns for 24 characters
-        guessBoardPanel.setBounds(340, 35, 670, height*4+3*5); // x, y, width, height
-        ArrayList<JButton> buttons3 = new ArrayList<JButton>();
-        for (int i = 0; i < 24; i++) {
-            ImageIcon characterIcon = characterImages.get(i);
-            JButton characterButton1 = new JButton(characterIcon);
-            JButton characterButton2 = new JButton(characterIcon);
-            JButton characterButton3 = new JButton(characterIcon);
-            int x = width*(i%6) + 10*(i%6+1);
-            int y = height*(i/6) + 5*(i/6+1);
-            characterButton1.setBounds(x, y, width, height);
-            characterButton2.setBounds(x, y, width, height);
-            characterButton3.setBounds(x, y, width, height);
-            buttons1.add(characterButton1);
-            buttons2.add(characterButton2);
-            buttons3.add(characterButton3);
-            iconStates1.add("front");
-            iconStates2.add("front");
-            // Add action listeners to character buttons here if needed
-            boardPanel1.add(characterButton1);
-            boardPanel2.add(characterButton2);
-            guessBoardPanel.add(characterButton3);
-        }
         //stepPanel is used in each turn the user ask questions,
         //enter guess and choice what is their next step, wether to ask a question or make a guess
         stepPanel = new JPanel(null);
@@ -249,38 +211,6 @@ public class GUI {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-        //use a for loop for all the action listener for all the character buttons in the board for the first player
-        for (int j = 0; j < 24; j++) {
-            final int i = j;
-            buttons1.get(i).addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    newButtonIcon(buttons1.get(i), iconStates1, i);//call the newButtonIcon method to change the icon of the button
-                }
-            });
-        }
-        //use a for loop for all the action listener for all the character buttons in the board for the second player
-        for (int j = 0; j < 24; j++) {
-            final int i = j;
-            buttons2.get(i).addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    newButtonIcon(buttons2.get(i), iconStates2, i);//call the newButtonIcon method to change the icon of the button
-                }
-            });
-        }
-        //use a for loop for all the action listener for all the character buttons in the board that is used to guess
-        for (int j = 0; j < 24; j++) {
-            final int i = j;
-            buttons3.get(i).addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    frame.remove(guessBoardPanel);
-                    String guessingUsername = controller.game().getCurrentPlayerName();//find whose turn it is
-                    guessPVP(guessingUsername, i);//current user does the guess
-                }
-            });
-        }
         //this action listener is used to dispose the frame and stop the music and entire program
         quitButton.addActionListener(new ActionListener() {
             @Override
@@ -638,7 +568,7 @@ public class GUI {
      */
     private JLabel getCharacterImage(String username) {
         int characterIndex = controller.game().getSelectedCharacterIndex(username);
-        ImageIcon characterIcon = characterImages.get(characterIndex);
+        ImageIcon characterIcon = images.portrait(characterIndex);
         JLabel characterLabel = new JLabel(characterIcon);
         return characterLabel;
     }
@@ -648,7 +578,7 @@ public class GUI {
      */
     private JLabel getAICharacterImage() {
         int characterIndex = controller.game().getComputerSelectedCharacterIndex();
-        ImageIcon characterIcon = characterImages.get(characterIndex);
+        ImageIcon characterIcon = images.portrait(characterIndex);
         JLabel characterLabel = new JLabel(characterIcon);
         return characterLabel;
     }
@@ -658,17 +588,6 @@ public class GUI {
      * @param iconStates the array what stores the state of the button
      * @param index the index of the button in the array
      */
-    private void newButtonIcon(JButton button, ArrayList<String> iconStates, int index) {
-        if (iconStates.get(index).equals("front")) {
-            button.setIcon(back);//button.setIcon(newIcon); change the icon
-            iconStates.set(index, "back");
-        }
-        else {
-            ImageIcon characterIcon = characterImages.get(index);
-            button.setIcon(characterIcon);//button.setIcon(newIcon); change the icon
-            iconStates.set(index, "front");
-        }
-    }
     /**
      * repaint the frame
      */
@@ -745,20 +664,9 @@ public class GUI {
     /**
      * this method will read the eliminated character icon and storing it
      */
-    private void getBackIcon() {
-        back = GameResources.loadEliminatedCharacterIcon(width, height);
-    }
     /**
      * this method will read the images and stored them and it will only be called once in the beginning of the program
      */
-    private void readAllImages() {
-        //get all the images for the characters by reading
-        for (int i = 0; i < 24; i++) {
-            characterImages.add(GameResources.loadCharacterIcon(i, width, height));
-        }
-        //read the image for the characters that were elimated
-        getBackIcon();
-    }
 
     private void showInputError(String message) {
         JOptionPane.showMessageDialog(
