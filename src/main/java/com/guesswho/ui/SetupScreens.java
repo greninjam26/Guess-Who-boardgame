@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.JTextField;
 
 /**
@@ -155,8 +156,11 @@ class SetupScreens {
 
     private JPanel openingTurnCard() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(new JLabel("Please choice who do you want to do first or just random: "),
-                BorderLayout.NORTH);
+        // A label stretches to the full width in a BorderLayout region and would
+        // otherwise sit against the left edge, unlike the flowed cards.
+        JLabel prompt = new JLabel("Please choice who do you want to do first or just random: ");
+        prompt.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(prompt, BorderLayout.NORTH);
         panel.add(openingTurnPanel, BorderLayout.CENTER);
         firstPlayerStarts.addActionListener(event -> completion.setupComplete(OpeningTurn.FIRST_PLAYER));
         secondPlayerStarts.addActionListener(event -> completion.setupComplete(OpeningTurn.SECOND_PLAYER));

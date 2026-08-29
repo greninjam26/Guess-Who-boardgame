@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.SwingConstants;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -107,6 +109,33 @@ class SetupScreensTest {
         click(screens, "AI goes first");
 
         assertEquals(OpeningTurn.COMPUTER, completedWith.get());
+    }
+
+    @Test
+    void centresTheOpeningTurnPrompt() throws Exception {
+        SetupScreens screens = screens();
+        click(screens, "player vs computer easy mode");
+        enterName(screens, "Alex");
+
+        JLabel prompt = findLabel(visibleCard(screens.panel()));
+
+        assertEquals(SwingConstants.CENTER, prompt.getHorizontalAlignment(),
+                "A label in a BorderLayout region stretches, so it must centre its own text");
+    }
+
+    private JLabel findLabel(Container container) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JLabel label) {
+                return label;
+            }
+            if (child instanceof Container nested) {
+                JLabel found = findLabel(nested);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     // --- helpers -------------------------------------------------------
