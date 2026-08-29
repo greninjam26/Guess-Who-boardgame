@@ -1,6 +1,7 @@
 package com.guesswho.ui;
 
 import com.guesswho.client.LeaderboardClient;
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import java.awt.BorderLayout;
@@ -20,14 +21,16 @@ import javax.swing.table.AbstractTableModel;
  */
 class LeaderboardPanel extends JPanel {
     private final LeaderboardClient leaderboardClient;
+    private final GameMode mode;
     private final JLabel statusLabel = new JLabel(
             "Loading leaderboard...", SwingConstants.CENTER);
     private final JTable standingsTable = new JTable();
     private final JButton refreshButton = new JButton("Refresh");
 
-    LeaderboardPanel(LeaderboardClient leaderboardClient) {
+    LeaderboardPanel(LeaderboardClient leaderboardClient, GameMode mode) {
         super(new BorderLayout(8, 8));
         this.leaderboardClient = leaderboardClient;
+        this.mode = mode;
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         standingsTable.setFillsViewportHeight(true);
         standingsTable.setRowSelectionAllowed(false);
@@ -45,7 +48,7 @@ class LeaderboardPanel extends JPanel {
         statusLabel.setText("Loading leaderboard...");
         statusLabel.setVisible(true);
         standingsTable.setVisible(false);
-        leaderboardClient.fetch(null).whenComplete((standings, failure) ->
+        leaderboardClient.fetch(mode).whenComplete((standings, failure) ->
                 SwingUtilities.invokeLater(() -> {
                     refreshButton.setEnabled(true);
                     if (failure != null) {

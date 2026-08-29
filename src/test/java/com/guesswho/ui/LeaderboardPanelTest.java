@@ -1,5 +1,6 @@
 package com.guesswho.ui;
 
+import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +25,7 @@ class LeaderboardPanelTest {
         CompletableFuture<List<LeaderboardEntry>> response = new CompletableFuture<>();
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(
-                new LeaderboardPanel(mode -> response)));
+                new LeaderboardPanel(mode -> response, GameMode.PVE)));
 
         LeaderboardPanel panel = panelReference.get();
         JLabel statusLabel = findComponent(panel, JLabel.class);
@@ -53,7 +54,7 @@ class LeaderboardPanelTest {
     void showsEmptyStateWhenNoGamesHaveBeenRecorded() throws Exception {
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(
-                mode -> CompletableFuture.completedFuture(List.of()))));
+                mode -> CompletableFuture.completedFuture(List.of()), GameMode.PVE)));
         SwingUtilities.invokeAndWait(() -> {
         });
 
@@ -71,7 +72,7 @@ class LeaderboardPanelTest {
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(
                 mode -> CompletableFuture.failedFuture(
-                        new IllegalStateException("Server unavailable")))));
+                        new IllegalStateException("Server unavailable")), GameMode.PVE)));
         SwingUtilities.invokeAndWait(() -> {
         });
 
@@ -85,6 +86,21 @@ class LeaderboardPanelTest {
     }
 
     @Test
+    void requestsStandingsForItsOwnMode() throws Exception {
+        AtomicReference<GameMode> requestedMode = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> new LeaderboardPanel(
+                mode -> {
+                    requestedMode.set(mode);
+                    return CompletableFuture.completedFuture(List.of());
+                },
+                GameMode.PVP_LOCAL));
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        assertEquals(GameMode.PVP_LOCAL, requestedMode.get());
+    }
+
+    @Test
     void retriesLeaderboardRequestAfterFailure() throws Exception {
         AtomicInteger requests = new AtomicInteger();
         AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
@@ -95,7 +111,7 @@ class LeaderboardPanelTest {
             }
             return CompletableFuture.completedFuture(
                     List.of(new LeaderboardEntry("Alex", 3, 2)));
-        })));
+        }, GameMode.PVE)));
         SwingUtilities.invokeAndWait(() -> {
         });
 
