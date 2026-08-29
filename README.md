@@ -12,6 +12,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Game-result recording and leaderboard foundations
 - HTTP submission of completed game results
 - Read-only HTTP history of completed games
+- Database-backed leaderboard standings
 - Offline CSV fallback when the game-result server is unavailable
 
 ## Technology
@@ -184,6 +185,35 @@ question histories:
 
 When no results have been stored, the endpoint returns an empty JSON array.
 
+### View the Leaderboard
+
+Retrieve standings calculated from saved games with `GET /api/leaderboard`:
+
+```bash
+curl http://localhost:8080/api/leaderboard
+```
+
+The response is ordered by wins from highest to lowest, then by participant
+name when wins are tied:
+
+```json
+[
+  {
+    "name": "Player 1",
+    "gamesPlayed": 3,
+    "wins": 2
+  },
+  {
+    "name": "AI",
+    "gamesPlayed": 3,
+    "wins": 1
+  }
+]
+```
+
+Standings include every participant name stored by the server, including the
+AI. When no results have been stored, the endpoint returns an empty JSON array.
+
 ## Test
 
 Run the JUnit suite with:
@@ -193,8 +223,8 @@ mvn test
 ```
 
 The tests cover packaged resources, board data, starting-turn rules, core
-computer-player behavior, HTTP result submission and history, normalized
-database storage, and transactional rollback.
+computer-player behavior, HTTP result submission and history, leaderboard
+aggregation, normalized database storage, and transactional rollback.
 
 ## Main Classes
 
@@ -203,6 +233,7 @@ database storage, and transactional rollback.
 | `GuessWhoServerApplication` | Starts the Spring Boot HTTP server. |
 | `StatusController` | Reports whether the server is online through `/api/status`. |
 | `GameResultController` | Accepts completed games and returns saved history through `/api/game-results`. |
+| `LeaderboardController` | Returns standings calculated from saved games through `/api/leaderboard`. |
 | `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
 | `GameResultSubmissionService` | Falls back to local persistence when server submission fails. |
 | `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
@@ -216,9 +247,10 @@ database storage, and transactional rollback.
 | `Character` | Represents a character and their visual attributes. |
 | `Question` | Represents a yes-or-no character question. |
 | `JdbcGameResultRepository` | Stores and reconstructs game results from relational tables. |
+| `JdbcLeaderboardRepository` | Aggregates games played and wins from relational tables. |
 | `CsvGameResultRepository` | Stores desktop results locally when the server is unavailable. |
 | `StoreResult` | Writes completed game information to a CSV file. |
-| `Leaderboard` | Loads, updates, and sorts leaderboard entries. |
+| `Leaderboard` | Retains the unused legacy CSV leaderboard scaffold. |
 
 ## Current Limitations
 

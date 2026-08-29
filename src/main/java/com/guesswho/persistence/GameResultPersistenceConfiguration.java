@@ -4,6 +4,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.guesswho.leaderboard.LeaderboardRepository;
+
 /**
  * Configures the server-side game-result repository.
  */
@@ -18,5 +20,16 @@ public class GameResultPersistenceConfiguration {
     @Bean
     public JdbcGameResultRepository gameResultRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcGameResultRepository(jdbcTemplate);
+    }
+
+    /**
+     * Creates the JDBC repository used to calculate leaderboard standings.
+     *
+     * @param jdbcTemplate configured database operations
+     * @return configured leaderboard repository
+     */
+    @Bean
+    public LeaderboardRepository leaderboardRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcLeaderboardRepository(jdbcTemplate);
     }
 }
