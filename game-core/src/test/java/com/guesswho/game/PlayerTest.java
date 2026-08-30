@@ -1,10 +1,9 @@
 package com.guesswho.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class PlayerTest {
@@ -19,13 +18,19 @@ class PlayerTest {
     @Test
     void initializesFromTheBoardCollections() throws Exception {
         Board reducedBoard = new Board();
-        reducedBoard.getCharacters().remove(reducedBoard.getCharacters().size() - 1);
         reducedBoard.getQuestionsList().remove(reducedBoard.getQuestionsList().size() - 1);
 
-        Player player = new Player("", reducedBoard, alwaysChooseLast());
+        Player player = new Player("", reducedBoard);
 
-        assertTrue(reducedBoard.getCharacters().contains(player.getSelectedCharacter()));
         assertEquals(18, player.getUnAskedQuestions().size());
+    }
+
+    @Test
+    void startsWithNoCharacterChosen() throws Exception {
+        Player player = new Player("");
+
+        assertNull(player.getSelectedCharacter(),
+                "A human chooses their own character; nothing should pick one for them");
     }
 
     @Test
@@ -37,14 +42,5 @@ class PlayerTest {
         assertEquals("Does your character look friendly?",
                 player.getQuestionsAsked().get(0).getQuestion());
         assertEquals(false, player.getQuestionAnswers().get(0));
-    }
-
-    private Random alwaysChooseLast() {
-        return new Random() {
-            @Override
-            public int nextInt(int bound) {
-                return bound - 1;
-            }
-        };
     }
 }

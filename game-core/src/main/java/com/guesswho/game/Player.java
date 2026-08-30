@@ -5,7 +5,6 @@ package com.guesswho.game;
  * Description: this class is made to create the parent class of the ComputerPlayer and the User
  * so this class contain the methods and attributes that are in common for the ComputerPlayer and the User
  * */
-import java.util.Random;
 import java.util.ArrayList;
 
 /**
@@ -22,23 +21,22 @@ public class Player {
     private String questionResult;//the result of the new question asked by the player
     private boolean isTurn;//if it is the player's turn
     /**
-     * Creates a player using the standard board and a randomly selected
-     * character.
+     * Creates a player on the standard board with no character yet. A human
+     * chooses theirs; a computer opponent picks its own.
      *
      * @param defaultState initial state retained for compatibility with player
      *        subclasses
      * @throws Exception if the board resources cannot be loaded
      */
     public Player(String defaultState) throws Exception{
-        this(defaultState, new Board(), new Random());
+        this(defaultState, new Board());
     }
-    Player(String defaultState, Board board, Random random) {
+    Player(String defaultState, Board board) {
         //set all the attributes to the default values
         gameBoard = board;
         questionsAsked = new ArrayList<Question>();
         questionsUnAsked = new ArrayList<Question>();
         questionAnswers = new ArrayList<Boolean>();
-        selectedCharacter = gameBoard.getCharacters().get(random.nextInt(gameBoard.getCharacters().size()));
         questionsUnAsked.addAll(gameBoard.getQuestionsList());
     }
     /**

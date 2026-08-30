@@ -70,6 +70,8 @@ class GameControllerTest {
     void carriesTheSetupChoicesIntoTheRecordedResult() throws Exception {
         GameController controller = playerGame();
         controller.start(OpeningTurn.FIRST_PLAYER);
+        controller.game().selectCharacter("Alex", "Sam");
+        controller.game().selectCharacter("Blake", "Olivia");
 
         controller.game().finish("Alex");
 

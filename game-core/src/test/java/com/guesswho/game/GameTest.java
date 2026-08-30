@@ -168,6 +168,8 @@ class GameTest {
                 "Player 1", 20000101,
                 "Player 2", 20010101,
                 PlayerGameStart.FIRST_PLAYER, QuestionMode.FREE_FORM);
+        game.selectCharacter("Player 1", "Sam");
+        game.selectCharacter("Player 2", "Olivia");
         game.finish("Player 1");
 
         assertEquals(QuestionMode.FREE_FORM, game.getGameResult().questionMode());
@@ -666,18 +668,48 @@ class GameTest {
     }
 
     @Test
-    void characterCannotBeSelectedUntilGameFinishes() throws Exception {
+    void characterCannotBeSelectedBeforeTheGameStarts() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.selectCharacter("Player 1", "Sam"));
+    }
+
+    @Test
+    void aCharacterIsChosenOnceTheGameHasStarted() throws Exception {
         game.startPlayerGame(
                 "Player 1", 20000101,
                 "Player 2", 20010101,
                 PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
-        Character originalCharacter = game.getFirstPlayer().getSelectedCharacter();
-        String differentCharacterName = originalCharacter.getName().equals("Sam") ? "Olivia" : "Sam";
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> game.selectCharacter("Player 1", differentCharacterName));
-        assertSame(originalCharacter, game.getFirstPlayer().getSelectedCharacter());
+        game.selectCharacter("Player 1", "Sam");
+
+        assertEquals("Sam", game.getFirstPlayer().getSelectedCharacter().getName());
+        assertTrue(game.hasSelectedCharacter("Player 1"));
+    }
+
+    @Test
+    void reportsWhenAPlayerHasNotChosenACharacter() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
+
+        assertFalse(game.hasSelectedCharacter("Player 1"),
+                "Nothing should pick a character on a player's behalf");
+    }
+
+    @Test
+    void refusesToBuildAResultBeforeACharacterIsChosen() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
+        game.finish("Player 1");
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> game.getGameResult());
+
+        assertTrue(thrown.getMessage().contains("Player 1"), thrown.getMessage());
     }
 
     @Test
