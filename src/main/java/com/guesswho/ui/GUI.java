@@ -117,7 +117,7 @@ public class GUI {
         });
         characterSelectionPanel = new JPanel();
         JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
-                + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character. <html>");
+                + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character.</html>");
         JButton readyButton = new JButton("Ready");
         characterSelectionPanel.add(characterSelectionLabel);
         characterSelectionPanel.add(readyButton);
@@ -265,7 +265,7 @@ public class GUI {
                 result1.setText("AI: " + AIAnswer);
                 result1.setVisible(true);
                 history.recordForFirst(
-                        QuestionHistory.escaped(newQuestion) + " : " + AIAnswer);
+                        LabelText.escaped(newQuestion) + " : " + AIAnswer);
                 stepPanel.remove(questionComboBox);
                 stepPanel.remove(questionChoiceButton);
                 nextTurnButton.setVisible(true);//add in the nextTurn button for the user to move on to the next turn
@@ -294,7 +294,7 @@ public class GUI {
                 questionAnswer = (String) questionAnswerComboBox.getSelectedItem();//read the question answer
                 controller.game().answerComputerQuestion(questionAnswer.equals("yes"));
                 history.recordForSecond(
-                        QuestionHistory.escaped(AIQuestion.getQuestion())
+                        LabelText.escaped(AIQuestion.getQuestion())
                                 + " : " + questionAnswer);
                 stepPanel.remove(questionAnswerButton);
                 stepPanel.remove(questionAnswerComboBox);
@@ -328,7 +328,7 @@ public class GUI {
                 int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
                 controller.game().recordPlayerQuestion(controller.game().getCurrentPlayerName(), newQuestion, result == JOptionPane.YES_OPTION);
                 String answer = result == JOptionPane.YES_OPTION ? "yes" : "no";
-                String entry = QuestionHistory.escaped(newQuestion) + "  " + answer + ".";
+                String entry = LabelText.escaped(newQuestion) + "  " + answer + ".";
                 if (controller.game().getCurrentPlayerName()
                         .equals(controller.setup().firstUsername())) {
                     history.recordForFirst(entry);
@@ -499,10 +499,13 @@ public class GUI {
         int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
         String winningUsername = controller.game().resolvePlayerGuess(
                 guessingUsername, characters[index], result == JOptionPane.YES_OPTION);
+        String winner = LabelText.escaped(winningUsername);
+        String guesser = LabelText.escaped(guessingUsername);
         String outcome = result == JOptionPane.YES_OPTION
-                ? "Congraulation, " + winningUsername + " you guessed the character, you won!!!!"
-                : "<html>Congraulation, " + winningUsername + ", you won!!!! <br>Because "
-                        + guessingUsername + " you guessed the wrong character<html>";
+                ? "<html>Congraulation, " + winner
+                        + " you guessed the character, you won!!!!</html>"
+                : "<html>Congraulation, " + winner + ", you won!!!! <br>Because "
+                        + guesser + " you guessed the wrong character</html>";
         showEnding(outcome);
     }
     /**

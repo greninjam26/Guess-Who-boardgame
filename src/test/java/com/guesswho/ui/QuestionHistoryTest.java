@@ -72,13 +72,4 @@ class QuestionHistoryTest {
                 "A name must not be rendered as markup by the label showing it");
     }
 
-    @Test
-    void escapesMarkupInAnEntry() {
-        assertEquals("a &amp; b &lt;c&gt;", QuestionHistory.escaped("a & b <c>"));
-    }
-
-    @Test
-    void treatsMissingTextAsEmpty() {
-        assertEquals("", QuestionHistory.escaped(null));
-    }
 }
