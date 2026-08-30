@@ -112,16 +112,20 @@ public class GUI {
             frame.remove(computerTurns);
             showEnding(outcome);
         });
-        computerTurns.setBounds(0, 0, 1350, 800);
         playerTurns = new PlayerTurnPanel(controller, history, new PlayerTurnPanel.Boards() {
             @Override
             public void showBoardForCurrentPlayer() {
                 frame.remove(boardPanel1);
                 frame.remove(boardPanel2);
+                frame.remove(playerTurns);
                 frame.add(controller.game().getCurrentPlayerName()
                         .equals(controller.setup().firstUsername())
                                 ? boardPanel1
                                 : boardPanel2);
+                // Added last on purpose: the frame is a BorderLayout and both of
+                // these go to CENTER, so the last one added is the one it sizes.
+                // The board keeps its own bounds and paints in front.
+                frame.add(playerTurns);
                 refreshFrame();
             }
 
@@ -134,7 +138,6 @@ public class GUI {
                 refreshFrame();
             }
         });
-        playerTurns.setBounds(0, 0, 1350, 800);
         //this panel is used to display the ending massages
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
@@ -174,9 +177,7 @@ public class GUI {
             public void actionPerformed(ActionEvent e) {
                 frame.remove(characterSelectionPanel);
                 if (controller.setup().isAgainstPlayer()) {//when it is PVP mode
-                    frame.add(playerTurns);
-                    playerTurns.beginTurn();
-                    refreshFrame();
+                    playerTurns.beginTurn();//adds the board, then the controls over it
                 }
                 else {//when the user is play with the AI
                     frame.add(boardPanel1);
