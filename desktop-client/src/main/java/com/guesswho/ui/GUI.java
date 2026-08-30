@@ -8,7 +8,6 @@ import com.formdev.flatlaf.FlatLightLaf;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.Game;
-import com.guesswho.game.GameResources;
 import com.guesswho.game.Question;
 
 /*Author: Gavin Liu
@@ -20,8 +19,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Optional;
-import javax.sound.sampled.Clip;
 import javax.swing.border.Border;
 
 /**
@@ -41,7 +38,7 @@ public class GUI {
     //retrieves server-backed leaderboard standings without blocking Swing
     private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
     //the music
-    private static Optional<Clip> music = Optional.empty();
+    private static BackgroundMusic music;
     //the list of characters image
     //image for the characters that were elimated
     //the size of the image
@@ -90,13 +87,10 @@ public class GUI {
             refreshFrame();
         });
         questionPanelShowing = false;
+        //One button, rather than three across the top of every screen.
         JPanel controlPanel = new JPanel();
-        JButton quitButton = new JButton("Quit");
-        JButton restartButton = new JButton("Restart");
-        JButton leaderboardButton = new JButton("Leaderboard");
-        controlPanel.add(quitButton);
-        controlPanel.add(restartButton);
-        controlPanel.add(leaderboardButton);
+        JButton settingsButton = new JButton("Settings");
+        controlPanel.add(settingsButton);
         boardPanel1 = CharacterBoard.tracking(images);
         boardPanel2 = CharacterBoard.tracking(images);
         guessBoardPanel = CharacterBoard.selecting(images, characterIndex -> {
@@ -155,26 +149,18 @@ public class GUI {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-        //this action listener is used to dispose the frame and stop the music and entire program
-        quitButton.addActionListener(new ActionListener() {
+        settingsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                frame.dispose();//close the frame
-                music.ifPresent(Clip::close);//stop the music
-            }
-        });
-        //this action listener is used to dispose the frame and stop the music and restart entire program
-        restartButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                frame.dispose();//close the frame
-                gameGUI();//make a new one
-            }
-        });
-        leaderboardButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                LeaderboardDialog.show(frame, leaderboardClient);
+                SettingsDialog.show(frame, music, leaderboardClient,
+                        () -> {
+                            frame.dispose();
+                            gameGUI();
+                        },
+                        () -> {
+                            music.close();
+                            frame.dispose();
+                        });
             }
         });
     }
@@ -286,11 +272,8 @@ public class GUI {
         //theming IntelliJ uses, and it brings HiDPI handling with it.
         FlatLightLaf.setup();
         //uploading the music
-        music = GameResources.loadBackgroundMusic();
-        music.ifPresent(clip -> {
-            clip.start();
-            clip.loop(Clip.LOOP_CONTINUOUSLY);//keep repeating the music
-        });
+        music = new BackgroundMusic();
+        music.start();
         //run the GUI
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
