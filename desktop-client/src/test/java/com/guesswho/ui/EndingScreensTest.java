@@ -149,7 +149,7 @@ class EndingScreensTest {
     /** Plays one computer game, answering either truthfully or not, then finishes it. */
     private GameController finishedComputerGame(boolean answerTruthfully) throws Exception {
         GameSetup setup = new GameSetup();
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
         setup.firstUsername("Alex");
         GameController controller = new GameController(new Game(), setup);
         controller.start(OpeningTurn.COMPUTER);

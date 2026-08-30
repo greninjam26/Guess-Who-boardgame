@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.junit.jupiter.api.BeforeEach;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class GameTest {
@@ -82,9 +83,9 @@ class GameTest {
         game.getComputerPlayer().setSelectedCharacter(
                 game.getComputerPlayer().findCharacter("Sam"));
 
-        String answer = game.askComputer("Is your character's eye colour green?");
+        Optional<String> answer = game.askComputer("Is your character's eye colour green?");
 
-        assertEquals("Yes", answer);
+        assertEquals(Optional.of("Yes"), answer);
         assertEquals(1, game.getFirstPlayer().getQuestionsAsked().size());
         assertTrue(game.getFirstPlayer().getQuestionAnswers().get(0));
         assertFalse(game.getFirstPlayer().getIsTurn());
@@ -1045,6 +1046,35 @@ class GameTest {
 
         assertNotEquals(game.getFirstPlayer().getIsTurn(), game.getSecondPlayer().getIsTurn());
         assertTrue(game.getFirstPlayer().getIsTurn());
+    }
+
+    @Test
+    void answersATypedQuestionItCanPlaceAgainstTheBoard() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY,
+                ComputerGameStart.PLAYER, QuestionMode.FREE_FORM);
+        game.getComputerPlayer().setSelectedCharacter(
+                game.getComputerPlayer().findCharacter("Sam"));
+
+        Optional<String> answer = game.askComputer("are their eyes green?");
+
+        assertEquals(Optional.of("Yes"), answer);
+        assertEquals("Is your character's eye colour green?",
+                game.getFirstPlayer().getQuestionsAsked().get(0).getQuestion(),
+                "The board question is recorded, not the words the player typed");
+    }
+
+    @Test
+    void aQuestionItCannotPlaceCostsNothingButARetype() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY,
+                ComputerGameStart.PLAYER, QuestionMode.FREE_FORM);
+
+        Optional<String> answer = game.askComputer("do they look friendly?");
+
+        assertTrue(answer.isEmpty());
+        assertTrue(game.getFirstPlayer().getQuestionsAsked().isEmpty(),
+                "An unanswered question must not appear in the history");
+        assertTrue(game.getFirstPlayer().getIsTurn(),
+                "Nor should it cost the player their turn");
     }
 
     private void leaveOnlyComputerCandidate(String remainingName) {

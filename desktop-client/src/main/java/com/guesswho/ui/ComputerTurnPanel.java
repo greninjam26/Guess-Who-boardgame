@@ -12,6 +12,7 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 /**
@@ -44,6 +45,7 @@ class ComputerTurnPanel extends JPanel {
     private final JComboBox<String> askOrGuess = new JComboBox<>(new String[] {"1", "2"});
     private final JButton confirmChoice = new JButton("Comfirm");
     private final JComboBox<String> questions = new JComboBox<>();
+    private final JTextField typedQuestion = new JTextField(24);
     private final JButton confirmQuestion = new JButton("Comfirm");
     private final JComboBox<String> characters = new JComboBox<>();
     private final JButton confirmGuess = new JButton("Guess");
@@ -72,7 +74,7 @@ class ComputerTurnPanel extends JPanel {
 
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         for (java.awt.Component control : new java.awt.Component[] {
-                askOrGuess, confirmChoice, questions, confirmQuestion,
+                askOrGuess, confirmChoice, questions, typedQuestion, confirmQuestion,
                 characters, confirmGuess, yesOrNo, confirmAnswer, nextTurn}) {
             control.setVisible(false);
             controls.add(control);
@@ -130,6 +132,12 @@ class ComputerTurnPanel extends JPanel {
 
     private void chooseAskOrGuess() {
         if ("1".equals(askOrGuess.getSelectedItem())) {
+            if (controller.setup().isFreeFormQuestions()) {
+                prompt.setText("Type a question about the character: ");
+                typedQuestion.setText("");
+                showOnly(typedQuestion, confirmQuestion);
+                return;
+            }
             prompt.setText("Please choice the question you want to ask: ");
             questions.setModel(new DefaultComboBoxModel<>(
                     controller.game().getCurrentPlayerQuestionTexts()));
@@ -142,10 +150,21 @@ class ComputerTurnPanel extends JPanel {
     }
 
     private void askChosenQuestion() {
-        String question = (String) questions.getSelectedItem();
-        String answer = controller.game().askComputer(question);
-        answerShown.setText("AI: " + answer);
-        history.recordForFirst(LabelText.escaped(question) + " : " + answer);
+        String question = controller.setup().isFreeFormQuestions()
+                ? typedQuestion.getText()
+                : (String) questions.getSelectedItem();
+        Optional<String> answer = controller.game().askComputer(question);
+        if (answer.isEmpty()) {
+            //The turn has not passed, so the player simply asks again.
+            answerShown.setText("<html>The AI cannot answer that. Ask about eyes, hair,"
+                    + " glasses, a hat, facial hair, teeth, skin tone, or piercings.</html>");
+            typedQuestion.selectAll();
+            typedQuestion.requestFocusInWindow();
+            return;
+        }
+        answerShown.setText("AI: " + answer.orElseThrow());
+        history.recordForFirst(
+                LabelText.escaped(question) + " : " + answer.orElseThrow());
         showOnly(nextTurn);
     }
 
@@ -165,7 +184,7 @@ class ComputerTurnPanel extends JPanel {
     /** Shows exactly these controls, so no stale one is left behind. */
     private void showOnly(java.awt.Component... visible) {
         for (java.awt.Component control : new java.awt.Component[] {
-                askOrGuess, confirmChoice, questions, confirmQuestion,
+                askOrGuess, confirmChoice, questions, typedQuestion, confirmQuestion,
                 characters, confirmGuess, yesOrNo, confirmAnswer, nextTurn}) {
             control.setVisible(false);
         }

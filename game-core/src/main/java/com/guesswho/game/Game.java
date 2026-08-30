@@ -350,22 +350,36 @@ public class Game {
     }
 
     /**
-     * Asks the computer opponent a preset board question and records its answer
-     * in the first player's history.
+     * Asks the computer opponent a question and records its answer in the first
+     * player's history.
      *
-     * @param question exact text of a preset board question
-     * @return {@code Yes} or {@code No}
-     * @throws IllegalArgumentException if the question is not on the board
+     * <p>The question may be typed rather than chosen, in which case it is
+     * matched to whichever board question it is asking. The computer can only
+     * answer what the board has data for, so a question it cannot place is
+     * declined: nothing is recorded, the turn does not pass, and the player is
+     * free to ask again. Answering a guess at what they meant would make them
+     * rule out the wrong characters.</p>
+     *
+     * @param question a board question, or one typed by the player
+     * @return {@code Yes} or {@code No}, or empty when the question cannot be
+     *         placed against the board
      * @throws IllegalStateException if no computer game is in progress or it is
      *         not the human player's turn
      */
-    public String askComputer(String question) {
+    public Optional<String> askComputer(String question) {
         ComputerPlayer computer = requireComputerPlayer();
         requireTurn(firstPlayer);
-        boolean answer = computer.answerQuestion(question);
-        firstPlayer.recordQuestionAnswer(question, answer);
+        Optional<Question> asked = new TypedQuestion(
+                computer.getGameBoard().getQuestionsList()).resolve(question);
+        if (asked.isEmpty()) {
+            //Nothing is recorded and the turn does not pass: an unanswerable
+            //question costs the player a retype, not their go.
+            return Optional.empty();
+        }
+        boolean answer = computer.answerQuestion(asked.orElseThrow().getQuestion());
+        firstPlayer.recordQuestionAnswer(asked.orElseThrow().getQuestion(), answer);
         advanceTurn();
-        return answer ? "Yes" : "No";
+        return Optional.of(answer ? "Yes" : "No");
     }
 
     /**

@@ -106,7 +106,7 @@ class GameControllerTest {
 
     private GameController computerGame() {
         GameSetup setup = new GameSetup();
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
         setup.firstUsername("Alex");
         return new GameController(new Game(), setup);
     }
