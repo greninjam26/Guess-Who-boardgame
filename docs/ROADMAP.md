@@ -31,9 +31,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 ## The dependency spine
 
 ```text
-v0.5    00  Repair the engine   ─┐
-                                 ├→ 02 → 03 → 04 → 05 → 07
-        01  Migrations + mode   ─┘
+v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  →  05 → 07
                                    06  needs 00 only — slot in anywhere
 
 v1.0    08  Accounts  →  09  Online PvP  →  10  Ship
@@ -236,38 +234,45 @@ drawing these boundaries; doing both in one pass beats discovering it later.
       implementations do not.
 - [ ] Verify the desktop artifact resolves no Spring dependencies.
 
-## Phase 04 — Commit the character · M
+## Phase 04 — Commit the character · M — done
 
 **Blocks:** 09 **Needs:** 02
 
-Storing the chosen character and verifying honest answers are the same
-mechanism, not two features. Today `Player`'s constructor assigns a *random*
-character and the human declares theirs at the end — which is why
-`selectCharacter()` requires `FINISHED` and why verification can only ever check
-a self-report.
+Storing the chosen character and verifying honest answers turned out to be two
+mechanisms, not one. Both are in place.
 
-Must land before Phase 09, because it changes the `Game` API that networking
-will freeze.
-
-- [ ] Move character selection to game start. `Player` stops auto-assigning;
+- [x] Move character selection to game start. `Player` stops auto-assigning;
       `Game.selectCharacter()` moves from `FINISHED` to setup.
-- [ ] Add the store-my-character setting. On: the server knows it and
-      verification is automatic. Off: the game plays as it does now and
-      verification is unavailable — say so in the UI rather than offering a check
-      that can't work.
-- [ ] Add the commitment scheme so PvP verification becomes possible: the client
-      sends `SHA-256(character + nonce)` at game start, reveals both at the end,
-      and the server recomputes and compares.
-- [ ] Rework `getComputerAnswerCorrections()` to run against the committed
-      character rather than the post-hoc claim.
+- [x] Add the store-my-character setting, as a choice about *when* rather than
+      *whether*: name your character before playing, or keep it to yourself and
+      say at the end. The answer review runs either way.
+- [x] Add `CharacterCommitment` — `SHA-256(character, nonce)` in `game-core`,
+      recorded at the moment of choosing, carried on `GameResult.Participant`,
+      stored in `V4` and sent over the wire.
+- [x] Rework the answer review to run against the character committed to.
 
-> **Why the commitment matters.** It closes the cheat you actually care about —
-> changing your character once you see how the questions are going. Nobody learns
-> the character during play, but you're locked in from move one.
+> **The commitment is not what closed the local cheat.** Changing a character
+> after seeing how the questions are going is prevented by
+> `Game.selectCharacter()` refusing a second call — the game holds the character,
+> so a choice is final because nothing will change it. That is worth knowing
+> before Phase 09, because it means the crypto is not load-bearing today and
+> nothing local depends on it.
 >
-> It does not defend against a modified client, and that's fine. Say so in the
-> README; knowing the boundary of your own threat model is the part worth
-> showing.
+> What the commitment buys is verification *without disclosure*. In an online
+> game the opponent's own client answers questions about their character, so the
+> server can record a whole game without ever learning either character, and
+> still check both at the end. It cannot leak what it never held.
+>
+> It does not defend against a modified client that commits to one character and
+> answers as another. Say so in the README at Phase 10.
+
+> **A missing commitment is a signal, not an omission.** A promise is only
+> recorded while the game is in progress; naming a character afterwards is a
+> claim, not a commitment, and storing one would make the two indistinguishable.
+> So a human participant with a null commitment is one who kept their character
+> to themselves and named it at the end, and their review shows only that their
+> answers were consistent — not that they were fixed in advance. Phase 09 needs
+> no extra field to tell those apart.
 
 ## Phase 05 — Make it feel finished · L
 
@@ -571,4 +576,4 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** `refactor/extract-board-view` — the third of Phase 02's five.
+**Next branch:** Phase 05, which now leads with replacing absolute positioning.

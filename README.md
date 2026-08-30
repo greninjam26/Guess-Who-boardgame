@@ -9,7 +9,7 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Preset-question and free-question game modes
 - Interactive character boards for tracking eliminated characters
 - Character and question data loaded from CSV files
-- Game-result recording and leaderboard foundations
+- Answers checked against the character a player committed to before playing
 - HTTP submission of completed game results
 - Paginated HTTP history of completed games
 - Database-backed leaderboard standings
@@ -198,7 +198,11 @@ question histories:
             "question": "Does your character wear glasses?",
             "answer": true
           }
-        ]
+        ],
+        "commitment": {
+          "hash": "9f2c…",
+          "nonce": "4a1b…"
+        }
       }
     ],
     "winner": "Player 1",
@@ -208,6 +212,19 @@ question histories:
   }
 ]
 ```
+
+A participant's `commitment` is the promise they made about their character
+before play began: `SHA-256` of the character name and a random nonce.
+Recomputing it from the revealed `selectedCharacter` and the `nonce` shows the
+character was not swapped once the questions started.
+
+It is absent for the computer opponent, which makes no promise, and for a player
+who chose to keep their character to themselves and name it at the end. In that
+case the stored answers are only known to be consistent with the character
+named, not fixed in advance.
+
+This does not defend against a modified client that commits to one character and
+answers as though it held another. It closes changing your mind, not lying.
 
 When no results have been stored, the endpoint returns an empty JSON array.
 
