@@ -4,6 +4,9 @@ import com.guesswho.game.Question;
 
 import java.util.Optional;
 import javax.swing.DefaultComboBoxModel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -56,33 +59,27 @@ class ComputerTurnPanel extends JPanel {
      * @param gameOver notified once the game is resolved
      */
     ComputerTurnPanel(GameController controller, QuestionHistory history, GameOver gameOver) {
-        super(null);
+        //Prompt above, controls in a row, the answer below. Placing these by
+        //hand only lined up at one window size.
+        super(new BorderLayout(0, 8));
+        setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         this.controller = controller;
         this.history = history;
         this.gameOver = gameOver;
 
         prompt.setHorizontalAlignment(SwingConstants.CENTER);
-        prompt.setBounds(390, 625, 600, 30);
         answerShown.setHorizontalAlignment(SwingConstants.CENTER);
-        answerShown.setBounds(0, 705, 1350, 30);
-        askOrGuess.setBounds(640, 675, 75, 30);
-        confirmChoice.setBounds(715, 675, 100, 30);
-        questions.setBounds(490, 675, 300, 30);
-        confirmQuestion.setBounds(790, 675, 100, 30);
-        characters.setBounds(565, 675, 150, 30);
-        confirmGuess.setBounds(715, 675, 100, 30);
-        yesOrNo.setBounds(640, 675, 75, 30);
-        confirmAnswer.setBounds(715, 675, 100, 30);
-        nextTurn.setBounds(890, 705, 100, 30);
 
-        add(prompt);
-        add(answerShown);
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         for (java.awt.Component control : new java.awt.Component[] {
                 askOrGuess, confirmChoice, questions, confirmQuestion,
                 characters, confirmGuess, yesOrNo, confirmAnswer, nextTurn}) {
             control.setVisible(false);
-            add(control);
+            controls.add(control);
         }
+        add(prompt, BorderLayout.NORTH);
+        add(controls, BorderLayout.CENTER);
+        add(answerShown, BorderLayout.SOUTH);
 
         confirmChoice.addActionListener(event -> chooseAskOrGuess());
         confirmQuestion.addActionListener(event -> askChosenQuestion());

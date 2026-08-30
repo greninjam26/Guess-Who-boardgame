@@ -1,6 +1,9 @@
 package com.guesswho.ui;
 
 import javax.swing.DefaultComboBoxModel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -34,7 +37,7 @@ class PlayerTurnPanel extends JPanel {
     private final JLabel prompt = new JLabel();
     private final JLabel answerShown = new JLabel("");
     private final JComboBox<String> presetQuestions = new JComboBox<>();
-    private final JTextField typedQuestion = new JTextField();
+    private final JTextField typedQuestion = new JTextField(24);
     private final JButton ask = new JButton("ask question");
     private final JButton next = new JButton("next");
     private final JButton guess = new JButton("guess");
@@ -47,27 +50,25 @@ class PlayerTurnPanel extends JPanel {
      * @param boards board changes the panel asks for
      */
     PlayerTurnPanel(GameController controller, QuestionHistory history, Boards boards) {
-        super(null);
+        //Prompt above, controls in a row, the answer below. Placing these by
+        //hand only lined up at one window size.
+        super(new BorderLayout(0, 8));
+        setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         this.controller = controller;
         this.history = history;
         this.boards = boards;
 
         prompt.setHorizontalAlignment(SwingConstants.CENTER);
-        prompt.setBounds(390, 625, 600, 30);
         answerShown.setHorizontalAlignment(SwingConstants.CENTER);
-        answerShown.setBounds(0, 705, 1350, 30);
-        presetQuestions.setBounds(490, 675, 300, 30);
-        typedQuestion.setBounds(490, 675, 300, 30);
-        ask.setBounds(790, 675, 150, 30);
-        next.setBounds(940, 675, 75, 30);
-        guess.setBounds(1015, 675, 100, 30);
 
-        add(prompt);
-        add(answerShown);
-        add(ask);
-        add(next);
-        add(guess);
-        add(controller.setup().isFreeFormQuestions() ? typedQuestion : presetQuestions);
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        controls.add(controller.setup().isFreeFormQuestions() ? typedQuestion : presetQuestions);
+        controls.add(ask);
+        controls.add(next);
+        controls.add(guess);
+        add(prompt, BorderLayout.NORTH);
+        add(controls, BorderLayout.CENTER);
+        add(answerShown, BorderLayout.SOUTH);
 
         ask.addActionListener(event -> askOpponent());
         guess.addActionListener(event -> boards.showGuessBoard());
