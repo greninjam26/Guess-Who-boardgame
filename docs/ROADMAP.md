@@ -31,7 +31,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 ## The dependency spine
 
 ```text
-v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ▸  →  06 → 07
+v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ▸  06 ✔  →  07
                                    06  needs 00 only — slot in anywhere
 
 v1.0    08  Accounts  →  09  Online PvP  →  10  Ship
@@ -297,9 +297,9 @@ and one that needs an audio file rather than a change.
       scrollable window, and were rewritten — the old text described three
       difficulties, promised score validation, and never mentioned choosing a
       character.
-- [ ] Save a game in progress and offer it back on the next launch. **Waiting on
-      Phase 06**, which moves the elimination state off `Character` so it can be
-      stored per player.
+- [ ] Save a game in progress and offer it back on the next launch. No longer
+      blocked: Phase 06 moved the elimination state into `ComputerPlayer`, so it
+      can be stored per player.
 - [ ] Replace the empty `Bloom of Youth.wav`. Not a code change: it needs an
       audio file that can be redistributed in an installer.
 
@@ -322,34 +322,46 @@ and one that needs an audio file rather than a change.
 > bottom half of its travel. Map it logarithmically and treat the minimum as
 > mute.
 
-## Phase 06 — Give the AI a brain · M
+## Phase 06 — Give the AI a brain · M — done
 
 **Blocks:** nothing **Needs:** 00
 
-Self-contained pure logic with no UI or network dependencies — slot it in
-wherever another phase gets tiring.
+- [x] Move the elimination state off `Character`. It lived on the objects the
+      board owns, so two players sharing a board shared their eliminations and
+      neither could be stored separately. It is now a `boolean[]` inside
+      `ComputerPlayer`. **This is what Phase 05's save-and-resume was waiting
+      for.**
+- [x] Teach the AI to take a risk. `ComputerDifficulty` now decides when to
+      guess rather than ask again — the harder level gambles on a coin flip
+      between two rather than spend a turn, because a game is a race and waiting
+      can lose one that guessing would have won.
+- [x] Expand easy and hard into real tiers. `ComputerDifficulty` describes how
+      the computer plays instead of carrying a string for `mode.equals("easy")`,
+      and owns both decisions: which question to ask, and when to stop asking.
+- [x] Teach the computer to answer a typed question. `TypedQuestion` resolves
+      text to a board question, so free questions work against the computer and
+      the mode matrix has no empty cell.
+- [ ] Consider making the AI answer imperfectly on the easiest tier, so
+      beginners can win. Not attempted: an opponent that lies is hard to tell
+      from one that is broken, and the answer review would flag its own game.
 
-- [ ] Replace the closest-to-half heuristic with real information gain. Scoring
-      by expected entropy reduction is a small change that plays noticeably
-      better.
-- [ ] Teach the AI to take a risk. It currently guesses only when `onlyOne()` is
-      true, so it never gambles at two or three candidates — which is most of
-      what makes hard mode feel hard.
-- [ ] Expand easy/hard into real tiers, differentiated by question quality *and*
-      guess aggression rather than random-versus-optimal.
-- [ ] Consider making the AI answer imperfectly on the easiest tier, so beginners
-      can win.
-- [ ] Teach the computer to answer a typed question, so free questions work
-      against it and the mode matrix stops having an empty cell. Every board
-      question already carries a category and a value — `eyeColour, Blue` or
-      `glasses, TRUE` — so this resolves text to one of ten attributes and
-      nineteen values through a synonym table, not open-ended language
-      understanding.
-- [ ] `GameSetup.againstComputer()` currently forces preset questions. It takes a
-      `QuestionMode` once the computer can answer typed ones, and the four mode
-      buttons become five.
-- [ ] Record the new tiers in the `difficulty` column from Phase 01 so the PvE
-      board can break standings down by tier.
+> **Information gain and closest-to-half are the same rule.** The plan called
+> for replacing one with the other. Maximising the entropy of a two-way split
+> *is* getting closest to half, and every board question is two-way, so the
+> change would not alter a single decision the AI makes.
+>
+> Checked rather than assumed: comparing both rules pairwise across every board
+> size from two to twenty-four, the only apparent disagreements were exact ties,
+> where a k/n−k split scores identically both ways.
+
+> **A computer that misreads a question is worse than one that refuses.** An
+> unplaceable question is declined: nothing is recorded, and the turn does not
+> pass, so it costs a retype rather than a move. Recording it would corrupt the
+> history and the answer review; guessing at it would make the player rule out
+> the wrong characters and lose a game they should have won.
+>
+> The board question is stored, not the words typed, so a transcript stays
+> comparable across games however the question was phrased.
 
 ## Phase 07 — Ship v0.5 · S
 
@@ -560,5 +572,5 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** Phase 06 — the AI, and the elimination state that Phase 05's
-save-and-resume is waiting on.
+**Next branch:** Phase 05's save-and-resume, now unblocked, then Phase 07 ships
+v0.5.
