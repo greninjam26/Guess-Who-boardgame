@@ -15,7 +15,7 @@ class GameSetupTest {
     void aComputerGameAlwaysUsesPresetQuestions() {
         GameSetup setup = new GameSetup();
 
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
 
         assertFalse(setup.isFreeFormQuestions(),
                 "ComputerPlayer can only answer questions that exist on the board");
@@ -26,7 +26,7 @@ class GameSetupTest {
     void aComputerGameRecordsItsDifficulty() {
         GameSetup setup = new GameSetup();
 
-        setup.againstComputer(ComputerDifficulty.EASY);
+        setup.againstComputer(ComputerDifficulty.EASY, QuestionMode.PRESET);
 
         assertTrue(setup.isAgainstComputer());
         assertFalse(setup.isAgainstPlayer());
@@ -48,7 +48,7 @@ class GameSetupTest {
     @Test
     void switchingFromAComputerGameClearsTheDifficulty() {
         GameSetup setup = new GameSetup();
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
 
         setup.againstPlayer(QuestionMode.PRESET);
 

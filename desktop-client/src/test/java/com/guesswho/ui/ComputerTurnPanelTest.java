@@ -1,6 +1,7 @@
 package com.guesswho.ui;
 
 import com.guesswho.game.ComputerDifficulty;
+import com.guesswho.game.QuestionMode;
 import com.guesswho.game.Game;
 import com.guesswho.game.GameStatus;
 
@@ -15,6 +16,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JTextField;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
@@ -125,6 +128,72 @@ class ComputerTurnPanelTest {
                 "A control left over from an earlier state would still be clickable");
     }
 
+    @Test
+    void offersATextFieldWhenQuestionsAreTyped() throws Exception {
+        ComputerTurnPanel panel = panelFor(freeFormGame());
+        begin(panel);
+        choose(panel, 0, "1");
+
+        click(panel, "Comfirm");
+
+        assertTrue(controls(panel, JTextField.class).get(0).isVisible());
+        assertFalse(combo(panel, 1).isVisible(), "The board's questions are not offered");
+    }
+
+    @Test
+    void saysWhenItCannotAnswerAndLetsThePlayerAskAgain() throws Exception {
+        GameController controller = freeFormGame();
+        ComputerTurnPanel panel = panelFor(controller);
+        begin(panel);
+        choose(panel, 0, "1");
+        click(panel, "Comfirm");
+        JTextField typed = controls(panel, JTextField.class).get(0);
+
+        SwingUtilities.invokeAndWait(() -> typed.setText("do they look friendly?"));
+        clickSecond(panel, "Comfirm");
+
+        assertTrue(labelText(panel).contains("cannot answer"), labelText(panel));
+        assertFalse(button(panel, "Next Turn").isVisible(),
+                "The turn has not passed, so there is nothing to move on from");
+        assertTrue(typed.isVisible(), "The player needs the field to ask again");
+    }
+
+    @Test
+    void answersATypedQuestionItUnderstands() throws Exception {
+        GameController controller = freeFormGame();
+        ComputerTurnPanel panel = panelFor(controller);
+        begin(panel);
+        choose(panel, 0, "1");
+        click(panel, "Comfirm");
+        JTextField typed = controls(panel, JTextField.class).get(0);
+
+        SwingUtilities.invokeAndWait(() -> typed.setText("do they wear glasses?"));
+        clickSecond(panel, "Comfirm");
+
+        assertTrue(labelText(panel).contains("AI:"), labelText(panel));
+        assertTrue(button(panel, "Next Turn").isVisible());
+    }
+
+    private GameController freeFormGame() throws Exception {
+        GameSetup setup = new GameSetup();
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.FREE_FORM);
+        setup.firstUsername("Alex");
+        GameController controller = new GameController(new Game(), setup);
+        controller.start(OpeningTurn.FIRST_PLAYER);
+        history.begin("Alex", "AI");
+        return controller;
+    }
+
+    private String labelText(ComputerTurnPanel panel) {
+        StringBuilder text = new StringBuilder();
+        for (JLabel label : controls(panel, JLabel.class)) {
+            if (label.getText() != null) {
+                text.append(label.getText());
+            }
+        }
+        return text.toString();
+    }
+
     // --- helpers -------------------------------------------------------
 
     private ComputerTurnPanel panelFor(GameController controller) throws Exception {
@@ -144,7 +213,7 @@ class ComputerTurnPanelTest {
 
     private GameController started(OpeningTurn openingTurn) throws Exception {
         GameSetup setup = new GameSetup();
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
         setup.firstUsername("Alex");
         GameController controller = new GameController(new Game(), setup);
         controller.start(openingTurn);

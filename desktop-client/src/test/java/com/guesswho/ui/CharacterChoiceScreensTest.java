@@ -160,7 +160,7 @@ class CharacterChoiceScreensTest {
 
     private GameController computerGame() throws Exception {
         GameSetup setup = new GameSetup();
-        setup.againstComputer(ComputerDifficulty.HARD);
+        setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET);
         setup.firstUsername("Alex");
         GameController controller = new GameController(new Game(), setup);
         controller.start(OpeningTurn.FIRST_PLAYER);

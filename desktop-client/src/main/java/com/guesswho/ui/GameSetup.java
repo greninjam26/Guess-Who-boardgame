@@ -8,10 +8,8 @@ import com.guesswho.game.QuestionMode;
  * Choices collected by the setup screens before a game starts.
  *
  * <p>Replaces the free-text {@code modeChoice} flag the interface used to
- * branch on. The mode-matrix rule is enforced here rather than restated at
- * every call site: a game against the computer is always played with preset
- * questions, because {@code ComputerPlayer} can only answer questions that
- * exist on the board.</p>
+ * branch on, so a mode is a pair of typed choices rather than a sentence to be
+ * parsed.</p>
  */
 class GameSetup {
     private GameMode mode;
@@ -24,14 +22,15 @@ class GameSetup {
     private int secondBirthday;
 
     /**
-     * Configures a game against the computer at the given difficulty.
+     * Configures a game against the computer.
      *
      * @param computerDifficulty difficulty for the computer opponent
+     * @param questions how questions are chosen during the game
      */
-    void againstComputer(ComputerDifficulty computerDifficulty) {
+    void againstComputer(ComputerDifficulty computerDifficulty, QuestionMode questions) {
         mode = GameMode.PVE;
         difficulty = computerDifficulty;
-        questionMode = QuestionMode.PRESET;
+        questionMode = questions;
     }
 
     /**

@@ -111,9 +111,11 @@ class SetupScreens {
         JPanel panel = new JPanel();
         panel.add(new JLabel("Please choose your game mode: "));
         panel.add(modeButton("player vs computer easy mode",
-                () -> setup.againstComputer(ComputerDifficulty.EASY)));
+                () -> setup.againstComputer(ComputerDifficulty.EASY, QuestionMode.PRESET)));
         panel.add(modeButton("player vs computer hard mode",
-                () -> setup.againstComputer(ComputerDifficulty.HARD)));
+                () -> setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET)));
+        panel.add(modeButton("player vs computer, ask your own questions",
+                () -> setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.FREE_FORM)));
         panel.add(modeButton("player vs player preset questions",
                 () -> setup.againstPlayer(QuestionMode.PRESET)));
         panel.add(modeButton("player vs player ask questions",
