@@ -1,6 +1,7 @@
 package com.guesswho.game;
 
 import java.awt.Image;
+import java.awt.image.BaseMultiResolutionImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -66,10 +67,26 @@ public final class GameResources {
         return loadScaledIcon("/images/characterGone.jpg", width, height);
     }
 
+    /**
+     * Scales a portrait for display, keeping a second copy at twice the size.
+     *
+     * <p>A single bitmap scaled to the requested size looks soft on a high-DPI
+     * screen, where the toolkit draws those logical points across twice as many
+     * physical pixels and has nothing left to draw with. The source images are
+     * far larger than either copy, so both are downscales and the detail is
+     * there to keep.</p>
+     */
     private static ImageIcon loadScaledIcon(String path, int width, int height) {
-        ImageIcon icon = new ImageIcon(requiredResource(path));
-        Image scaledImage = icon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaledImage);
+        Image source = new ImageIcon(requiredResource(path)).getImage();
+        return new ImageIcon(new BaseMultiResolutionImage(
+                scaled(source, width, height),
+                scaled(source, width * 2, height * 2)));
+    }
+
+    /** Wrapped in an ImageIcon, which waits for the scaling to finish. */
+    private static Image scaled(Image source, int width, int height) {
+        return new ImageIcon(
+                source.getScaledInstance(width, height, Image.SCALE_SMOOTH)).getImage();
     }
 
     /**
