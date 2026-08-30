@@ -187,7 +187,7 @@ public class Game {
      * @throws IllegalStateException if the game has not finished
      */
     public void selectCharacter(String username, String characterName) {
-        requireFinished();
+        requireStarted();
         User player = getPlayer(username);
         Character character = player.findCharacter(characterName);
         player.setSelectedCharacter(character);
@@ -202,8 +202,19 @@ public class Game {
      * @throws IllegalStateException if the game has not finished
      */
     public int getSelectedCharacterIndex(String username) {
-        requireFinished();
-        return getPlayer(username).getSelectedCharacter().getCharacterIndex();
+        requireStarted();
+        return requireSelectedCharacter(getPlayer(username), username).getCharacterIndex();
+    }
+
+    /**
+     * Reports whether a human player has chosen their character yet.
+     *
+     * @param username username of the player
+     * @return {@code true} once they have chosen
+     * @throws IllegalArgumentException if the username is unknown
+     */
+    public boolean hasSelectedCharacter(String username) {
+        return getPlayer(username).getSelectedCharacter() != null;
     }
 
     /**
@@ -479,7 +490,8 @@ public class Game {
     public List<AnswerCorrection> getComputerAnswerCorrections() {
         ComputerPlayer computer = requireFinishedComputerGame();
         List<AnswerCorrection> corrections = new ArrayList<>();
-        int selectedCharacterIndex = firstPlayer.getSelectedCharacter().getCharacterIndex();
+        int selectedCharacterIndex = requireSelectedCharacter(
+                firstPlayer, firstPlayer.getUsername()).getCharacterIndex();
         for (int index = 0; index < computer.getQuestionsAsked().size(); index++) {
             Question question = computer.getQuestionsAsked().get(index);
             boolean expectedAnswer = computer.getGameBoard().getAnswers()
@@ -539,7 +551,7 @@ public class Game {
         }
         return new GameResult.Participant(
                 name,
-                player.getSelectedCharacter().getName(),
+                requireSelectedCharacter(player, name).getName(),
                 questionAnswers);
     }
 
@@ -598,6 +610,20 @@ public class Game {
     private void requireInProgress() {
         if (status != GameStatus.IN_PROGRESS) {
             throw new IllegalStateException("No game is in progress");
+        }
+    }
+
+    private Character requireSelectedCharacter(Player player, String who) {
+        Character selected = player.getSelectedCharacter();
+        if (selected == null) {
+            throw new IllegalStateException("No character has been chosen for " + who);
+        }
+        return selected;
+    }
+
+    private void requireStarted() {
+        if (status == GameStatus.STARTING) {
+            throw new IllegalStateException("Game must be started before characters can be chosen");
         }
     }
 

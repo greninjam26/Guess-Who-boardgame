@@ -42,7 +42,9 @@ public class ComputerPlayer extends Player{
         this(defaultMode, defaultState, new Board(), random);
     }
     ComputerPlayer(String defaultMode, String defaultState, Board board, Random random) {
-        super(defaultState, board, random);
+        super(defaultState, board);
+        //the computer's character is genuinely chosen here, not a placeholder
+        setSelectedCharacter(board.getCharacters().get(random.nextInt(board.getCharacterSize())));
         mode = defaultMode;
         this.random = random;
         unAskedQuestions.addAll(getGameBoard().getQuestionsList());
