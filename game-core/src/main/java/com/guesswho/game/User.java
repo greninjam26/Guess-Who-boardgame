@@ -9,6 +9,7 @@ package com.guesswho.game;
  * Human player with a username and birthday value used by game setup.
  */
 public class User extends Player{
+    private CharacterCommitment commitment;//the promise made when the character was chosen
     //all the attributes
     private String username;//the username of the user
     private int birthday;//the birthday of the user
@@ -53,5 +54,21 @@ public class User extends Player{
      */
     public void setBirthday(int newBirthday) {
         birthday = newBirthday;
+    }
+    /**
+     * Returns the promise made when this player chose their character.
+     *
+     * @return the commitment, or {@code null} before a character is chosen
+     */
+    public CharacterCommitment getCommitment() {
+        return commitment;
+    }
+    /**
+     * Records the promise made when choosing a character.
+     *
+     * @param newCommitment the commitment made at the moment of choosing
+     */
+    public void setCommitment(CharacterCommitment newCommitment) {
+        commitment = newCommitment;
     }
 }

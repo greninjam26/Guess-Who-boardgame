@@ -145,21 +145,24 @@ class GameTest {
 
         GameResult result = game.getGameResult();
 
-        assertEquals(new GameResult(
-                List.of(
-                        new GameResult.Participant(
-                                "Player",
-                                "Olivia",
-                                List.of(new GameResult.QuestionAnswer(
-                                        "Does your character wear glasses?", true))),
-                        new GameResult.Participant(
-                                "AI",
-                                "Nick",
-                                List.of(new GameResult.QuestionAnswer(
-                                        "Is your character's eye colour blue?", false)))),
-                "AI",
-                GameMode.PVE,
-                ComputerDifficulty.EASY, QuestionMode.PRESET), result);
+        // Not whole-object equality: a commitment carries a random nonce, so an
+        // expected result could never be built to match one.
+        assertEquals(2, result.participants().size());
+        assertEquals("Player", result.participants().get(0).name());
+        assertEquals("Olivia", result.participants().get(0).selectedCharacter());
+        assertEquals(
+                List.of(new GameResult.QuestionAnswer(
+                        "Does your character wear glasses?", true)),
+                result.participants().get(0).questionAnswers());
+        assertEquals("AI", result.participants().get(1).name());
+        assertEquals("Nick", result.participants().get(1).selectedCharacter());
+        assertEquals(
+                List.of(new GameResult.QuestionAnswer(
+                        "Is your character's eye colour blue?", false)),
+                result.participants().get(1).questionAnswers());
+        assertEquals("AI", result.winner());
+        assertEquals(GameMode.PVE, result.mode());
+        assertEquals(ComputerDifficulty.EASY, result.difficulty());
     }
 
     @Test

@@ -4,10 +4,13 @@ import com.guesswho.GuessWhoServerApplication;
 import com.guesswho.game.QuestionMode;
 import com.guesswho.game.GameResult;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDateTime;
+import com.guesswho.game.CharacterCommitment;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.GameMode;
 import java.util.List;
@@ -38,8 +41,8 @@ class JdbcGameResultRepositoryTest {
     void rollsBackWholeGameWhenParticipantCannotBeStored() {
         GameResult invalidResult = new GameResult(
                 List.of(
-                        new GameResult.Participant("Player", "Olivia", List.of()),
-                        new GameResult.Participant("AI", null, List.of())),
+                        new GameResult.Participant("Player", "Olivia", List.of(), null),
+                        new GameResult.Participant("AI", null, List.of(), null)),
                 "Player",
                 GameMode.PVE,
                 ComputerDifficulty.HARD, QuestionMode.PRESET);
@@ -75,13 +78,14 @@ class JdbcGameResultRepositoryTest {
                                 new GameResult(
                                         List.of(
                                                 new GameResult.Participant(
-                                                        "Player", "Sam", List.of()),
+                                                        "Player", "Sam", List.of(), null),
                                                 new GameResult.Participant(
                                                         "AI",
                                                         "Olivia",
                                                         List.of(new GameResult.QuestionAnswer(
                                                                 "Does your character have dark hair?",
-                                                                true)))),
+                                                                true)),
+                                                        null)),
                                         "AI",
                                         GameMode.PVE,
                                         ComputerDifficulty.HARD, QuestionMode.PRESET)),
@@ -99,9 +103,10 @@ class JdbcGameResultRepositoryTest {
                                                                         true),
                                                                 new GameResult.QuestionAnswer(
                                                                         "Is your character wearing a hat?",
-                                                                        false))),
+                                                                        false)),
+                                                        null),
                                                 new GameResult.Participant(
-                                                        "Player 2", "Nick", List.of())),
+                                                        "Player 2", "Nick", List.of(), null)),
                                         "Player 1",
                                         GameMode.PVP_LOCAL,
                                         null, QuestionMode.PRESET))),
@@ -144,6 +149,37 @@ class JdbcGameResultRepositoryTest {
 
         assertEquals(1, secondPage.size());
         assertEquals(-10, secondPage.get(0).id());
+    }
+
+    @Test
+    void storesAndReadsBackACharacterCommitment() {
+        CharacterCommitment commitment = CharacterCommitment.to("Sam");
+        gameResultRepository.save(new GameResult(
+                List.of(new GameResult.Participant("Alex", "Sam", List.of(), commitment)),
+                "Alex",
+                GameMode.PVP_LOCAL,
+                null,
+                QuestionMode.PRESET));
+
+        GameResult.Participant stored = gameResultHistoryRepository.findPage(50, 0)
+                .get(0).gameResult().participants().get(0);
+
+        assertEquals(commitment, stored.commitment());
+        assertTrue(stored.commitment().matches("Sam"),
+                "A commitment that does not survive storage cannot verify anything later");
+    }
+
+    @Test
+    void storesAParticipantThatMadeNoCommitment() {
+        gameResultRepository.save(new GameResult(
+                List.of(new GameResult.Participant("AI", "Nick", List.of(), null)),
+                "AI",
+                GameMode.PVE,
+                ComputerDifficulty.EASY,
+                QuestionMode.PRESET));
+
+        assertNull(gameResultHistoryRepository.findPage(50, 0)
+                .get(0).gameResult().participants().get(0).commitment());
     }
 
     private void insertGame(

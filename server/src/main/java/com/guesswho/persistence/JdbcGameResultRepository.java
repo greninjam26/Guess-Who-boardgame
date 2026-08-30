@@ -1,5 +1,6 @@
 package com.guesswho.persistence;
 
+import com.guesswho.game.CharacterCommitment;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.GameMode;
 import com.guesswho.game.GameResult;
@@ -32,6 +33,8 @@ public class JdbcGameResultRepository
                 participant.id AS participant_id,
                 participant.name AS participant_name,
                 participant.selected_character,
+                participant.commitment_hash,
+                participant.commitment_nonce,
                 question_answer.question,
                 question_answer.answer
             FROM (
@@ -100,7 +103,10 @@ public class JdbcGameResultRepository
                 if (participant == null) {
                     participant = new ParticipantAccumulator(
                             resultSet.getString("participant_name"),
-                            resultSet.getString("selected_character"));
+                            resultSet.getString("selected_character"),
+                            commitmentOf(
+                                    resultSet.getString("commitment_hash"),
+                                    resultSet.getString("commitment_nonce")));
                     game.participants.put(participantId, participant);
                 }
 
@@ -146,14 +152,21 @@ public class JdbcGameResultRepository
             PreparedStatement statement = connection.prepareStatement(
                     """
                     INSERT INTO game_result_participants
-                        (game_result_id, play_order, name, selected_character)
-                    VALUES (?, ?, ?, ?)
+                        (game_result_id, play_order, name, selected_character,
+                         commitment_hash, commitment_nonce)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     new String[] {"id"});
             statement.setLong(1, gameResultId);
             statement.setInt(2, playOrder);
             statement.setString(3, participant.name());
             statement.setString(4, participant.selectedCharacter());
+            statement.setString(5, participant.commitment() == null
+                    ? null
+                    : participant.commitment().hash());
+            statement.setString(6, participant.commitment() == null
+                    ? null
+                    : participant.commitment().nonce());
             return statement;
         }, keyHolder);
         return generatedId(keyHolder);
@@ -179,6 +192,10 @@ public class JdbcGameResultRepository
 
     private static ComputerDifficulty difficultyOf(String storedValue) {
         return storedValue == null ? null : ComputerDifficulty.valueOf(storedValue);
+    }
+
+    private static CharacterCommitment commitmentOf(String hash, String nonce) {
+        return hash == null || nonce == null ? null : new CharacterCommitment(hash, nonce);
     }
 
     private static QuestionMode questionModeOf(String storedValue) {
@@ -231,15 +248,19 @@ public class JdbcGameResultRepository
     private static final class ParticipantAccumulator {
         private final String name;
         private final String selectedCharacter;
+        private final CharacterCommitment commitment;
         private final List<GameResult.QuestionAnswer> questionAnswers = new ArrayList<>();
 
-        private ParticipantAccumulator(String name, String selectedCharacter) {
+        private ParticipantAccumulator(
+                String name, String selectedCharacter, CharacterCommitment commitment) {
             this.name = name;
             this.selectedCharacter = selectedCharacter;
+            this.commitment = commitment;
         }
 
         private GameResult.Participant toParticipant() {
-            return new GameResult.Participant(name, selectedCharacter, questionAnswers);
+            return new GameResult.Participant(
+                    name, selectedCharacter, questionAnswers, commitment);
         }
     }
 }

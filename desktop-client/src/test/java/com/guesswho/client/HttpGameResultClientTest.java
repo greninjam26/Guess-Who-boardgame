@@ -1,11 +1,13 @@
 package com.guesswho.client;
 
+import com.guesswho.game.CharacterCommitment;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.GameMode;
 import com.guesswho.game.QuestionMode;
 import com.guesswho.game.GameResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
@@ -52,14 +54,35 @@ class HttpGameResultClientTest {
         assertThrows(CompletionException.class, () -> client.submit(gameResult()).join());
     }
 
+    @Test
+    void sendsTheCommitmentSoAVerifierCanCheckTheReveal() {
+        AtomicReference<String> postedBody = new AtomicReference<>();
+        CharacterCommitment commitment = CharacterCommitment.to("Olivia");
+        HttpGameResultClient client = new HttpGameResultClient(
+                URI.create("http://localhost:8080"),
+                (uri, body) -> {
+                    postedBody.set(body);
+                    return CompletableFuture.completedFuture(201);
+                });
+
+        client.submit(new GameResult(
+                List.of(new GameResult.Participant("Alex", "Olivia", List.of(), commitment)),
+                "Alex", GameMode.PVP_LOCAL, null, QuestionMode.PRESET)).join();
+
+        assertTrue(postedBody.get().contains("\"hash\":\"" + commitment.hash() + "\""),
+                postedBody.get());
+        assertTrue(postedBody.get().contains("\"nonce\":\"" + commitment.nonce() + "\""),
+                postedBody.get());
+    }
+
     private GameResult gameResult() {
         return new GameResult(
                 List.of(
                         new GameResult.Participant(
                                 "Player \"One\"",
                                 "Olivia",
-                                List.of(new GameResult.QuestionAnswer("Glasses?\nHat?", true))),
-                        new GameResult.Participant("AI", "Nick", List.of())),
+                                List.of(new GameResult.QuestionAnswer("Glasses?\nHat?", true)), null),
+                        new GameResult.Participant("AI", "Nick", List.of(), null)),
                 "Player \"One\"",
                 GameMode.PVE,
                 ComputerDifficulty.HARD, QuestionMode.PRESET);

@@ -14,7 +14,7 @@ class GameResultTest {
         ArrayList<GameResult.QuestionAnswer> questionAnswers = new ArrayList<>();
         questionAnswers.add(new GameResult.QuestionAnswer("Is your character wearing a hat?", true));
         GameResult.Participant participant = new GameResult.Participant(
-                "Player", "Olivia", questionAnswers);
+                "Player", "Olivia", questionAnswers, null);
         ArrayList<GameResult.Participant> participants = new ArrayList<>();
         participants.add(participant);
 
@@ -31,7 +31,7 @@ class GameResultTest {
         GameResult.QuestionAnswer questionAnswer = new GameResult.QuestionAnswer(
                 "Is your character wearing a hat?", true);
         GameResult.Participant participant = new GameResult.Participant(
-                "Player", "Olivia", List.of(questionAnswer));
+                "Player", "Olivia", List.of(questionAnswer), null);
         GameResult result = new GameResult(List.of(participant), "Player", GameMode.PVP_LOCAL, null, QuestionMode.PRESET);
 
         assertThrows(UnsupportedOperationException.class,
