@@ -31,7 +31,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 ## The dependency spine
 
 ```text
-v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  →  05 → 07
+v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ▸  →  06 → 07
                                    06  needs 00 only — slot in anywhere
 
 v1.0    08  Accounts  →  09  Online PvP  →  10  Ship
@@ -274,69 +274,53 @@ mechanisms, not one. Both are in place.
 > answers were consistent — not that they were fixed in advance. Phase 09 needs
 > no extra field to tell those apart.
 
-## Phase 05 — Make it feel finished · L
+## Phase 05 — Make it feel finished · L — code complete
 
 **Blocks:** 07 **Needs:** 02
 
-The first phase with visible payoff, and the one that makes the app demoable.
+Everything that is code is done. What remains is one item waiting on Phase 06
+and one that needs an audio file rather than a change.
 
-- [ ] **Replace absolute positioning with layout managers.** Every screen sets
-      pixel bounds against an assumed 1350x1200 window, which does not fit a
-      typical laptop display, so `pack()` is clamped and the board and controls
-      drift apart. Do this before FlatLaf: theming a layout that only lines up at
-      one window size wastes the effort.
-- [ ] FlatLaf. Roughly five lines of setup for flat theming, light/dark, and
-      HiDPI — the highest ratio of appearance to effort in the whole plan.
-- [ ] A real ending screen. Right now the outcome is panels bolted onto the
-      frame; it should be one composed screen with the result, both characters,
-      the question history, and a rematch button.
-- [ ] Music controls: volume, mute, pause, persisted between sessions.
-- [ ] A settings screen to house audio, the store-my-character toggle, and
-      difficulty. Move **Quit**, **Restart**, and **Leaderboard** into it too —
-      they currently sit in a strip across the top of every screen, including
-      ones where they make no sense.
-- [ ] Save a game in progress and offer it back on the next launch, so closing
-      the window does not lose it. Needs the mutable state serialized: whose
-      turn it is, each participant's questions and answers, the selected
-      characters, and which characters have been ruled out. The board's own data
-      reloads from the CSV files and does not need storing.
-- [ ] Improve the existing **How To Play** screen. The button is already there at
-      `GUI.java:173`, but it dumps one HTML blob into the welcome panel — it needs
-      structure, and it should explain the verification rules from Phase 04.
-- [ ] Replace the empty `Bloom of Youth.wav`, which currently causes the game to
-      start silently by design.
+- [x] **Replace absolute positioning with layout managers.** Twenty-one
+      `setBounds` calls against an assumed 1350x1200 window are gone. The board
+      is a `GridLayout`, the turn panels are `BorderLayout`, and the frame gives
+      the board `CENTER` and the controls `SOUTH` — which also removes the
+      double-`CENTER` trap that broke once in Phase 02.
+- [x] FlatLaf, installed before any component exists.
+- [x] A real ending screen: both characters side by side with the player's name
+      under each, the answer review below, and **Play again**.
+- [x] Music controls: volume, mute, and pause, persisted through
+      `java.util.prefs`, all working whether or not there is anything to play.
+- [x] A settings window holding the music controls, **Quit**, **Restart**, and
+      **Leaderboard**, which used to sit across the top of every screen.
+- [x] The rules moved from a label inside the welcome screen into their own
+      scrollable window, and were rewritten — the old text described three
+      difficulties, promised score validation, and never mentioned choosing a
+      character.
+- [ ] Save a game in progress and offer it back on the next launch. **Waiting on
+      Phase 06**, which moves the elimination state off `Character` so it can be
+      stored per player.
+- [ ] Replace the empty `Bloom of Youth.wav`. Not a code change: it needs an
+      audio file that can be redistributed in an installer.
+
+> **A rematch is not just a button.** Three things survive a finished game and
+> have to be cleared, each of which would look like a bug rather than stale
+> state: the cards a player flipped, the transcripts down either side, and the
+> panels showing how it ended. `GameController` also held a `final Game`, and a
+> finished game cannot be replayed, so it builds a new one and reuses the
+> opening turn. Characters are deliberately not carried over.
+
+> **Adding music needs more than a file.** `GameResources` looks for
+> `/audio/Bloom of Youth.wav` by that exact name, and Java Sound reads PCM WAV,
+> AIFF, and AU — an MP3 fails silently, because the exception is caught and
+> turns into "no music" with nothing on screen. It also ships inside
+> `game-core.jar` and therefore inside every installer, which makes it the same
+> licensing question as the artwork.
 
 > **Volume is in decibels.** `FloatControl.MASTER_GAIN` is logarithmic, not a
 > 0–100 linear scale. A slider wired straight to it feels broken across the
 > bottom half of its travel. Map it logarithmically and treat the minimum as
 > mute.
-
-> **A computer that misreads a question is worse than one that refuses.** Some
-> text genuinely cannot be resolved: `brown` is both an eye colour and a hair
-> colour, so "are they brown?" is ambiguous, and nothing on the board answers
-> "do they look friendly?". A wrong answer makes the player eliminate the wrong
-> characters and lose a game they should have won, with nothing on screen to
-> explain why.
->
-> So the computer says it cannot answer, names the attributes it does understand,
-> and the player asks again without losing their turn. Declining is a normal
-> outcome here, not an error.
-
-> **Saving needs the elimination state off `Character` first.** Which characters
-> a player has ruled out currently lives in `Character.isActive`, on the objects
-> the board owns, so it cannot be serialized per player. Phase 06 replaces it
-> with a `boolean[]` inside `ComputerPlayer`; do that before the save format is
-> designed rather than encoding the shared state into a file.
-
-> **The board and the controls both go to `BorderLayout.CENTER`.** Whichever is
-> added last is the one the layout sizes; the other keeps its own bounds and
-> paints in front by Z-order. The game has always relied on that, and Phase 02
-> broke it once by reversing the order, stretching the board across the window.
->
-> The fix is not a layered container — the two barely overlap, by a 25px graze
-> of one label. They are stacked: the board belongs in `CENTER` and the controls
-> in `SOUTH`, where a `FlowLayout` also removes their pixel bounds. That is one
-> pass fixing both the ordering trap and the window-size drift.
 
 ## Phase 06 — Give the AI a brain · M
 
@@ -576,4 +560,5 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** Phase 05, which now leads with replacing absolute positioning.
+**Next branch:** Phase 06 — the AI, and the elimination state that Phase 05's
+save-and-resume is waiting on.
