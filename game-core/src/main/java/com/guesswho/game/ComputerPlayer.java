@@ -14,7 +14,7 @@ import java.util.Random;
  * using either an easy random strategy or a hard balanced-split strategy.
  */
 public class ComputerPlayer extends Player{
-    private String mode;//the mode of the AI, easy or hard
+    private ComputerDifficulty difficulty;//how well the AI plays
     private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();//the questions that is not asked by the AI
     private final boolean[] stillPossible;//which characters the AI has not ruled out
     private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question
@@ -28,7 +28,7 @@ public class ComputerPlayer extends Player{
      * @param defaultState initial player state
      * @throws Exception if the board resources cannot be loaded
      */
-    public ComputerPlayer(String defaultMode, String defaultState) throws Exception {
+    public ComputerPlayer(ComputerDifficulty defaultMode, String defaultState) throws Exception {
         this(defaultMode, defaultState, new Random());
     }
     /**
@@ -39,14 +39,14 @@ public class ComputerPlayer extends Player{
      * @param random source used for random question selection
      * @throws Exception if the board resources cannot be loaded
      */
-    public ComputerPlayer(String defaultMode, String defaultState, Random random) throws Exception {
+    public ComputerPlayer(ComputerDifficulty defaultMode, String defaultState, Random random) throws Exception {
         this(defaultMode, defaultState, new Board(), random);
     }
-    ComputerPlayer(String defaultMode, String defaultState, Board board, Random random) {
+    ComputerPlayer(ComputerDifficulty defaultMode, String defaultState, Board board, Random random) {
         super(defaultState, board);
         //the computer's character is genuinely chosen here, not a placeholder
         setSelectedCharacter(board.getCharacters().get(random.nextInt(board.getCharacterSize())));
-        mode = defaultMode;
+        difficulty = defaultMode;
         this.random = random;
         unAskedQuestions.addAll(getGameBoard().getQuestionsList());
 
@@ -55,18 +55,18 @@ public class ComputerPlayer extends Player{
         java.util.Arrays.fill(stillPossible, true);
     }
     /**
-     * method will return the mode of the AI
-     * @return the mode of the AI
+     * method will return how well the AI plays
+     * @return the difficulty
      */
-    public String getMode() {
-        return mode;
+    public ComputerDifficulty getDifficulty() {
+        return difficulty;
     }
     /**
-     * method will set the mode of the AI to the newMode
-     * @param newMode the new mode of the AI
+     * method will set how well the AI plays
+     * @param newDifficulty the new difficulty
      */
-    public void setMode(String newMode) {
-        mode = newMode;
+    public void setDifficulty(ComputerDifficulty newDifficulty) {
+        difficulty = newDifficulty;
     }
     /**
      * method will use the inputed question to get the questions and return the answer
@@ -89,7 +89,7 @@ public class ComputerPlayer extends Player{
      */
     public Question playQuestion() {
         Question questionChoosen;
-        if (mode.equals("easy")) {//when the mode is easy, pick at random
+        if (difficulty.asksAtRandom()) {//pick at random
             questionChoosen = unAskedQuestions.get(random.nextInt(unAskedQuestions.size()));
         }
         else {//hard mode picks the question that splits the field most evenly
@@ -142,6 +142,25 @@ public class ComputerPlayer extends Player{
      * the method will return if there is only only character is left in the list of possible characters
      * @return {@code true} when exactly one possible character remains active
      */
+    /**
+     * Reports whether the computer would rather guess now than ask again.
+     *
+     * @return {@code true} when few enough characters remain for its level
+     */
+    boolean readyToGuess() {
+        return difficulty.guessesWith(remainingCount());
+    }
+
+    private int remainingCount() {
+        int counter = 0;
+        for (boolean possible : stillPossible) {
+            if (possible) {
+                counter++;
+            }
+        }
+        return counter;
+    }
+
     boolean onlyOne() {
         int counter = 0;//set the number of possible character to 0
         for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
@@ -158,6 +177,18 @@ public class ComputerPlayer extends Player{
      * the method will return the last possible character
      * @return the remaining character name, or an empty string if none remain
      */
+    /**
+     * Returns the character the computer will name.
+     *
+     * <p>On the harder level this may be a guess between two rather than a
+     * certainty, which is the risk that level takes.</p>
+     *
+     * @return a remaining character's name, or an empty string if none remain
+     */
+    String bestGuess() {
+        return lastOne();
+    }
+
     String lastOne() {
         String lastCharacterName = "";//initialize the variable that store the name of the last possible character left
         for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {

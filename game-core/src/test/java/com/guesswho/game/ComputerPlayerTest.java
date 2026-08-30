@@ -16,7 +16,7 @@ class ComputerPlayerTest {
 
     @BeforeEach
     void createComputerPlayer() throws Exception {
-        computerPlayer = new ComputerPlayer("hard", "");
+        computerPlayer = new ComputerPlayer(ComputerDifficulty.HARD, "");
     }
 
     @Test
@@ -39,7 +39,7 @@ class ComputerPlayerTest {
 
     @Test
     void easyModeDoesNotRepeatAnAnsweredQuestion() throws Exception {
-        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        ComputerPlayer easyComputer = new ComputerPlayer(ComputerDifficulty.EASY, "", alwaysChooseFirst());
         Question firstQuestion = easyComputer.playQuestion();
         easyComputer.askQuestion(firstQuestion.getQuestion(), "no");
 
@@ -50,7 +50,7 @@ class ComputerPlayerTest {
 
     @Test
     void easyModeFiltersUsingTheSelectedQuestionIndex() throws Exception {
-        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        ComputerPlayer easyComputer = new ComputerPlayer(ComputerDifficulty.EASY, "", alwaysChooseFirst());
         Question blueEyes = easyComputer.playQuestion();
         easyComputer.askQuestion(blueEyes.getQuestion(), "no");
         Question brownEyes = easyComputer.playQuestion();
@@ -66,7 +66,7 @@ class ComputerPlayerTest {
 
     @Test
     void yesAnswerEliminatesCharactersWithoutTheAskedAttribute() throws Exception {
-        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        ComputerPlayer easyComputer = new ComputerPlayer(ComputerDifficulty.EASY, "", alwaysChooseFirst());
         Question blueEyes = easyComputer.playQuestion();
 
         easyComputer.askQuestion(blueEyes.getQuestion(), "yes");
@@ -79,7 +79,7 @@ class ComputerPlayerTest {
 
     @Test
     void noAnswerEliminatesCharactersWithTheAskedAttribute() throws Exception {
-        ComputerPlayer easyComputer = new ComputerPlayer("easy", "", alwaysChooseFirst());
+        ComputerPlayer easyComputer = new ComputerPlayer(ComputerDifficulty.EASY, "", alwaysChooseFirst());
         Question blueEyes = easyComputer.playQuestion();
 
         easyComputer.askQuestion(blueEyes.getQuestion(), "no");
@@ -94,7 +94,7 @@ class ComputerPlayerTest {
     void matchingAnswersConvergeToTheSelectedCharacter() throws Exception {
         Board board = new Board();
         ComputerPlayer easyComputer = new ComputerPlayer(
-                "easy", "", board, alwaysChooseFirst());
+                ComputerDifficulty.EASY, "", board, alwaysChooseFirst());
         Character target = easyComputer.findCharacter("Sam");
 
         while (!easyComputer.getUnAskedQuestions().isEmpty()) {
@@ -114,7 +114,7 @@ class ComputerPlayerTest {
         reducedBoard.getQuestionsList().remove(reducedBoard.getQuestionsList().size() - 1);
 
         ComputerPlayer easyComputer = new ComputerPlayer(
-                "easy", "", reducedBoard, alwaysChooseFirst());
+                ComputerDifficulty.EASY, "", reducedBoard, alwaysChooseFirst());
 
         assertEquals(18, easyComputer.getUnAskedQuestions().size());
     }
@@ -122,7 +122,7 @@ class ComputerPlayerTest {
     @Test
     void filtersOnTheQuestionAskedRatherThanAPreviouslyChosenOne() throws Exception {
         Board board = new Board();
-        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(1));
+        ComputerPlayer hardComputer = new ComputerPlayer(ComputerDifficulty.HARD, "", board, new Random(1));
         Question glasses = board.findQuestion("Does your character wear glasses?");
 
         hardComputer.askQuestion(glasses.getQuestion(), "yes");
@@ -140,7 +140,7 @@ class ComputerPlayerTest {
     @Test
     void hardModeNeverEliminatesTheCharacterItIsTruthfullyToldAbout() throws Exception {
         Board board = new Board();
-        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(42));
+        ComputerPlayer hardComputer = new ComputerPlayer(ComputerDifficulty.HARD, "", board, new Random(42));
         Character target = hardComputer.findCharacter("Sam");
 
         while (!hardComputer.getUnAskedQuestions().isEmpty() && !hardComputer.onlyOne()) {
@@ -162,7 +162,7 @@ class ComputerPlayerTest {
     void ownsItsEliminationStateInsteadOfMutatingTheBoard() throws Exception {
         Board board = new Board();
         int[] boardCountsBefore = board.getPeopleCount().clone();
-        ComputerPlayer hardComputer = new ComputerPlayer("hard", "", board, new Random(7));
+        ComputerPlayer hardComputer = new ComputerPlayer(ComputerDifficulty.HARD, "", board, new Random(7));
 
         Question question = hardComputer.playQuestion();
         hardComputer.askQuestion(question.getQuestion(), "yes");
@@ -174,8 +174,8 @@ class ComputerPlayerTest {
     @Test
     void twoPlayersSharingABoardRuleOutSeparately() throws Exception {
         Board shared = new Board();
-        ComputerPlayer first = new ComputerPlayer("hard", "", shared, new Random(1));
-        ComputerPlayer second = new ComputerPlayer("hard", "", shared, new Random(2));
+        ComputerPlayer first = new ComputerPlayer(ComputerDifficulty.HARD, "", shared, new Random(1));
+        ComputerPlayer second = new ComputerPlayer(ComputerDifficulty.HARD, "", shared, new Random(2));
 
         first.ruleOut(0);
 
@@ -186,17 +186,61 @@ class ComputerPlayerTest {
 
     @Test
     void startsWithEveryCharacterInTheRunning() throws Exception {
-        assertEquals(24, new ComputerPlayer("hard", "").getPossibleCharacters().size());
+        assertEquals(24, new ComputerPlayer(ComputerDifficulty.HARD, "").getPossibleCharacters().size());
     }
 
     @Test
     void rulingOutTheSameCharacterTwiceCountsOnce() throws Exception {
-        ComputerPlayer computer = new ComputerPlayer("hard", "");
+        ComputerPlayer computer = new ComputerPlayer(ComputerDifficulty.HARD, "");
 
         computer.ruleOut(3);
         computer.ruleOut(3);
 
         assertEquals(23, computer.getPossibleCharacters().size());
+    }
+
+    @Test
+    void theEasyLevelWaitsForCertaintyBeforeGuessing() throws Exception {
+        ComputerPlayer easy = new ComputerPlayer(ComputerDifficulty.EASY, "");
+        leaveOnly(easy, 2);
+
+        assertFalse(easy.readyToGuess(),
+                "Two candidates is a coin flip, and the easy level does not gamble");
+
+        leaveOnly(easy, 1);
+        assertTrue(easy.readyToGuess());
+    }
+
+    @Test
+    void theHardLevelGamblesOnACoinFlipRatherThanSpendATurn() throws Exception {
+        ComputerPlayer hard = new ComputerPlayer(ComputerDifficulty.HARD, "");
+        leaveOnly(hard, 2);
+
+        assertTrue(hard.readyToGuess(),
+                "Waiting another turn can lose a game that guessing would have won");
+    }
+
+    @Test
+    void neitherLevelGuessesWithTheFieldStillOpen() throws Exception {
+        assertFalse(new ComputerPlayer(ComputerDifficulty.EASY, "").readyToGuess());
+        assertFalse(new ComputerPlayer(ComputerDifficulty.HARD, "").readyToGuess());
+    }
+
+    @Test
+    void namesOneOfTheCharactersItHasNotRuledOut() throws Exception {
+        ComputerPlayer hard = new ComputerPlayer(ComputerDifficulty.HARD, "");
+        leaveOnly(hard, 2);
+
+        assertTrue(hard.getPossibleCharacters().stream()
+                        .anyMatch(character -> character.getName().equals(hard.bestGuess())),
+                "A guess must be someone still in the running");
+    }
+
+    /** Rules out everyone beyond the first {@code remaining} characters. */
+    private void leaveOnly(ComputerPlayer computer, int remaining) {
+        for (int index = remaining; index < 24; index++) {
+            computer.ruleOut(index);
+        }
     }
 
     private Random alwaysChooseFirst() {
