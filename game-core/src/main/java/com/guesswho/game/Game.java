@@ -178,9 +178,13 @@ public class Game {
     }
 
     /**
-     * Selects a board character for a human player.
+     * Chooses a board character for a human player.
      *
-     * @param username username of the player selecting the character
+     * <p>A choice is final. Being able to change it after seeing how the
+     * questions are going is exactly the cheat the answer review exists to
+     * catch, so the review would be worthless if this were allowed twice.</p>
+     *
+     * @param username username of the player choosing the character
      * @param characterName exact board character name
      * @throws IllegalArgumentException if the username or character name is
      *         unknown
@@ -189,8 +193,11 @@ public class Game {
     public void selectCharacter(String username, String characterName) {
         requireStarted();
         User player = getPlayer(username);
-        Character character = player.findCharacter(characterName);
-        player.setSelectedCharacter(character);
+        if (player.getSelectedCharacter() != null) {
+            throw new IllegalStateException(
+                    username + " has already chosen a character and cannot change it");
+        }
+        player.setSelectedCharacter(player.findCharacter(characterName));
     }
 
     /**
