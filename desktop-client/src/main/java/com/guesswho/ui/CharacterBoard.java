@@ -101,6 +101,17 @@ class CharacterBoard extends JPanel {
     }
 
     /**
+     * Turns every card face up again, for a new game on the same board.
+     */
+    void reset() {
+        for (int index = 0; index < CHARACTER_COUNT; index++) {
+            if (faceDown[index]) {
+                flip(index);
+            }
+        }
+    }
+
+    /**
      * Reports whether a character has been flipped face down.
      *
      * @param characterIndex board index of the character

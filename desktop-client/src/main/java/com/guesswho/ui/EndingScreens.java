@@ -2,13 +2,19 @@ package com.guesswho.ui;
 
 import com.guesswho.game.AnswerCorrection;
 
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
 import java.util.List;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 
 /**
  * What happens once a game is over: each player names the character they were
@@ -33,6 +39,13 @@ class EndingScreens {
         void revealComplete(boolean resultTrustworthy);
     }
 
+    /** Notified when the players want another game. */
+    @FunctionalInterface
+    interface Rematch {
+        /** Called when Play again is chosen. */
+        void playAgain();
+    }
+
     private static final String NAME_FIRST = "nameFirst";
     private static final String NAME_SECOND = "nameSecond";
     private static final String REVEAL = "reveal";
@@ -40,10 +53,13 @@ class EndingScreens {
     private final GameController controller;
     private final CharacterImages images;
     private final Completion completion;
+    private final Rematch rematch;
 
     private final CardLayout cards = new CardLayout();
     private final JPanel root = new JPanel(cards);
-    private final JPanel revealPanel = new JPanel();
+    private final JPanel revealPanel = new JPanel(new BorderLayout(0, 12));
+    private final JPanel portraits = new JPanel(new GridLayout(1, 2, 24, 0));
+    private final JButton playAgain = new JButton("Play again");
     private final JLabel outcomeLabel = new JLabel();
     private final JLabel validationLabel = new JLabel();
     private final JComboBox<String> firstChoice = new JComboBox<>();
@@ -55,15 +71,33 @@ class EndingScreens {
      * @param controller the finished game
      * @param images portraits used to show the revealed characters
      * @param completion notified once both characters are on screen
+     * @param rematch notified when the players want another game
      */
-    EndingScreens(GameController controller, CharacterImages images, Completion completion) {
+    EndingScreens(
+            GameController controller,
+            CharacterImages images,
+            Completion completion,
+            Rematch rematch) {
         this.controller = controller;
         this.images = images;
         this.completion = completion;
+        this.rematch = rematch;
         root.add(namePanel("Which character did you have?", firstChoice, this::nameFirst),
                 NAME_FIRST);
         root.add(namePanel("Second player, which character did you have?",
                 secondChoice, this::nameSecond), NAME_SECOND);
+        revealPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        JPanel below = new JPanel(new BorderLayout(0, 8));
+        below.add(validationLabel, BorderLayout.CENTER);
+        JPanel again = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        again.add(playAgain);
+        below.add(again, BorderLayout.SOUTH);
+        revealPanel.add(outcomeLabel, BorderLayout.NORTH);
+        revealPanel.add(portraits, BorderLayout.CENTER);
+        revealPanel.add(below, BorderLayout.SOUTH);
+        outcomeLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        validationLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        playAgain.addActionListener(event -> rematch.playAgain());
         root.add(revealPanel, REVEAL);
     }
 
@@ -82,6 +116,9 @@ class EndingScreens {
      * @param outcome message describing who won and why
      */
     void begin(String outcome) {
+        //Rebuilt each time: a second game would otherwise show both results.
+        portraits.removeAll();
+        validationLabel.setText("");
         outcomeLabel.setText(outcome);
         if (!controller.setup().tellsCharacterUpFront()) {
             String[] characters = controller.game().getCharacterNames();
@@ -124,22 +161,32 @@ class EndingScreens {
     }
 
     private void revealBetweenPlayers() {
-        revealPanel.add(portraitOf(controller.setup().secondUsername()));
-        revealPanel.add(outcomeLabel);
-        revealPanel.add(portraitOf(controller.setup().firstUsername()));
+        portraits.add(revealed(controller.setup().firstUsername(),
+                portraitOf(controller.setup().firstUsername())));
+        portraits.add(revealed(controller.setup().secondUsername(),
+                portraitOf(controller.setup().secondUsername())));
         cards.show(root, REVEAL);
         completion.revealComplete(true);
     }
 
+    /** A portrait says nothing on its own about whose character it was. */
+    private JPanel revealed(String who, JLabel portrait) {
+        JPanel panel = new JPanel(new BorderLayout(0, 4));
+        JLabel name = new JLabel(LabelText.escaped(who), SwingConstants.CENTER);
+        portrait.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(portrait, BorderLayout.CENTER);
+        panel.add(name, BorderLayout.SOUTH);
+        return panel;
+    }
+
     private void revealAgainstComputer() {
-        revealPanel.add(new JLabel(images.portrait(
-                controller.game().getComputerSelectedCharacterIndex())));
-        revealPanel.add(outcomeLabel);
-        revealPanel.add(portraitOf(controller.setup().firstUsername()));
+        portraits.add(revealed(controller.setup().firstUsername(),
+                portraitOf(controller.setup().firstUsername())));
+        portraits.add(revealed("AI", new JLabel(images.portrait(
+                controller.game().getComputerSelectedCharacterIndex()))));
 
         List<AnswerCorrection> corrections = controller.game().getComputerAnswerCorrections();
         validationLabel.setText(validationText(corrections));
-        revealPanel.add(validationLabel);
         cards.show(root, REVEAL);
         completion.revealComplete(corrections.isEmpty());
     }
