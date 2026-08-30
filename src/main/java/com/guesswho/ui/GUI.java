@@ -49,12 +49,6 @@ public class GUI {
     private CharacterBoard guessBoardPanel;
     //portraits shared by all three boards
     private CharacterImages images;
-    private JPanel stepPanel;
-    private JLabel stepLabel;
-    private String newQuestion;
-    private JComboBox<String> questionComboBox;
-    private JTextField questionTextField;
-    private JLabel result1;
     private JComboBox<String> guessComboBox;
     //true while the question panel is on screen, so it can be torn down again
     private boolean questionPanelShowing;
@@ -67,9 +61,8 @@ public class GUI {
     private QuestionHistory history;
     //turn controls for a game against the computer
     private ComputerTurnPanel computerTurns;
-    private JButton askButton;
-    private JButton guess;
-    private JButton next;
+    //turn controls for two people sharing this machine
+    private PlayerTurnPanel playerTurns;
     /**
      * Creates and displays the game interface.
      */
@@ -113,18 +106,6 @@ public class GUI {
         characterSelectionPanel.add(characterSelectionLabel);
         characterSelectionPanel.add(readyButton);
 
-        //stepPanel is used in each turn the user ask questions,
-        //enter guess and choice what is their next step, wether to ask a question or make a guess
-        stepPanel = new JPanel(null);
-        stepLabel = new JLabel("Please make your choice: 1. ask question. 2. guess the character");
-        stepLabel.setHorizontalAlignment(SwingConstants.CENTER); // Center the label text
-        stepLabel.setBounds(390, 625, 600, 30); // x, y, width, height
-        result1 = new JLabel("");
-        result1.setBounds(0, 705, 1350, 30); // x, y, width, height
-        result1.setHorizontalAlignment(SwingConstants.CENTER); // Center the label text
-        stepPanel.add(stepLabel);
-        stepPanel.add(result1);
-
         history = new QuestionHistory();
         computerTurns = new ComputerTurnPanel(controller, history, outcome -> {
             frame.remove(boardPanel1);
@@ -132,18 +113,31 @@ public class GUI {
             showEnding(outcome);
         });
         computerTurns.setBounds(0, 0, 1350, 800);
+        playerTurns = new PlayerTurnPanel(controller, history, new PlayerTurnPanel.Boards() {
+            @Override
+            public void showBoardForCurrentPlayer() {
+                frame.remove(boardPanel1);
+                frame.remove(boardPanel2);
+                frame.add(controller.game().getCurrentPlayerName()
+                        .equals(controller.setup().firstUsername())
+                                ? boardPanel1
+                                : boardPanel2);
+                refreshFrame();
+            }
+
+            @Override
+            public void showGuessBoard() {
+                frame.remove(boardPanel1);
+                frame.remove(boardPanel2);
+                frame.remove(playerTurns);
+                frame.add(guessBoardPanel);
+                refreshFrame();
+            }
+        });
+        playerTurns.setBounds(0, 0, 1350, 800);
         //this panel is used to display the ending massages
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
-        //ask question button for PVP
-        askButton = new JButton("ask question");
-        askButton.setBounds(790, 675, 150, 30); // x, y, width, height
-        //next turn button for PVP
-        next = new JButton("next");
-        next.setBounds(940, 675, 75, 30); // x, y, width, height
-        //guess button for PVP
-        guess = new JButton("guess");
-        guess.setBounds(1015, 675, 100, 30); // x, y, width, height
 
         // Add start panel to the frame
         frame.add(setupScreens.panel(), BorderLayout.CENTER);
@@ -180,18 +174,8 @@ public class GUI {
             public void actionPerformed(ActionEvent e) {
                 frame.remove(characterSelectionPanel);
                 if (controller.setup().isAgainstPlayer()) {//when it is PVP mode
-                    if (controller.setup().isFreeFormQuestions()) {//if the user want to ask whatever questions they want during the game
-                        //ask
-                        freeAsk();
-                    }
-                    else {//when the player want to use the predefined questions
-                        p2pGamePreQuestion();
-                    }
-                    //add in the panel and its components for game play
-                    frame.add(stepPanel);
-                    stepPanel.add(askButton);
-                    stepPanel.add(next);
-                    stepPanel.add(guess);
+                    frame.add(playerTurns);
+                    playerTurns.beginTurn();
                     refreshFrame();
                 }
                 else {//when the user is play with the AI
@@ -202,132 +186,13 @@ public class GUI {
                 }
             }
         });
-        //action listener for when the user is finished choosing they step, whether they want to ask question or make a guess against the AI
-        askButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (!controller.setup().isFreeFormQuestions()) {//if it is preset question user questionComboBox
-                    newQuestion = questionComboBox.getSelectedItem().toString();
-                }
-                else {//use the textField
-                    newQuestion = questionTextField.getText();
-                    questionTextField.setText("");
-                }
-                String question = controller.game().getCurrentPlayerName() + ", " + newQuestion;//get the question
-                //pop up window to ask the user question
-                int result = JOptionPane.showConfirmDialog(null, question, "Confirmation", JOptionPane.YES_NO_OPTION);
-                controller.game().recordPlayerQuestion(controller.game().getCurrentPlayerName(), newQuestion, result == JOptionPane.YES_OPTION);
-                String answer = result == JOptionPane.YES_OPTION ? "yes" : "no";
-                String entry = LabelText.escaped(newQuestion) + "  " + answer + ".";
-                if (controller.game().getCurrentPlayerName()
-                        .equals(controller.setup().firstUsername())) {
-                    history.recordForFirst(entry);
-                }
-                else {
-                    history.recordForSecond(entry);
-                }
-                result1.setText(answer);
-                askButton.setEnabled(false);
-            }
-        });
-        //action listener the user use to guess the otherplayed character in pvp mode
-        guess.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {//user1's turn
-                    frame.remove(boardPanel1);
-                }
-                else {//user2's turn
-                    frame.remove(boardPanel2);
-                }
-                frame.remove(stepPanel);
-                frame.add(guessBoardPanel);
-                refreshFrame();
-            }
-        });
-        //action listener the button the users use to switch turn in pvp modes
-        next.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {//when it is userboad's board
-                    //remove the board1 and board2 need to remove and add the stepPanel for it to work
-                    frame.remove(boardPanel1);
-                    frame.remove(stepPanel);
-                    frame.add(boardPanel2);
-                    frame.add(stepPanel);
-                }
-                else {//when it is userboad's board
-                    //remove the board2 and board1 need to remove and add the stepPanel for it to work
-                    frame.remove(boardPanel2);
-                    frame.remove(stepPanel);
-                    frame.add(boardPanel1);
-                    frame.add(stepPanel);
-                }
-                controller.game().advanceTurn();
-                if (!controller.setup().isFreeFormQuestions()) {
-                    questionComboBox.setModel(new DefaultComboBoxModel<String>(
-                            controller.game().getCurrentPlayerQuestionTexts()));
-                }
-                stepLabel.setText(controller.game().getCurrentPlayerName() + ", Choose to ask a question or guess the answer: ");
-                result1.setText("");
-                askButton.setEnabled(true);
-                refreshFrame();
-            }
-        });
     }
-    /**
-     * this method will be flipping or changing the character buttons when it is clicked
-     * @param button the button that was clicked
-     * @param iconStates the array what stores the state of the button
-     * @param index the index of the button in the array
-     */
     /**
      * repaint the frame
      */
     private void refreshFrame() {
         frame.revalidate();
         frame.repaint();
-    }
-    /**
-     * this method will be called when the it pvp predefined question mode is starting, it add in all the boards and panels
-     */
-    private void p2pGamePreQuestion() {
-        if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {
-            frame.add(boardPanel1);
-        }
-        else {
-            frame.add(boardPanel2);
-        }
-
-        stepLabel.setText(controller.game().getCurrentPlayerName() + ", Choose a question or guess the character");
-        //creating the questionComboBox
-        String[] questions = controller.game().getCurrentPlayerQuestionTexts();
-        questionComboBox = new JComboBox<String>(questions);
-        questionComboBox.setBounds(490, 675, 300, 30); // x, y, width, height
-        //add the questionsComboBox
-        stepPanel.add(questionComboBox);
-
-        result1.setText("");
-    }
-    /**
-     * this method will be run when the pvp ask question game is starting, it set up the board and question asking
-     */
-    private void freeAsk() {
-        if (controller.game().getCurrentPlayerName().equals(controller.setup().firstUsername())) {
-            frame.add(boardPanel1);
-        }
-        else {
-            frame.add(boardPanel2);
-        }
-
-        stepLabel.setText(controller.game().getCurrentPlayerName() + ", input a question or guess the character (don't make the question go over 43 letters including space)");
-//		stepLabel.setBounds(200, 900, 850, 60);
-        questionTextField = new JTextField();//43 max
-        questionTextField.setBounds(490, 675, 300, 30); // x, y, width, height
-        //add the questionTextField
-        stepPanel.add(questionTextField);
-
-        result1.setText("");
     }
     /**
      * this method will have a pop up window to ask the other player wether the first player's guess is right or wrong
