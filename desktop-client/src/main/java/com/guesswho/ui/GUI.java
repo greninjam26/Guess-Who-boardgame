@@ -80,12 +80,14 @@ public class GUI {
         GameSetup setup = new GameSetup();
         controller = new GameController(new Game(), setup);
         setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
-        endingScreens = new EndingScreens(controller, images, trustworthy -> {
-            if (trustworthy) {
-                submitGameResult();
-            }
-            refreshFrame();
-        });
+        endingScreens = new EndingScreens(controller, images,
+                trustworthy -> {
+                    if (trustworthy) {
+                        submitGameResult();
+                    }
+                    refreshFrame();
+                },
+                this::playAgain);
         questionPanelShowing = false;
         //One button, rather than three across the top of every screen.
         JPanel controlPanel = new JPanel();
@@ -242,6 +244,36 @@ public class GUI {
      * character they were holding before revealing them
      * @param outcome the message describing who won and why
      */
+    /**
+     * this method starts another game between the same people, in the same mode.
+     * everything the previous game left behind has to go: the cards each player
+     * flipped, the transcripts down either side, and the panels showing how it
+     * ended
+     */
+    private void playAgain() {
+        try {
+            controller.rematch();
+        }
+        catch (Exception exception) {
+            handleGameStartFailure(exception);
+            return;
+        }
+        frame.remove(endingScreens.panel());
+        frame.remove(history.firstPanel());
+        frame.remove(history.secondPanel());
+        boardPanel1.reset();
+        boardPanel2.reset();
+        guessBoardPanel.reset();
+        history.begin(
+                controller.setup().firstUsername(),
+                controller.setup().isAgainstComputer()
+                        ? "AI"
+                        : controller.setup().secondUsername());
+        frame.add(characterChoice.panel(), BorderLayout.CENTER);
+        characterChoice.begin();
+        refreshFrame();
+    }
+
     private void showEnding(String outcome) {
         frame.add(endingScreens.panel(), BorderLayout.CENTER);
         frame.add(history.firstPanel(), BorderLayout.EAST);

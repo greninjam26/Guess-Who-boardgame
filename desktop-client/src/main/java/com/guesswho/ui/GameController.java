@@ -12,8 +12,9 @@ import com.guesswho.game.PlayerGameStart;
  * offer one list of opening-turn buttons rather than two mode-specific ones.</p>
  */
 class GameController {
-    private final Game game;
+    private Game game;
     private final GameSetup setup;
+    private OpeningTurn openingTurn;
 
     GameController(Game game, GameSetup setup) {
         this.game = game;
@@ -47,6 +48,7 @@ class GameController {
      * @throws Exception if the board resources cannot be loaded
      */
     void start(OpeningTurn openingTurn) throws Exception {
+        this.openingTurn = openingTurn;
         if (setup.isAgainstComputer()) {
             game.startComputerGame(
                     setup.firstUsername(),
@@ -62,6 +64,22 @@ class GameController {
                 setup.secondBirthday(),
                 playerStart(openingTurn),
                 setup.questionMode());
+    }
+
+    /**
+     * Starts a fresh game between the same people, in the same mode, with the
+     * same opening turn. Characters are not carried over — they are chosen
+     * again, which is the point of playing another round.
+     *
+     * @throws IllegalStateException if no game has been started yet
+     * @throws Exception if the board resources cannot be loaded
+     */
+    void rematch() throws Exception {
+        if (openingTurn == null) {
+            throw new IllegalStateException("No game has been started to replay");
+        }
+        game = new Game();
+        start(openingTurn);
     }
 
     private ComputerGameStart computerStart(OpeningTurn openingTurn) {

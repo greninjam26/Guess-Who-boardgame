@@ -6,6 +6,8 @@ import com.guesswho.game.GameStatus;
 import com.guesswho.game.QuestionMode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -77,6 +79,29 @@ class GameControllerTest {
 
         assertEquals(QuestionMode.FREE_FORM, controller.game().getGameResult().questionMode());
         assertNotEquals(null, controller.game().getGameResult().mode());
+    }
+
+    @Test
+    void replaysWithTheSamePeopleAndANewGame() throws Exception {
+        GameController controller = playerGame();
+        controller.start(OpeningTurn.SECOND_PLAYER);
+        controller.game().selectCharacter("Alex", "Sam");
+        Game finished = controller.game();
+        finished.finish("Alex");
+
+        controller.rematch();
+
+        assertNotSame(finished, controller.game(), "A finished game cannot be played again");
+        assertEquals(GameStatus.IN_PROGRESS, controller.game().getStatus());
+        assertEquals("Blake", controller.game().getCurrentPlayerName(),
+                "The opening turn carries over");
+        assertFalse(controller.game().hasSelectedCharacter("Alex"),
+                "Characters are chosen again, which is the point of another round");
+    }
+
+    @Test
+    void refusesToReplayAGameThatNeverStarted() {
+        assertThrows(IllegalStateException.class, () -> playerGame().rematch());
     }
 
     private GameController computerGame() {

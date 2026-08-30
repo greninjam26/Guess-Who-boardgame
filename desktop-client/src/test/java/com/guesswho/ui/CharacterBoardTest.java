@@ -112,6 +112,21 @@ class CharacterBoardTest {
         assertNotSame(images.eliminated(), cards(board).get(2).getIcon());
     }
 
+    @Test
+    void turnsEveryCardBackUpForANewGame() throws Exception {
+        CharacterBoard board = tracking();
+        click(board, 3);
+        click(board, 17);
+
+        SwingUtilities.invokeAndWait(board::reset);
+
+        for (int index = 0; index < CharacterBoard.CHARACTER_COUNT; index++) {
+            assertFalse(board.isFaceDown(index),
+                    "A rematch on the same board would start with characters ruled out");
+            assertSame(images.portrait(index), cards(board).get(index).getIcon());
+        }
+    }
+
     private CharacterBoard tracking() throws Exception {
         AtomicReference<CharacterBoard> reference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> reference.set(CharacterBoard.tracking(images)));

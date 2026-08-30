@@ -13,6 +13,7 @@ import java.awt.Container;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 class EndingScreensTest {
     private static CharacterImages images;
     private final List<Boolean> trustworthy = new ArrayList<>();
+    private final List<String> rematches = new ArrayList<>();
 
     @BeforeAll
     static void loadImages() throws Exception {
@@ -82,12 +84,61 @@ class EndingScreensTest {
                 "There is no computer transcript to check a two-player game against");
     }
 
+    @Test
+    void namesWhoseCharacterIsWhose() throws Exception {
+        EndingScreens screens = screensFor(finishedPlayerGame());
+
+        reveal(screens, "Alex won");
+
+        String shown = labelText(screens.panel());
+        assertTrue(shown.contains("Alex"), shown);
+        assertTrue(shown.contains("Blake"), shown);
+    }
+
+    @Test
+    void offersAnotherGame() throws Exception {
+        EndingScreens screens = screensFor(finishedPlayerGame());
+        reveal(screens, "Alex won");
+
+        SwingUtilities.invokeAndWait(findButton(screens.panel(), "Play again")::doClick);
+
+        assertEquals(List.of("again"), rematches);
+    }
+
+    @Test
+    void showsOneResultAtATime() throws Exception {
+        EndingScreens screens = screensFor(finishedComputerGame(false));
+        reveal(screens, "You won");
+        String first = labelText(screens.panel());
+
+        reveal(screens, "You won");
+
+        assertEquals(first, labelText(screens.panel()),
+                "A second game must replace the previous reveal, not add to it");
+    }
+
+    private JButton findButton(Container container, String label) {
+        for (Component child : container.getComponents()) {
+            if (child instanceof JButton button && label.equals(button.getText())) {
+                return button;
+            }
+            if (child instanceof JPanel nested) {
+                JButton found = findButton(nested, label);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     // --- helpers -------------------------------------------------------
 
     private EndingScreens screensFor(GameController controller) throws Exception {
         AtomicReference<EndingScreens> reference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> reference.set(
-                new EndingScreens(controller, images, trustworthy::add)));
+                new EndingScreens(controller, images, trustworthy::add,
+                        () -> rematches.add("again"))));
         return reference.get();
     }
 
