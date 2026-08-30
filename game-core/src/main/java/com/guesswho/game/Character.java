@@ -22,7 +22,6 @@ public class Character {
     private boolean isHat;
     private String hairLength;
     private boolean isPiercing;
-    private boolean isActive;			//if the character is still a possible character that can be guessed by the AI
     /**
      * Creates a character with all attributes loaded from the character data.
      *
@@ -56,7 +55,6 @@ public class Character {
         isHat = defaultIsHat;
         hairLength = defaultHairLength;
         isPiercing = defaultIsPiercing;
-        isActive = true;
     }
     /**
      * this method will return the index of the character
@@ -141,19 +139,5 @@ public class Character {
      */
     public boolean getIsPiercing() {
         return isPiercing;
-    }
-    /**
-     * this method will return if the character is active
-     * @return if the character is still a possible character to the AI
-     */
-    public boolean getIsActive() {
-        return isActive;
-    }
-    /**
-     * this method will set if the character is active or not
-     * @param newIsActive the new active state of the character
-     */
-    public void setIsActive(boolean newIsActive) {
-        isActive = newIsActive;
     }
 }

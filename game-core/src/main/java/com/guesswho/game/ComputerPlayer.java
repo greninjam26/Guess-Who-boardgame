@@ -6,6 +6,7 @@ package com.guesswho.game;
  * and ask Algorism will be here
  * */
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -15,7 +16,7 @@ import java.util.Random;
 public class ComputerPlayer extends Player{
     private String mode;//the mode of the AI, easy or hard
     private ArrayList<Question> unAskedQuestions = new ArrayList<Question>();//the questions that is not asked by the AI
-    private ArrayList<Character> possibleCharacters = new ArrayList<Character>();//the characters
+    private final boolean[] stillPossible;//which characters the AI has not ruled out
     private int[] answerCount = new int[getGameBoard().getQuestionSize()];//the number of possible character that belong in each question
     private int possibleCharactersCount = getGameBoard().getCharacterSize();//the number of characters
     private final Random random;
@@ -48,8 +49,10 @@ public class ComputerPlayer extends Player{
         mode = defaultMode;
         this.random = random;
         unAskedQuestions.addAll(getGameBoard().getQuestionsList());
-        possibleCharacters = new ArrayList<Character>(getGameBoard().getCharacters());
+
         answerCount = getGameBoard().getPeopleCount().clone();
+        stillPossible = new boolean[getGameBoard().getCharacterSize()];
+        java.util.Arrays.fill(stillPossible, true);
     }
     /**
      * method will return the mode of the AI
@@ -105,15 +108,15 @@ public class ComputerPlayer extends Player{
         unAskedQuestions.remove(newQuestionAsked);
         int questionIndex = newQuestionAsked.getQuestionIndex();//always filter on the question that was asked
         for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {//for loop though all the characters
-            if (!possibleCharacters.get(i).getIsActive()) {//if the character is not active
+            if (!stillPossible[i]) {//already ruled out
                 continue;//next character
             }
             boolean characterAnswer = getGameBoard().getAnswers()[i][questionIndex];
             if (questionAnswer.equals("yes") && !characterAnswer) {//when the answer is yes
-                updateValues(i);
+                ruleOut(i);
             }
             else if (questionAnswer.equals("no") && characterAnswer) {//when answer is no
-                updateValues(i);
+                ruleOut(i);
             }
         }
     }
@@ -142,7 +145,7 @@ public class ComputerPlayer extends Player{
     boolean onlyOne() {
         int counter = 0;//set the number of possible character to 0
         for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
-            if (possibleCharacters.get(i).getIsActive()) {//check if the character is active
+            if (stillPossible[i]) {
                 counter++;//increase the possible character count by 1
             }
         }
@@ -158,8 +161,8 @@ public class ComputerPlayer extends Player{
     String lastOne() {
         String lastCharacterName = "";//initialize the variable that store the name of the last possible character left
         for (int i = 0; i < getGameBoard().getCharacterSize(); i++) {
-            if (possibleCharacters.get(i).getIsActive()) {
-                lastCharacterName = possibleCharacters.get(i).getName();//set last character to the name of the character
+            if (stillPossible[i]) {
+                lastCharacterName = getGameBoard().getCharacters().get(i).getName();
             }
         }
         return lastCharacterName;
@@ -176,19 +179,34 @@ public class ComputerPlayer extends Player{
         }
     }
     /**
-     * this method will update the values related to possible characters
-     * @param index the index of the character
+     * Rules a character out, so the AI stops considering them.
+     *
+     * @param index board index of the character
      */
-    private void updateValues(int index) {
-        possibleCharacters.get(index).setIsActive(false);//set the character that is no to not active
+    void ruleOut(int index) {
+        if (!stillPossible[index]) {
+            return;
+        }
+        stillPossible[index] = false;
         possibleCharactersCount--;//reduce the number of possible characters by 1
         reCalculate(index);//recalculate the number of character that is true to each question
     }
     /**
-     * this method will return the possible characters ArrayList
-     * @return the list of possible characters
+     * Returns the characters the AI has not ruled out.
+     *
+     * <p>This state used to live in a flag on {@code Character} itself, on the
+     * objects the board owns, so two players sharing a board would have shared
+     * their eliminations and neither could be stored separately.</p>
+     *
+     * @return the characters still in the running, in board order
      */
-    public ArrayList<Character> getPossibleCharacters() {
-        return possibleCharacters;
+    public List<Character> getPossibleCharacters() {
+        List<Character> remaining = new ArrayList<>();
+        for (int index = 0; index < stillPossible.length; index++) {
+            if (stillPossible[index]) {
+                remaining.add(getGameBoard().getCharacters().get(index));
+            }
+        }
+        return List.copyOf(remaining);
     }
 }

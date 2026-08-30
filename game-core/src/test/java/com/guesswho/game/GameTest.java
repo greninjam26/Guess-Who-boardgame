@@ -1048,8 +1048,11 @@ class GameTest {
     }
 
     private void leaveOnlyComputerCandidate(String remainingName) {
-        for (Character character : game.getComputerPlayer().getPossibleCharacters()) {
-            character.setIsActive(character.getName().equals(remainingName));
+        ComputerPlayer computer = game.getComputerPlayer();
+        for (Character character : computer.getGameBoard().getCharacters()) {
+            if (!character.getName().equals(remainingName)) {
+                computer.ruleOut(character.getCharacterIndex());
+            }
         }
     }
 
