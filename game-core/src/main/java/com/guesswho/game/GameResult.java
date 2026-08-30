@@ -32,11 +32,14 @@ public record GameResult(
      * @param name participant display name
      * @param selectedCharacter selected character name
      * @param questionAnswers questions asked and answers received
+     * @param commitment the promise made before play, or {@code null} for the
+     *        computer opponent, which makes none
      */
     public record Participant(
             String name,
             String selectedCharacter,
-            List<QuestionAnswer> questionAnswers) {
+            List<QuestionAnswer> questionAnswers,
+            CharacterCommitment commitment) {
         /**
          * Creates a participant result with an immutable question history.
          */

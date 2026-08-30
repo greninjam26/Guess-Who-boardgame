@@ -42,7 +42,7 @@ class FilePendingGameResultStoreTest {
                         "Olivia",
                         List.of(
                                 new GameResult.QuestionAnswer("Glasses?", true),
-                                new GameResult.QuestionAnswer("Hat?", false)))),
+                                new GameResult.QuestionAnswer("Hat?", false)), null)),
                 "Alex",
                 GameMode.PVP_LOCAL,
                 null,
@@ -107,8 +107,8 @@ class FilePendingGameResultStoreTest {
     private GameResult gameResult(String winner) {
         return new GameResult(
                 List.of(
-                        new GameResult.Participant(winner, "Olivia", List.of()),
-                        new GameResult.Participant("AI", "Nick", List.of())),
+                        new GameResult.Participant(winner, "Olivia", List.of(), null),
+                        new GameResult.Participant("AI", "Nick", List.of(), null)),
                 winner,
                 GameMode.PVE,
                 ComputerDifficulty.EASY,

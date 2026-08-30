@@ -109,7 +109,15 @@ public class HttpGameResultClient implements GameResultClient {
             appendQuoted(json, questionAnswer.question());
             json.append(",\"answer\":").append(questionAnswer.answer()).append('}');
         }
-        json.append("]}");
+        json.append("]");
+        if (participant.commitment() != null) {
+            json.append(",\"commitment\":{\"hash\":");
+            appendQuoted(json, participant.commitment().hash());
+            json.append(",\"nonce\":");
+            appendQuoted(json, participant.commitment().nonce());
+            json.append('}');
+        }
+        json.append("}");
     }
 
     private void appendQuoted(StringBuilder json, String value) {

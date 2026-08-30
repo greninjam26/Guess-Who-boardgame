@@ -198,6 +198,7 @@ public class Game {
                     username + " has already chosen a character and cannot change it");
         }
         player.setSelectedCharacter(player.findCharacter(characterName));
+        player.setCommitment(CharacterCommitment.to(characterName));
     }
 
     /**
@@ -559,7 +560,8 @@ public class Game {
         return new GameResult.Participant(
                 name,
                 requireSelectedCharacter(player, name).getName(),
-                questionAnswers);
+                questionAnswers,
+                player instanceof User user ? user.getCommitment() : null);
     }
 
     private void setTurns(Player first, Player second, boolean firstStarts) {
