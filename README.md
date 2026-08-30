@@ -29,26 +29,35 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 
 ```text
 .
-├── pom.xml
-├── README.md
-└── src/
-    ├── main/
-    │   ├── java/com/guesswho/
-    │   │   ├── GuessWhoServerApplication.java # Spring Boot entry point
-    │   │   ├── client/             # Desktop HTTP clients and the pending-upload queue
-    │   │   ├── game/               # Game flow, models, and resources
-    │   │   ├── persistence/        # Database persistence
-    │   │   ├── ui/                 # Swing interface and entry point
-    │   │   └── web/                # HTTP controllers and responses
-    │   └── resources/
-    │       ├── application.properties # Server database configuration
-    │       ├── audio/               # Background music
-    │       ├── data/                # Character and question CSV files
-    │       ├── db/migration/       # Flyway schema migrations
-    │       └── images/              # Character-card artwork
-    └── test/
-        └── java/                    # Regression checks
+├── pom.xml                          # parent, holds the three modules together
+├── game-core/                       # the rules, the data, the artwork
+│   └── src/main/
+│       ├── java/com/guesswho/
+│       │   ├── game/                # game flow, models, and resources
+│       │   └── leaderboard/         # standings types shared by both sides
+│       └── resources/
+│           ├── audio/               # background music
+│           ├── data/                # character and question CSV files
+│           └── images/              # character-card artwork
+├── desktop-client/                  # the Swing game
+│   └── src/main/java/com/guesswho/
+│       ├── client/                  # HTTP clients and the pending-upload queue
+│       └── ui/                      # Swing interface and entry point
+└── server/                          # the HTTP API
+    └── src/main/
+        ├── java/com/guesswho/
+        │   ├── GuessWhoServerApplication.java
+        │   ├── persistence/         # database persistence
+        │   └── web/                 # HTTP controllers and responses
+        └── resources/
+            ├── application.properties
+            └── db/migration/        # Flyway schema migrations
 ```
+
+`game-core` depends on nothing — no Spring, no Swing, no HTTP — and both other
+modules depend only on it. That is what keeps a web server and a database engine
+out of the desktop installer.
+
 
 ## Prerequisites
 
@@ -76,19 +85,14 @@ Maven compiles the application, copies its resources, and creates the build outp
 
 ## Run the Desktop App
 
-The desktop client needs its dependencies on the classpath, so write them to a
-file once and reuse it:
+Start the Swing application with:
 
 ```bash
-mvn compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
+mvn -pl desktop-client exec:java
 ```
 
-```bash
-java -cp "target/classes:$(cat target/cp.txt)" com.guesswho.ui.GUI
-```
-
-Run `mvn clean` separately if you need it, not in the same command as the
-second step — it deletes `target/cp.txt`.
+On a fresh clone, run `mvn install -DskipTests` first so `game-core` is available
+to the other modules.
 
 The bundled music file currently contains no audio data, so the game starts without background music.
 
@@ -99,8 +103,8 @@ submission succeeds. Point the desktop app at another server with the
 `guesswho.server.url` system property:
 
 ```bash
-java -Dguesswho.server.url=https://games.example \
-  -cp "target/classes:$(cat target/cp.txt)" com.guesswho.ui.GUI
+mvn -pl desktop-client exec:java -Dexec.args="" \
+  -Dguesswho.server.url=https://games.example
 ```
 
 ## Run the Server
@@ -108,13 +112,13 @@ java -Dguesswho.server.url=https://games.example \
 Start the Spring Boot server during development with:
 
 ```bash
-mvn spring-boot:run
+mvn -pl server spring-boot:run
 ```
 
 Alternatively, run the executable JAR after building:
 
 ```bash
-java -jar target/guess-who-boardgame-1.0-SNAPSHOT.jar
+java -jar server/target/server-1.0-SNAPSHOT.jar
 ```
 
 The server listens on port `8080` by default. Verify it from another terminal:
