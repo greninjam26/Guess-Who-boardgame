@@ -5,6 +5,8 @@ import com.guesswho.game.AnswerCorrection;
 import java.awt.CardLayout;
 import java.util.List;
 import javax.swing.JButton;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
@@ -31,6 +33,8 @@ class EndingScreens {
         void revealComplete(boolean resultTrustworthy);
     }
 
+    private static final String NAME_FIRST = "nameFirst";
+    private static final String NAME_SECOND = "nameSecond";
     private static final String REVEAL = "reveal";
 
     private final GameController controller;
@@ -42,6 +46,8 @@ class EndingScreens {
     private final JPanel revealPanel = new JPanel();
     private final JLabel outcomeLabel = new JLabel();
     private final JLabel validationLabel = new JLabel();
+    private final JComboBox<String> firstChoice = new JComboBox<>();
+    private final JComboBox<String> secondChoice = new JComboBox<>();
 
     /**
      * Builds the ending screens.
@@ -54,6 +60,10 @@ class EndingScreens {
         this.controller = controller;
         this.images = images;
         this.completion = completion;
+        root.add(namePanel("Which character did you have?", firstChoice, this::nameFirst),
+                NAME_FIRST);
+        root.add(namePanel("Second player, which character did you have?",
+                secondChoice, this::nameSecond), NAME_SECOND);
         root.add(revealPanel, REVEAL);
     }
 
@@ -73,10 +83,43 @@ class EndingScreens {
      */
     void begin(String outcome) {
         outcomeLabel.setText(outcome);
+        if (!controller.setup().tellsCharacterUpFront()) {
+            String[] characters = controller.game().getCharacterNames();
+            firstChoice.setModel(new javax.swing.DefaultComboBoxModel<>(characters));
+            secondChoice.setModel(new javax.swing.DefaultComboBoxModel<>(characters));
+            cards.show(root, NAME_FIRST);
+            return;
+        }
         if (controller.setup().isAgainstComputer()) {
             revealAgainstComputer();
             return;
         }
+        revealBetweenPlayers();
+    }
+
+    private JPanel namePanel(String prompt, JComboBox<String> choice, Runnable accept) {
+        JPanel panel = new JPanel();
+        JButton confirm = new JButton("Comfirm");
+        confirm.addActionListener(event -> accept.run());
+        panel.add(new JLabel(prompt));
+        panel.add(choice);
+        panel.add(confirm);
+        return panel;
+    }
+
+    private void nameFirst() {
+        controller.game().selectCharacter(
+                controller.setup().firstUsername(), (String) firstChoice.getSelectedItem());
+        if (controller.setup().isAgainstComputer()) {
+            revealAgainstComputer();
+            return;
+        }
+        cards.show(root, NAME_SECOND);
+    }
+
+    private void nameSecond() {
+        controller.game().selectCharacter(
+                controller.setup().secondUsername(), (String) secondChoice.getSelectedItem());
         revealBetweenPlayers();
     }
 
@@ -103,9 +146,13 @@ class EndingScreens {
 
     private String validationText(List<AnswerCorrection> corrections) {
         if (corrections.isEmpty()) {
-            return "<html>Your answer to the questions is all correct!!!"
-                    + "<br>Thank you for doing to correctly!! :)"
-                    + "<br>your game result will be stored</html>";
+            return "<html>Every answer matched your character."
+                    + (controller.setup().tellsCharacterUpFront()
+                            ? "<br>You committed to it before the questions began,"
+                                    + " so that is settled."
+                            : "<br>You named your character just now, so this only shows"
+                                    + " your answers were consistent with it.")
+                    + "<br>Your game result will be stored.</html>";
         }
         StringBuilder text = new StringBuilder("<html>you answered ")
                 .append(corrections.size())

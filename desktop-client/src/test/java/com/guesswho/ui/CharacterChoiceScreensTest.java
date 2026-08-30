@@ -6,6 +6,7 @@ import com.guesswho.game.QuestionMode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -95,6 +97,56 @@ class CharacterChoiceScreensTest {
         assertTrue(first.contains("Alex"), first);
         assertTrue(second.contains("Blake"), second);
         assertFalse(second.contains("Alex"), second);
+    }
+
+    @Test
+    void letsAPlayerKeepTheirCharacterToThemselves() throws Exception {
+        GameController controller = playerGame();
+        CharacterChoiceScreens screens = screensFor(controller);
+        begin(screens);
+
+        tickTellLater(screens);
+        ready(screens);
+
+        assertFalse(controller.setup().tellsCharacterUpFront());
+        assertFalse(controller.game().hasSelectedCharacter("Alex"),
+                "Nothing should be recorded when the player declined to say");
+        assertEquals(1, completions.size(),
+                "The second player is not asked either; the ending asks them both");
+    }
+
+    @Test
+    void recordsNoCommitmentWhenTheCharacterIsWithheld() throws Exception {
+        GameController controller = computerGame();
+        CharacterChoiceScreens screens = screensFor(controller);
+        begin(screens);
+
+        tickTellLater(screens);
+        ready(screens);
+
+        assertNull(controller.game().getFirstPlayer().getCommitment());
+    }
+
+    @Test
+    void tellingUpFrontIsTheDefault() throws Exception {
+        GameController controller = computerGame();
+        CharacterChoiceScreens screens = screensFor(controller);
+        begin(screens);
+
+        ready(screens);
+
+        assertTrue(controller.setup().tellsCharacterUpFront());
+        assertTrue(controller.game().hasSelectedCharacter("Alex"));
+    }
+
+    private void tickTellLater(CharacterChoiceScreens screens) throws Exception {
+        for (Component child : visibleCard(screens.panel()).getComponents()) {
+            if (child instanceof JCheckBox box) {
+                SwingUtilities.invokeAndWait(box::doClick);
+                return;
+            }
+        }
+        throw new AssertionError("No opt-out offered");
     }
 
     // --- helpers -------------------------------------------------------
