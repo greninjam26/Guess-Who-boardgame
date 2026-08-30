@@ -8,25 +8,47 @@ final class SetupText {
     private SetupText() {
     }
 
-    /** How-to-play text shown on the welcome screen. */
-    //No inline font: the look and feel picks one, and hard-coding Arial here
-    //would leave this one label ignoring it.
-    static final String INSTRUCTIONS = "<html><body>" +
-                   "<br><br><h1>Welcome to Guess Who Online!</h1>" +
-                   "The game starts with two players, each drawing a unique character card from a deck of 24 characters. " +
-                   "Each player has a game board containing each of the 24 characters. <br>Players try to determine their opponent's " +
-                   "hidden character by asking a series of yes or no questions based on their character's attributes. <br>" +
-                   "Characters are eliminated using the process of elimination; they use the gameboard to record possible suspects " +
-                   "by flipping down the character cards that don't match. <br>The first player to correctly guess their opponent's " +
-                   "character wins the game, but if the players guess incorrectly, they lose.<br>" +
-                   "<br>Guess Who Online has two game modes: <strong>Player-versus-player</strong> and " +
-                   "<strong>Player-versus-computer</strong>. The player-versus-computer game mode has three difficulties: easy, hard. <br>" +
-                   "The player-versus-player mode has two game options: predetermined questions and free questions. <br>" +
-                   "Completed games are sent to the server and included in the leaderboard. " +
-                   "In the game, you can ask a yes or no question about your opponent's characters using the " +
-                   "<strong>\"Ask Question\"</strong> button. <br>When you wish to guess who your opponent character is, click the " +
-                   "<strong>\"Guess\"</strong> button, then select a character on the board. Characters can be flipped down by clicking <br>" +
-                   "on their icons on the board.<br>" +
-                   "<br>We hope you enjoy the game!<br>" +
-                   "</body></html>";
+    //No inline font: the look and feel picks one, and hard-coding a family here
+    //would leave this one screen ignoring it.
+    /** How-to-play text, shown in its own window from the welcome screen. */
+    static final String INSTRUCTIONS = """
+            <html><body>
+            <h2>Guess Who?</h2>
+            <p>Each player holds one of twenty-four characters. You win by working
+            out your opponent's before they work out yours.</p>
+
+            <h3>Taking a turn</h3>
+            <p>Ask a question your opponent can answer yes or no, such as
+            <i>"Does your character wear glasses?"</i>. Their answer rules out
+            everyone it does not fit.</p>
+            <p>Click a character on your board to flip them face down once you
+            have ruled them out. Click again if you change your mind.</p>
+            <p>When you think you know, choose <b>Guess</b> and pick them. A
+            correct guess wins; a wrong one loses.</p>
+
+            <h3>Choosing your character</h3>
+            <p>You are asked which character you are holding before play begins.
+            Your opponent never sees it, and neither does the person sitting next
+            to you if they look away.</p>
+            <p>Telling the game up front lets it check afterwards that every
+            answer you gave really did match. If you would rather keep it to
+            yourself, tick the box on that screen and you will be asked once the
+            game is over instead — the check still runs, but it can only show
+            your answers were consistent, not that you settled on a character
+            before the questions started.</p>
+
+            <h3>Game modes</h3>
+            <p><b>Against the computer</b> on easy or hard. Hard narrows the
+            field faster by choosing questions that rule out about half the
+            remaining characters.</p>
+            <p><b>Against another player</b> on this machine, taking turns. You
+            can use the board's questions or type your own — the computer can
+            only answer the board's, so free questions are for two players.</p>
+
+            <h3>Afterwards</h3>
+            <p>Completed games are sent to the server and counted on the
+            leaderboard, which keeps a separate board for games against the
+            computer and games against another player.</p>
+            </body></html>
+            """;
 }
