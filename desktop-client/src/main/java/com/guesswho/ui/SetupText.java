@@ -9,7 +9,9 @@ final class SetupText {
     }
 
     /** How-to-play text shown on the welcome screen. */
-    static final String INSTRUCTIONS = "<html><body style='font-family:Arial; font-size:14;'>" +
+    //No inline font: the look and feel picks one, and hard-coding Arial here
+    //would leave this one label ignoring it.
+    static final String INSTRUCTIONS = "<html><body>" +
                    "<br><br><h1>Welcome to Guess Who Online!</h1>" +
                    "The game starts with two players, each drawing a unique character card from a deck of 24 characters. " +
                    "Each player has a game board containing each of the 24 characters. <br>Players try to determine their opponent's " +

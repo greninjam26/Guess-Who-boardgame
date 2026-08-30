@@ -3,6 +3,8 @@ package com.guesswho.ui;
 import com.guesswho.client.GameResultSubmissionService;
 import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
+import com.formdev.flatlaf.FlatLightLaf;
+
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.Game;
@@ -279,6 +281,10 @@ public class GUI {
      * @param args command-line arguments; currently unused
      */
     public static void main(String[] args) {
+        //Before any component exists, or half the interface keeps the old look.
+        //Swing's default look and feel is decades old; this is the same flat
+        //theming IntelliJ uses, and it brings HiDPI handling with it.
+        FlatLightLaf.setup();
         //uploading the music
         music = GameResources.loadBackgroundMusic();
         music.ifPresent(clip -> {
