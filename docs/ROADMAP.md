@@ -287,7 +287,14 @@ The first phase with visible payoff, and the one that makes the app demoable.
       the question history, and a rematch button.
 - [ ] Music controls: volume, mute, pause, persisted between sessions.
 - [ ] A settings screen to house audio, the store-my-character toggle, and
-      difficulty.
+      difficulty. Move **Quit**, **Restart**, and **Leaderboard** into it too —
+      they currently sit in a strip across the top of every screen, including
+      ones where they make no sense.
+- [ ] Save a game in progress and offer it back on the next launch, so closing
+      the window does not lose it. Needs the mutable state serialized: whose
+      turn it is, each participant's questions and answers, the selected
+      characters, and which characters have been ruled out. The board's own data
+      reloads from the CSV files and does not need storing.
 - [ ] Improve the existing **How To Play** screen. The button is already there at
       `GUI.java:173`, but it dumps one HTML blob into the welcome panel — it needs
       structure, and it should explain the verification rules from Phase 04.
@@ -298,6 +305,23 @@ The first phase with visible payoff, and the one that makes the app demoable.
 > 0–100 linear scale. A slider wired straight to it feels broken across the
 > bottom half of its travel. Map it logarithmically and treat the minimum as
 > mute.
+
+> **A computer that misreads a question is worse than one that refuses.** Some
+> text genuinely cannot be resolved: `brown` is both an eye colour and a hair
+> colour, so "are they brown?" is ambiguous, and nothing on the board answers
+> "do they look friendly?". A wrong answer makes the player eliminate the wrong
+> characters and lose a game they should have won, with nothing on screen to
+> explain why.
+>
+> So the computer says it cannot answer, names the attributes it does understand,
+> and the player asks again without losing their turn. Declining is a normal
+> outcome here, not an error.
+
+> **Saving needs the elimination state off `Character` first.** Which characters
+> a player has ruled out currently lives in `Character.isActive`, on the objects
+> the board owns, so it cannot be serialized per player. Phase 06 replaces it
+> with a `boolean[]` inside `ComputerPlayer`; do that before the save format is
+> designed rather than encoding the shared state into a file.
 
 > **The board and the controls both go to `BorderLayout.CENTER`.** Whichever is
 > added last is the one the layout sizes; the other keeps its own bounds and
@@ -326,6 +350,15 @@ wherever another phase gets tiring.
       guess aggression rather than random-versus-optimal.
 - [ ] Consider making the AI answer imperfectly on the easiest tier, so beginners
       can win.
+- [ ] Teach the computer to answer a typed question, so free questions work
+      against it and the mode matrix stops having an empty cell. Every board
+      question already carries a category and a value — `eyeColour, Blue` or
+      `glasses, TRUE` — so this resolves text to one of ten attributes and
+      nineteen values through a synonym table, not open-ended language
+      understanding.
+- [ ] `GameSetup.againstComputer()` currently forces preset questions. It takes a
+      `QuestionMode` once the computer can answer typed ones, and the four mode
+      buttons become five.
 - [ ] Record the new tiers in the `difficulty` column from Phase 01 so the PvE
       board can break standings down by tier.
 
@@ -483,19 +516,19 @@ condition.
 
 ## The mode matrix
 
-Worth settling explicitly, because one cell is already impossible in the current
-code. `Game.askComputer()` routes to `ComputerPlayer.answerQuestion()`, which
-calls `findQuestion()` and throws on anything outside the preset list — the AI
-has no way to answer free text.
+`Game.askComputer()` routes to `ComputerPlayer.answerQuestion()`, which looks the
+question up on the board and throws on anything else, so free questions are
+impossible against the computer today. Phase 06 closes that cell by teaching the
+computer to resolve typed text to a board attribute.
 
-| Mode | Preset questions | Free-form questions | Verification |
+| Mode | Preset questions | Free questions | Verification |
 | --- | --- | --- | --- |
-| PvE | Yes | **Not possible** | Automatic |
+| PvE | Yes | Phase 06 | Automatic |
 | PvP local (hotseat) | Yes | Yes | Optional |
 | PvP online | Yes | Yes | Via commitment |
 
-Either document free-form PvE as unsupported, or map free text onto the nearest
-preset question. Both are defensible — drifting into it by accident isn't.
+Until then `GameSetup.againstComputer()` forces preset questions, so the mode
+cannot be selected rather than failing partway through a game.
 
 ## Deliberately not doing
 
@@ -512,16 +545,11 @@ preset question. Both are defensible — drifting into it by accident isn't.
 
 ## Still to decide
 
-1. Should closing the app mid-game lose it? There is no save/resume today.
-   Phase 09's session state covers *online* games; local PvE and hotseat have
-   nothing. Worth deciding before Phase 02 settles the UI state model.
-2. Does free-form PvE stay unsupported, or do you map free text onto preset
-   questions with fuzzy matching?
-3. How long is a turn timer, and does it forfeit the game or just pass the turn?
-4. Do guests get to play online at all, or only PvE and hotseat? Letting them
+1. How long is a turn timer, and does it forfeit the game or just pass the turn?
+2. Do guests get to play online at all, or only PvE and hotseat? Letting them
    online means unranked rooms and throwaway identities.
-5. Does the store-my-character setting belong to the account or the machine?
-6. Does the hotseat board stay on the leaderboard as a casual tier, or come off
+3. Does the store-my-character setting belong to the account or the machine?
+4. Does the hotseat board stay on the leaderboard as a casual tier, or come off
    entirely because you referee both sides?
 
 ## Decided
@@ -530,6 +558,11 @@ preset question. Both are defensible — drifting into it by accident isn't.
   unreachable are uploaded on the next successful submission. The write-only CSV
   fallback was replaced by `pending-game-results.jsonl`, which can be read back.
 - **Indentation is four spaces**, enforced by `.editorconfig`.
+- **Free questions against the computer become a fourth game mode**, on the
+  condition that the computer declines a question it cannot resolve rather than
+  guessing at it. See Phase 06.
+- **Closing the app mid-game must not lose it.** Local games are saved and
+  offered back on the next launch. See Phase 05.
 
 ---
 
