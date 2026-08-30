@@ -688,6 +688,37 @@ class GameTest {
     }
 
     @Test
+    void aCharacterCannotBeChangedOnceChosen() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
+        game.selectCharacter("Player 1", "Sam");
+
+        assertThrows(IllegalStateException.class,
+                () -> game.selectCharacter("Player 1", "Olivia"));
+        assertEquals("Sam", game.getFirstPlayer().getSelectedCharacter().getName());
+    }
+
+    @Test
+    void answerReviewRunsAgainstTheCharacterCommittedToAtTheStart() throws Exception {
+        game.startComputerGame("Player", ComputerDifficulty.EASY,
+                ComputerGameStart.COMPUTER, QuestionMode.PRESET);
+        game.selectCharacter("Player", "Sam");
+        Question asked = game.playComputerQuestion();
+        boolean truthful = game.getFirstPlayer().getGameBoard().getAnswers()
+                [game.getFirstPlayer().findCharacter("Sam").getCharacterIndex()]
+                [asked.getQuestionIndex()];
+        game.answerComputerQuestion(!truthful);
+        game.finish("Player");
+
+        assertThrows(IllegalStateException.class,
+                () -> game.selectCharacter("Player", "Olivia"));
+        assertEquals(1, game.getComputerAnswerCorrections().size(),
+                "A wrong answer stays wrong; it cannot be excused by naming a different character");
+    }
+
+    @Test
     void reportsWhenAPlayerHasNotChosenACharacter() throws Exception {
         game.startPlayerGame(
                 "Player 1", 20000101,
