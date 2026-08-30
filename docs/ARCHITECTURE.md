@@ -196,29 +196,47 @@ still open in the roadmap.
 
 ## Trust boundary: character commitment
 
-Target of Phase 04. Today `Player`'s constructor assigns a random character and
-the human declares theirs after the game ends, so honesty can only ever be
-self-reported.
+Built in Phase 04. Each player names their character before playing, and
+`CharacterCommitment` records `SHA-256(character, nonce)` at that moment.
 
 ```text
-  game start   client  ──  SHA-256(character ‖ nonce)  ──▶  server
-                                                            stores hash
-                           (character never sent)
+  game start   choose a character  ──▶  commitment recorded
+                                        (hash + nonce)
 
-  play         answers flow normally; nobody can derive the character
+  play         answers flow normally; the hash reveals nothing
 
-  game end     client  ──  character + nonce  ────────────▶  server
-                                                            recompute + compare
-                                                            replay every answer
+  game end     character + nonce   ──▶  recompute and compare
+                                        replay every answer
 ```
 
-This closes the cheat that matters: changing your character after seeing how the
-questions are going. It does **not** defend against a modified client, and that
-boundary should be stated plainly in the README rather than overclaimed.
+**Locally the commitment is not what prevents cheating.** The game holds the
+character, so a choice is final because `Game.selectCharacter()` refuses a second
+call. Nothing local depends on the hash.
 
-Storing the character is optional per the player's setting. With it off,
-verification is unavailable — the UI says so rather than offering a check that
-cannot work.
+Its value is verification *without disclosure*, which Phase 09 needs. An online
+opponent's own client answers questions about their character, so the server can
+record a whole game without ever learning either character and still check both
+at the end. It cannot leak what it never held.
+
+It does **not** defend against a modified client that commits to one character
+and answers as though it held another. State that plainly in the README rather
+than overclaiming.
+
+### Choosing when to say
+
+A player may keep their character to themselves and name it once the game is
+over. The answer review runs either way, but proves different things, and the
+interface says which:
+
+| | commitment recorded | the review shows |
+| --- | --- | --- |
+| Named before playing | yes | the character was fixed before any question |
+| Named at the end | no | the answers were consistent with the character named |
+
+A promise is only recorded while the game is in progress, because one made after
+the answers are known proves nothing and would be indistinguishable from a real
+commitment. So **a human participant with no commitment is one who named their
+character at the end** — the signal a verifier needs, with no extra field.
 
 ---
 
@@ -230,15 +248,14 @@ Target shape. Bold rows are additions to what exists today.
 | --- | --- |
 | **`accounts`** | id, username, password hash, created_at |
 | `game_results` | id, winner, created_at, **mode**, **difficulty**, **question_mode** |
-| `game_result_participants` | id, game_result_id, play_order, **account_id** (nullable for guests), name, selected_character |
+| `game_result_participants` | id, game_result_id, play_order, **account_id** (nullable for guests), name, selected_character, commitment_hash, commitment_nonce |
 | `game_result_question_answers` | id, participant_id, question_order, question, answer |
 | **`game_sessions`** | code, state, version, created_at, last_activity |
 | **`game_session_players`** | session_id, account_id, commitment_hash, last_seen |
 | **`game_session_moves`** | session_id, idempotency_key, applied_at |
 
-Schema changes go through **Flyway** migrations. The current
-`spring.sql.init.mode=always` plus `CREATE TABLE IF NOT EXISTS` arrangement cannot
-add a column to an existing table — the statement is a silent no-op. Phase 01
+Schema changes go through **Flyway** migrations, adopted in Phase 01. Bold rows
+are still to come; everything else exists. Phase 01
 replaces it before any other schema work.
 
 Participants keep a denormalized `name` alongside `account_id` so historical
