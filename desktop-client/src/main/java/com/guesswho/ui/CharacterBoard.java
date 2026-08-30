@@ -1,7 +1,9 @@
 package com.guesswho.ui;
 
+import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
@@ -44,17 +46,14 @@ class CharacterBoard extends JPanel {
     private final boolean[] faceDown = new boolean[CHARACTER_COUNT];
 
     private CharacterBoard(CharacterImages images, Selection selection) {
-        super(null);
+        //Twenty-four cards in six columns is a grid, so let one lay it out. The
+        //cards were previously positioned one by one against a window size that
+        //did not fit most screens.
+        super(new GridLayout(CHARACTER_COUNT / COLUMNS, COLUMNS, GAP, ROW_GAP));
         this.images = images;
-        setBounds(340, 35, 670,
-                CharacterImages.HEIGHT * 4 + 3 * ROW_GAP);
+        setBorder(BorderFactory.createEmptyBorder(ROW_GAP, GAP, ROW_GAP, GAP));
         for (int index = 0; index < CHARACTER_COUNT; index++) {
             JButton card = new JButton(images.portrait(index));
-            card.setBounds(
-                    CharacterImages.WIDTH * (index % COLUMNS) + GAP * (index % COLUMNS + 1),
-                    CharacterImages.HEIGHT * (index / COLUMNS) + ROW_GAP * (index / COLUMNS + 1),
-                    CharacterImages.WIDTH,
-                    CharacterImages.HEIGHT);
             int characterIndex = index;
             card.addActionListener(event -> selection.characterChosen(characterIndex));
             cards.add(card);

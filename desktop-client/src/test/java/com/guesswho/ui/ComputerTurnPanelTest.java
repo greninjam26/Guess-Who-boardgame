@@ -9,11 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
@@ -115,8 +117,8 @@ class ComputerTurnPanelTest {
         choose(panel, 0, "1");
         click(panel, "Comfirm");
 
-        long visibleControls = List.of(panel.getComponents()).stream()
-                .filter(component -> component instanceof JButton && component.isVisible())
+        long visibleControls = buttons(panel).stream()
+                .filter(Component::isVisible)
                 .count();
 
         assertEquals(1, visibleControls,
@@ -160,12 +162,9 @@ class ComputerTurnPanelTest {
 
     /** The panel holds two buttons labelled "Comfirm"; this clicks the second. */
     private void clickSecond(ComputerTurnPanel panel, String label) throws Exception {
-        List<JButton> matches = new ArrayList<>();
-        for (Component child : panel.getComponents()) {
-            if (child instanceof JButton candidate && label.equals(candidate.getText())) {
-                matches.add(candidate);
-            }
-        }
+        List<JButton> matches = buttons(panel).stream()
+                .filter(candidate -> label.equals(candidate.getText()))
+                .toList();
         SwingUtilities.invokeAndWait(matches.get(1)::doClick);
     }
 
@@ -174,8 +173,8 @@ class ComputerTurnPanelTest {
     }
 
     private JButton button(ComputerTurnPanel panel, String label) {
-        for (Component child : panel.getComponents()) {
-            if (child instanceof JButton candidate && label.equals(candidate.getText())) {
+        for (JButton candidate : buttons(panel)) {
+            if (label.equals(candidate.getText())) {
                 return candidate;
             }
         }
@@ -183,12 +182,28 @@ class ComputerTurnPanelTest {
     }
 
     private JComboBox<?> combo(ComputerTurnPanel panel, int index) {
-        List<JComboBox<?>> found = new ArrayList<>();
-        for (Component child : panel.getComponents()) {
-            if (child instanceof JComboBox<?> candidate) {
-                found.add(candidate);
+        return controls(panel, JComboBox.class).get(index);
+    }
+
+    private List<JButton> buttons(ComputerTurnPanel panel) {
+        return controls(panel, JButton.class);
+    }
+
+    /**
+     * Collects controls from the panel and any nested panel, but no deeper — a
+     * JComboBox holds its own arrow JButton and would otherwise be found here.
+     */
+    @SuppressWarnings("unchecked")
+    private <T extends Component> List<T> controls(Container container, Class<T> type) {
+        List<T> found = new ArrayList<>();
+        for (Component child : container.getComponents()) {
+            if (type.isInstance(child)) {
+                found.add((T) child);
+            }
+            else if (child instanceof JPanel nested) {
+                found.addAll(controls(nested, type));
             }
         }
-        return found.get(index);
+        return found;
     }
 }

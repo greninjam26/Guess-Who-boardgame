@@ -73,7 +73,8 @@ public class GUI {
     }
     private void gameGUI() {
         frame = new JFrame("Guess Who? Game");//name of the frame
-        frame.setPreferredSize(new Dimension(1350, 1200));// Width: 700 pixels, Height: 900 pixels
+        //No fixed size: every screen now states what it needs and pack() honours it.
+        frame.setMinimumSize(new Dimension(760, 520));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
         //inialization of some of the veriables
@@ -109,8 +110,8 @@ public class GUI {
                 playerTurns.beginTurn();//adds the board, then the controls over it
                 return;
             }
-            frame.add(boardPanel1);
-            frame.add(computerTurns);
+            frame.add(boardPanel1, BorderLayout.CENTER);
+            frame.add(computerTurns, BorderLayout.SOUTH);
             refreshFrame();
             computerTurns.beginTurn();
         });
@@ -124,15 +125,11 @@ public class GUI {
             public void showBoardForCurrentPlayer() {
                 frame.remove(boardPanel1);
                 frame.remove(boardPanel2);
-                frame.remove(playerTurns);
                 frame.add(controller.game().getCurrentPlayerName()
                         .equals(controller.setup().firstUsername())
                                 ? boardPanel1
-                                : boardPanel2);
-                // Added last on purpose: the frame is a BorderLayout and both of
-                // these go to CENTER, so the last one added is the one it sizes.
-                // The board keeps its own bounds and paints in front.
-                frame.add(playerTurns);
+                                : boardPanel2, BorderLayout.CENTER);
+                frame.add(playerTurns, BorderLayout.SOUTH);
                 refreshFrame();
             }
 
@@ -141,7 +138,7 @@ public class GUI {
                 frame.remove(boardPanel1);
                 frame.remove(boardPanel2);
                 frame.remove(playerTurns);
-                frame.add(guessBoardPanel);
+                frame.add(guessBoardPanel, BorderLayout.CENTER);
                 refreshFrame();
             }
         });

@@ -8,12 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
@@ -167,39 +169,43 @@ class PlayerTurnPanelTest {
     }
 
     private JLabel prompt(PlayerTurnPanel panel) {
-        return labels(panel).get(0);
+        return controls(panel, JLabel.class).get(0);
     }
 
     private JLabel answer(PlayerTurnPanel panel) {
-        return labels(panel).get(1);
-    }
-
-    private List<JLabel> labels(PlayerTurnPanel panel) {
-        List<JLabel> found = new ArrayList<>();
-        for (Component child : panel.getComponents()) {
-            if (child instanceof JLabel label) {
-                found.add(label);
-            }
-        }
-        return found;
+        return controls(panel, JLabel.class).get(1);
     }
 
     private JButton button(PlayerTurnPanel panel, String label) {
-        for (Component child : panel.getComponents()) {
-            if (child instanceof JButton candidate && label.equals(candidate.getText())) {
+        for (JButton candidate : controls(panel, JButton.class)) {
+            if (label.equals(candidate.getText())) {
                 return candidate;
             }
         }
         throw new AssertionError("No button labelled " + label);
     }
 
-    @SuppressWarnings("unchecked")
     private <T extends Component> T find(PlayerTurnPanel panel, Class<T> type) {
-        for (Component child : panel.getComponents()) {
+        List<T> found = controls(panel, type);
+        return found.isEmpty() ? null : found.get(0);
+    }
+
+    /**
+     * Collects controls from the panel and any nested panel, but no deeper — a
+     * JComboBox holds its own editor and arrow button, which would otherwise be
+     * found here and make a preset-mode panel look as though it has a text field.
+     */
+    @SuppressWarnings("unchecked")
+    private <T extends Component> List<T> controls(Container container, Class<T> type) {
+        List<T> found = new ArrayList<>();
+        for (Component child : container.getComponents()) {
             if (type.isInstance(child)) {
-                return (T) child;
+                found.add((T) child);
+            }
+            else if (child instanceof JPanel nested) {
+                found.addAll(controls(nested, type));
             }
         }
-        return null;
+        return found;
     }
 }
