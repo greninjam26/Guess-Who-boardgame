@@ -8,7 +8,6 @@ import com.formdev.flatlaf.FlatLightLaf;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.Game;
-import com.guesswho.game.Question;
 
 /*Author: Gavin Liu
  * Date: Jan 8 2024
@@ -19,7 +18,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import javax.swing.border.Border;
 
 /**
  * Swing user interface for configuring and playing Guess Who games.
@@ -48,9 +46,7 @@ public class GUI {
     private CharacterBoard guessBoardPanel;
     //portraits shared by all three boards
     private CharacterImages images;
-    private JComboBox<String> guessComboBox;
     //true while the question panel is on screen, so it can be torn down again
-    private boolean questionPanelShowing;
     //where each player picks the character their opponent must guess
     private CharacterChoiceScreens characterChoice;
     //welcome, mode, names, birthdays, and who goes first
@@ -88,7 +84,6 @@ public class GUI {
                     refreshFrame();
                 },
                 this::playAgain);
-        questionPanelShowing = false;
         //One button, rather than three across the top of every screen.
         JPanel controlPanel = new JPanel();
         JButton settingsButton = new JButton("Settings");
