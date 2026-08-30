@@ -15,7 +15,8 @@ import javax.swing.JPanel;
  * silently drop an entry from the display while the text carried on growing.</p>
  *
  * <p>Entries are HTML because a {@code JLabel} has no other way to break a
- * line, so anything written here that came from a player is escaped first.</p>
+ * line, so anything written here that came from a player goes through
+ * {@link LabelText#escaped} first.</p>
  */
 class QuestionHistory {
     private final Side first = new Side();
@@ -86,22 +87,6 @@ class QuestionHistory {
         return second.label.getText();
     }
 
-    /**
-     * Escapes text that came from a player, so a name or a typed question
-     * cannot be read as markup by the label that renders it.
-     *
-     * @param text untrusted text
-     * @return the text safe to place inside an HTML label
-     */
-    static String escaped(String text) {
-        if (text == null) {
-            return "";
-        }
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
-    }
-
     private static final class Side {
         private final JPanel panel = new JPanel();
         private final JLabel label = new JLabel();
@@ -114,7 +99,7 @@ class QuestionHistory {
 
         private void begin(String name) {
             entries.setLength(0);
-            entries.append(escaped(name)).append(": <br>");
+            entries.append(LabelText.escaped(name)).append(": <br>");
             render();
         }
 
