@@ -52,7 +52,8 @@ public class GUI {
     private JComboBox<String> guessComboBox;
     //true while the question panel is on screen, so it can be torn down again
     private boolean questionPanelShowing;
-    private JPanel characterSelectionPanel;
+    //where each player picks the character their opponent must guess
+    private CharacterChoiceScreens characterChoice;
     //welcome, mode, names, birthdays, and who goes first
     private SetupScreens setupScreens;
     //character reveal and answer review once the game is over
@@ -99,14 +100,20 @@ public class GUI {
             frame.remove(guessBoardPanel);
             guessPVP(controller.game().getCurrentPlayerName(), characterIndex);
         });
-        characterSelectionPanel = new JPanel();
-        JLabel characterSelectionLabel = new JLabel("<html>Please select a character and remember it, cause in game it will not "
-                + "be displaced. <br>Please click the ready button to start the game when you finish selecting your character.</html>");
-        JButton readyButton = new JButton("Ready");
-        characterSelectionPanel.add(characterSelectionLabel);
-        characterSelectionPanel.add(readyButton);
+        
 
         history = new QuestionHistory();
+        characterChoice = new CharacterChoiceScreens(controller, () -> {
+            frame.remove(characterChoice.panel());
+            if (controller.setup().isAgainstPlayer()) {
+                playerTurns.beginTurn();//adds the board, then the controls over it
+                return;
+            }
+            frame.add(boardPanel1);
+            frame.add(computerTurns);
+            refreshFrame();
+            computerTurns.beginTurn();
+        });
         computerTurns = new ComputerTurnPanel(controller, history, outcome -> {
             frame.remove(boardPanel1);
             frame.remove(computerTurns);
@@ -171,22 +178,6 @@ public class GUI {
                 LeaderboardDialog.show(frame, leaderboardClient);
             }
         });
-        //action listener for the ready button when the user is ready to start play the game
-        readyButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                frame.remove(characterSelectionPanel);
-                if (controller.setup().isAgainstPlayer()) {//when it is PVP mode
-                    playerTurns.beginTurn();//adds the board, then the controls over it
-                }
-                else {//when the user is play with the AI
-                    frame.add(boardPanel1);
-                    frame.add(computerTurns);
-                    refreshFrame();
-                    computerTurns.beginTurn();
-                }
-            }
-        });
     }
     /**
      * repaint the frame
@@ -248,7 +239,8 @@ public class GUI {
                 controller.setup().isAgainstComputer()
                         ? "AI"
                         : controller.setup().secondUsername());
-        frame.add(characterSelectionPanel);
+        frame.add(characterChoice.panel(), BorderLayout.CENTER);
+        characterChoice.begin();
         refreshFrame();
     }
     private void handleGameStartFailure(Exception exception) {

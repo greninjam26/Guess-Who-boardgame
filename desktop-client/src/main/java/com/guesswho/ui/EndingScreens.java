@@ -5,7 +5,6 @@ import com.guesswho.game.AnswerCorrection;
 import java.awt.CardLayout;
 import java.util.List;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
@@ -14,11 +13,10 @@ import javax.swing.JPanel;
  * holding, both are revealed, and — against the computer — the answers they
  * gave are checked against the character they claim.
  *
- * <p>Characters are named now rather than at the start because the game does
- * not know them during play; a player holds theirs in their head. That is also
- * why the check is worth running: a player who answered carelessly, or
- * dishonestly, produces answers that do not match the character they name at
- * the end.</p>
+ * <p>Both characters were chosen before play began, so there is nothing left to
+ * ask here. Against the computer the answers given are replayed against the
+ * character that was actually committed to, which is what makes the check
+ * meaningful rather than a comparison against a later claim.</p>
  */
 class EndingScreens {
     /** Notified once both characters are on screen. */
@@ -33,8 +31,6 @@ class EndingScreens {
         void revealComplete(boolean resultTrustworthy);
     }
 
-    private static final String NAME_FIRST = "nameFirst";
-    private static final String NAME_SECOND = "nameSecond";
     private static final String REVEAL = "reveal";
 
     private final GameController controller;
@@ -46,8 +42,6 @@ class EndingScreens {
     private final JPanel revealPanel = new JPanel();
     private final JLabel outcomeLabel = new JLabel();
     private final JLabel validationLabel = new JLabel();
-    private final JComboBox<String> firstChoice = new JComboBox<>();
-    private final JComboBox<String> secondChoice = new JComboBox<>();
 
     /**
      * Builds the ending screens.
@@ -60,10 +54,6 @@ class EndingScreens {
         this.controller = controller;
         this.images = images;
         this.completion = completion;
-        root.add(namePanel("Which character did you have?", firstChoice, this::nameFirst),
-                NAME_FIRST);
-        root.add(namePanel("Second player, which character did you have?",
-                secondChoice, this::nameSecond), NAME_SECOND);
         root.add(revealPanel, REVEAL);
     }
 
@@ -83,35 +73,14 @@ class EndingScreens {
      */
     void begin(String outcome) {
         outcomeLabel.setText(outcome);
-        String[] characters = controller.game().getCharacterNames();
-        firstChoice.setModel(new javax.swing.DefaultComboBoxModel<>(characters));
-        secondChoice.setModel(new javax.swing.DefaultComboBoxModel<>(characters));
-        cards.show(root, NAME_FIRST);
-    }
-
-    private JPanel namePanel(String prompt, JComboBox<String> choice, Runnable accept) {
-        JPanel panel = new JPanel();
-        JButton confirm = new JButton("Comfirm");
-        confirm.addActionListener(event -> accept.run());
-        panel.add(new JLabel(prompt));
-        panel.add(choice);
-        panel.add(confirm);
-        return panel;
-    }
-
-    private void nameFirst() {
-        controller.game().selectCharacter(
-                controller.setup().firstUsername(), (String) firstChoice.getSelectedItem());
         if (controller.setup().isAgainstComputer()) {
             revealAgainstComputer();
             return;
         }
-        cards.show(root, NAME_SECOND);
+        revealBetweenPlayers();
     }
 
-    private void nameSecond() {
-        controller.game().selectCharacter(
-                controller.setup().secondUsername(), (String) secondChoice.getSelectedItem());
+    private void revealBetweenPlayers() {
         revealPanel.add(portraitOf(controller.setup().secondUsername()));
         revealPanel.add(outcomeLabel);
         revealPanel.add(portraitOf(controller.setup().firstUsername()));
