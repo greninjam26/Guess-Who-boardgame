@@ -184,6 +184,11 @@ public class Game {
      * questions are going is exactly the cheat the answer review exists to
      * catch, so the review would be worthless if this were allowed twice.</p>
      *
+     * <p>Choosing during the game records a {@link CharacterCommitment};
+     * choosing after it does not, because a promise made once the answers are
+     * known proves nothing. A participant with no commitment is one whose
+     * character was only claimed at the end.</p>
+     *
      * @param username username of the player choosing the character
      * @param characterName exact board character name
      * @throws IllegalArgumentException if the username or character name is
@@ -198,7 +203,12 @@ public class Game {
                     username + " has already chosen a character and cannot change it");
         }
         player.setSelectedCharacter(player.findCharacter(characterName));
-        player.setCommitment(CharacterCommitment.to(characterName));
+        //A promise is only worth recording while the outcome is still unknown.
+        //Naming a character after the game is a claim, not a commitment, and
+        //storing one would make the two indistinguishable later.
+        if (status == GameStatus.IN_PROGRESS) {
+            player.setCommitment(CharacterCommitment.to(characterName));
+        }
     }
 
     /**

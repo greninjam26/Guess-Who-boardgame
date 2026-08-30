@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -688,6 +689,33 @@ class GameTest {
 
         assertEquals("Sam", game.getFirstPlayer().getSelectedCharacter().getName());
         assertTrue(game.hasSelectedCharacter("Player 1"));
+    }
+
+    @Test
+    void recordsACommitmentWhenTheCharacterIsChosenDuringPlay() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
+
+        game.selectCharacter("Player 1", "Sam");
+
+        assertTrue(game.getFirstPlayer().getCommitment().matches("Sam"));
+    }
+
+    @Test
+    void recordsNoCommitmentWhenTheCharacterIsOnlyNamedAtTheEnd() throws Exception {
+        game.startPlayerGame(
+                "Player 1", 20000101,
+                "Player 2", 20010101,
+                PlayerGameStart.FIRST_PLAYER, QuestionMode.PRESET);
+        game.finish("Player 1");
+
+        game.selectCharacter("Player 1", "Sam");
+
+        assertNull(game.getFirstPlayer().getCommitment(),
+                "A promise made after the answers are known proves nothing, and storing "
+                        + "one would make it indistinguishable from a real commitment");
     }
 
     @Test

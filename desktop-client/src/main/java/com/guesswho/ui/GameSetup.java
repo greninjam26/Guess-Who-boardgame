@@ -17,6 +17,7 @@ class GameSetup {
     private GameMode mode;
     private ComputerDifficulty difficulty;
     private QuestionMode questionMode;
+    private boolean tellsCharacterUpFront = true;
     private String firstUsername;
     private int firstBirthday;
     private String secondUsername;
@@ -42,6 +43,31 @@ class GameSetup {
         mode = GameMode.PVP_LOCAL;
         difficulty = null;
         questionMode = questions;
+    }
+
+    /**
+     * Reports whether the player tells the game their character before playing.
+     *
+     * <p>Telling it up front is what makes the answer review conclusive: the
+     * character is fixed before a single question is asked. Waiting until the
+     * end keeps the feel of the physical game, where the card stays in your own
+     * tray — but then the review can only catch a careless answer, not a
+     * character picked afterwards to fit the answers given.</p>
+     *
+     * @return {@code true} when the character is chosen before play
+     */
+    boolean tellsCharacterUpFront() {
+        return tellsCharacterUpFront;
+    }
+
+    /**
+     * Chooses when the player tells the game their character.
+     *
+     * @param upFront {@code true} to choose before play, {@code false} to be
+     *        asked once the game is over
+     */
+    void tellsCharacterUpFront(boolean upFront) {
+        tellsCharacterUpFront = upFront;
     }
 
     /**

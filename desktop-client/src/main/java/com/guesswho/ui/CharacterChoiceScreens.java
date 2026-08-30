@@ -3,6 +3,7 @@ package com.guesswho.ui;
 import java.awt.CardLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -40,6 +41,8 @@ class CharacterChoiceScreens {
     private final JComboBox<String> secondChoice = new JComboBox<>();
     private final JLabel firstPrompt = new JLabel();
     private final JLabel secondPrompt = new JLabel();
+    private final JCheckBox tellLater = new JCheckBox(
+            "Don't tell me — I'll keep it to myself and say at the end");
 
     /**
      * Builds the choice screens.
@@ -50,8 +53,12 @@ class CharacterChoiceScreens {
     CharacterChoiceScreens(GameController controller, Completion completion) {
         this.controller = controller;
         this.completion = completion;
-        root.add(choicePanel(firstPrompt, firstChoice, this::chooseFirst), FIRST);
+        root.add(firstCard(), FIRST);
         root.add(choicePanel(secondPrompt, secondChoice, this::chooseSecond), SECOND);
+        tellLater.addActionListener(event -> {
+            firstChoice.setEnabled(!tellLater.isSelected());
+            secondChoice.setEnabled(!tellLater.isSelected());
+        });
     }
 
     /**
@@ -83,6 +90,13 @@ class CharacterChoiceScreens {
                 + "<br>Make sure they are not looking at the screen.</html>";
     }
 
+    /** Only the first card offers the choice; it applies to everyone in the game. */
+    private JPanel firstCard() {
+        JPanel panel = choicePanel(firstPrompt, firstChoice, this::chooseFirst);
+        panel.add(tellLater);
+        return panel;
+    }
+
     private JPanel choicePanel(JLabel prompt, JComboBox<String> choice, Runnable accept) {
         JPanel panel = new JPanel();
         JButton ready = new JButton("Ready");
@@ -94,6 +108,12 @@ class CharacterChoiceScreens {
     }
 
     private void chooseFirst() {
+        controller.setup().tellsCharacterUpFront(!tellLater.isSelected());
+        if (tellLater.isSelected()) {
+            //nobody names a character now; the ending will ask everyone
+            completion.charactersChosen();
+            return;
+        }
         controller.game().selectCharacter(
                 controller.setup().firstUsername(), (String) firstChoice.getSelectedItem());
         if (controller.setup().isAgainstPlayer()) {
