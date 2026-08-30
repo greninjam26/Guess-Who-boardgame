@@ -291,7 +291,7 @@ public class Game {
 
         firstPlayer = new User("", 0, username);
         secondPlayer = null;
-        computerPlayer = new ComputerPlayer(difficulty.mode(), "");
+        computerPlayer = new ComputerPlayer(difficulty, "");
         computerDifficulty = difficulty;
 
         boolean playerStarts = switch (start) {
@@ -413,8 +413,8 @@ public class Game {
     /**
      * Returns the computer's remaining candidate when it is ready to guess.
      *
-     * @return the remaining character name, or an empty value while more than one
-     *         candidate remains
+     * @return the character it will name, or an empty value while it would
+     *         rather ask another question
      * @throws IllegalStateException if no computer game is in progress, it is not
      *         the computer's turn, or a computer question is awaiting an answer
      */
@@ -422,10 +422,10 @@ public class Game {
         ComputerPlayer computer = requireComputerPlayer();
         requireTurn(computer);
         requireNoPendingComputerQuestion();
-        if (!computer.onlyOne()) {
+        if (!computer.readyToGuess()) {
             return Optional.empty();
         }
-        return Optional.of(computer.lastOne());
+        return Optional.of(computer.bestGuess());
     }
 
     /**
@@ -440,7 +440,7 @@ public class Game {
         ComputerPlayer computer = requireComputerPlayer();
         requireTurn(computer);
         requireNoPendingComputerQuestion();
-        if (!computer.onlyOne()) {
+        if (!computer.readyToGuess()) {
             throw new IllegalStateException("The computer is not ready to guess");
         }
         String winningName = correct ? COMPUTER_WINNER : firstPlayer.getUsername();
