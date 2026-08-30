@@ -275,6 +275,11 @@ will freeze.
 
 The first phase with visible payoff, and the one that makes the app demoable.
 
+- [ ] **Replace absolute positioning with layout managers.** Every screen sets
+      pixel bounds against an assumed 1350x1200 window, which does not fit a
+      typical laptop display, so `pack()` is clamped and the board and controls
+      drift apart. Do this before FlatLaf: theming a layout that only lines up at
+      one window size wastes the effort.
 - [ ] FlatLaf. Roughly five lines of setup for flat theming, light/dark, and
       HiDPI — the highest ratio of appearance to effort in the whole plan.
 - [ ] A real ending screen. Right now the outcome is panels bolted onto the
@@ -293,6 +298,16 @@ The first phase with visible payoff, and the one that makes the app demoable.
 > 0–100 linear scale. A slider wired straight to it feels broken across the
 > bottom half of its travel. Map it logarithmically and treat the minimum as
 > mute.
+
+> **The board and the controls both go to `BorderLayout.CENTER`.** Whichever is
+> added last is the one the layout sizes; the other keeps its own bounds and
+> paints in front by Z-order. The game has always relied on that, and Phase 02
+> broke it once by reversing the order, stretching the board across the window.
+>
+> The fix is not a layered container — the two barely overlap, by a 25px graze
+> of one label. They are stacked: the board belongs in `CENTER` and the controls
+> in `SOUTH`, where a `FlowLayout` also removes their pixel bounds. That is one
+> pass fixing both the ordering trap and the window-size drift.
 
 ## Phase 06 — Give the AI a brain · M
 
