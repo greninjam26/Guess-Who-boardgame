@@ -97,16 +97,13 @@ class SetupScreens {
 
     private JPanel welcomeCard() {
         JPanel panel = new JPanel();
-        JLabel instructions = new JLabel(SetupText.INSTRUCTIONS);
-        instructions.setVisible(false);
         JButton howToPlay = new JButton("How To Play");
         JButton start = new JButton("Start The Game");
-        howToPlay.addActionListener(event -> instructions.setVisible(true));
+        howToPlay.addActionListener(event -> HowToPlayDialog.show(root));
         start.addActionListener(event -> cards.show(root, MODE));
         panel.add(new JLabel("Welcome to the Guess Who? Board Game!!"));
         panel.add(howToPlay);
         panel.add(start);
-        panel.add(instructions);
         return panel;
     }
 
