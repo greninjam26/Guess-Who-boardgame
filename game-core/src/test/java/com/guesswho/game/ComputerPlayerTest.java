@@ -57,14 +57,11 @@ class ComputerPlayerTest {
 
         easyComputer.askQuestion(brownEyes.getQuestion(), "yes");
 
-        int activeCharacters = 0;
         for (Character character : easyComputer.getPossibleCharacters()) {
-            if (character.getIsActive()) {
-                activeCharacters++;
-                assertEquals("Brown", character.getEyeColour());
-            }
+            assertEquals("Brown", character.getEyeColour());
         }
-        assertTrue(activeCharacters > 0, "Brown-eyed characters should remain active");
+        assertFalse(easyComputer.getPossibleCharacters().isEmpty(),
+                "Brown-eyed characters should remain");
     }
 
     @Test
@@ -74,14 +71,10 @@ class ComputerPlayerTest {
 
         easyComputer.askQuestion(blueEyes.getQuestion(), "yes");
 
-        int activeCharacters = 0;
         for (Character character : easyComputer.getPossibleCharacters()) {
-            if (character.getIsActive()) {
-                activeCharacters++;
-                assertEquals("Blue", character.getEyeColour());
-            }
+            assertEquals("Blue", character.getEyeColour());
         }
-        assertTrue(activeCharacters > 0, "Blue-eyed characters should remain active");
+        assertFalse(easyComputer.getPossibleCharacters().isEmpty(), "Blue-eyed characters should remain");
     }
 
     @Test
@@ -91,14 +84,10 @@ class ComputerPlayerTest {
 
         easyComputer.askQuestion(blueEyes.getQuestion(), "no");
 
-        int activeCharacters = 0;
         for (Character character : easyComputer.getPossibleCharacters()) {
-            if (character.getIsActive()) {
-                activeCharacters++;
-                assertNotEquals("Blue", character.getEyeColour());
-            }
+            assertNotEquals("Blue", character.getEyeColour());
         }
-        assertTrue(activeCharacters > 0, "Non-blue-eyed characters should remain active");
+        assertFalse(easyComputer.getPossibleCharacters().isEmpty(), "Non-blue-eyed characters should remain");
     }
 
     @Test
@@ -139,10 +128,13 @@ class ComputerPlayerTest {
         hardComputer.askQuestion(glasses.getQuestion(), "yes");
 
         for (Character character : hardComputer.getPossibleCharacters()) {
-            assertEquals(character.getIsGlasses(), character.getIsActive(),
-                    character.getName() + " should survive a \"yes\" to the glasses question"
-                            + " only if they wear glasses");
+            assertTrue(character.getIsGlasses(),
+                    character.getName() + " survived a \"yes\" to the glasses question"
+                            + " without wearing glasses");
         }
+        assertEquals(board.getPeopleCount()[glasses.getQuestionIndex()],
+                hardComputer.getPossibleCharacters().size(),
+                "Everyone who wears glasses should still be in the running");
     }
 
     @Test
@@ -158,7 +150,7 @@ class ComputerPlayerTest {
 
             hardComputer.askQuestion(question.getQuestion(), matchesTarget ? "yes" : "no");
 
-            assertTrue(target.getIsActive(),
+            assertTrue(hardComputer.getPossibleCharacters().contains(target),
                     "Filtering must use the question that was asked, not a stale index");
         }
 
@@ -177,6 +169,34 @@ class ComputerPlayerTest {
 
         assertArrayEquals(boardCountsBefore, board.getPeopleCount(),
                 "Eliminating characters must not mutate the board's own counts");
+    }
+
+    @Test
+    void twoPlayersSharingABoardRuleOutSeparately() throws Exception {
+        Board shared = new Board();
+        ComputerPlayer first = new ComputerPlayer("hard", "", shared, new Random(1));
+        ComputerPlayer second = new ComputerPlayer("hard", "", shared, new Random(2));
+
+        first.ruleOut(0);
+
+        assertEquals(23, first.getPossibleCharacters().size());
+        assertEquals(24, second.getPossibleCharacters().size(),
+                "Eliminations used to live on the board's own characters, so both saw them");
+    }
+
+    @Test
+    void startsWithEveryCharacterInTheRunning() throws Exception {
+        assertEquals(24, new ComputerPlayer("hard", "").getPossibleCharacters().size());
+    }
+
+    @Test
+    void rulingOutTheSameCharacterTwiceCountsOnce() throws Exception {
+        ComputerPlayer computer = new ComputerPlayer("hard", "");
+
+        computer.ruleOut(3);
+        computer.ruleOut(3);
+
+        assertEquals(23, computer.getPossibleCharacters().size());
     }
 
     private Random alwaysChooseFirst() {
