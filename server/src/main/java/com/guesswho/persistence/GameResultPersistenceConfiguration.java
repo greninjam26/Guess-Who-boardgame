@@ -43,4 +43,15 @@ public class GameResultPersistenceConfiguration {
     public AccountRepository accountRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcAccountRepository(jdbcTemplate);
     }
+
+    /**
+     * Creates the repository holding logged-in sessions.
+     *
+     * @param jdbcTemplate configured database operations
+     * @return configured session repository
+     */
+    @Bean
+    public SessionRepository sessionRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcSessionRepository(jdbcTemplate);
+    }
 }
