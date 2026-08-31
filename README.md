@@ -25,12 +25,12 @@ Download the installer for your system from the
 [releases page](https://github.com/greninjam26/Guess-Who-boardgame/releases).
 Java is bundled, so nothing else needs installing.
 
-**macOS** — open the `.dmg` and drag the app to Applications. The first time you
-open it, **right-click the app and choose Open**, then confirm. Double-clicking
-shows *"cannot be opened because the developer cannot be verified"* instead: the
-app is not signed with an Apple developer certificate, which costs $99 a year
-and this project does not have one. Right-clicking the first time is the whole
-workaround, and macOS stops asking afterwards.
+**macOS (Apple silicon)** — open the `.dmg` and drag the app to Applications. The
+first time you open it, **right-click the app and choose Open**, then confirm.
+Double-clicking shows *"cannot be opened because the developer cannot be
+verified"* instead: the app is not signed with an Apple developer certificate,
+which costs $99 a year and this project does not have one. Right-clicking the
+first time is the whole workaround, and macOS stops asking afterwards.
 
 **Windows** — run the `.msi`. Windows SmartScreen shows a blue warning for
 installers it has not seen before; choose **More info**, then **Run anyway**.
@@ -127,7 +127,8 @@ mvn -pl desktop-client exec:java
 On a fresh clone, run `mvn install -DskipTests` first so `game-core` is available
 to the other modules.
 
-The bundled music file currently contains no audio data, so the game starts without background music.
+The bundled background music starts automatically. Open Settings to adjust its
+volume, mute it, or pause it.
 
 Completed games are submitted asynchronously to `http://localhost:8080` by
 default. If the server is unavailable, the result is queued in
@@ -169,7 +170,7 @@ mvn -pl server spring-boot:run
 Alternatively, run the executable JAR after building:
 
 ```bash
-java -jar server/target/server-1.0-SNAPSHOT.jar
+java -jar server/target/server-1.0.0.jar
 ```
 
 The server listens on port `8080` by default. Verify it from another terminal:

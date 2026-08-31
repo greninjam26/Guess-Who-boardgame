@@ -31,7 +31,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 ## The dependency spine
 
 ```text
-v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  →  07 ▸
+v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  07 ✔   shipped
                                    06  needs 00 only — slot in anywhere
 
 v2.0    08  Accounts  →  09  Online PvP  →  10  Ship
@@ -319,12 +319,13 @@ mechanisms, not one. Both are in place.
 > finished game cannot be replayed, so it builds a new one and reuses the
 > opening turn. Characters are deliberately not carried over.
 
-> **Adding music needs more than a file.** `GameResources` looks for
-> `/audio/Bloom of Youth.wav` by that exact name, and Java Sound reads PCM WAV,
+> **Adding music needed more than a file.** `GameResources` looks for
+> `/audio/Guessing Game.wav` by that exact name, and Java Sound reads PCM WAV,
 > AIFF, and AU — an MP3 fails silently, because the exception is caught and
 > turns into "no music" with nothing on screen. It also ships inside
-> `game-core.jar` and therefore inside every installer, which makes it the same
-> licensing question as the artwork.
+> `game-core.jar` and therefore inside every installer, which is why the track
+> is generated rather than licensed: a recording carries rights in both the
+> composition and the performance, and neither was ours to redistribute.
 
 > **Volume is in decibels.** `FloatControl.MASTER_GAIN` is logarithmic, not a
 > 0–100 linear scale. A slider wired straight to it feels broken across the
@@ -396,7 +397,10 @@ mechanisms, not one. Both are in place.
       game rather than when the installer was built.
 - [x] **README pass** covering installing the game rather than only building
       it, including the unsigned-app step each platform needs.
-- [ ] Release notes and the `v1.0.0` tag.
+- [x] **Release notes and the `v1.0.0` tag.** Tagging is what builds the
+      installers and drafts the release, so the whole path was rehearsed on a
+      `v1.0.0-rc1` tag first: the release job only runs on tags, and there is no
+      earlier point at which it can be tested.
 
 > **The version is 1.0.0 because it had to be.** `jpackage` refuses an
 > `--app-version` whose first number is zero on macOS: *"the first number in an
@@ -609,6 +613,11 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** the release itself. Everything Phase 07 needs is built; what
-remains is running the installer workflow once to check the Windows job, which
-has never executed, then writing the notes and tagging `v1.0.0`.
+**Next branch:** Phase 08, accounts. v1.0 is out: a desktop game somebody can
+download and play without building anything, which is what the first seven
+phases were for.
+
+One thing v1.0 shipped without: nobody has run the Windows installer. CI proves
+it builds and the macOS app was launched from its own `.dmg`, but the `.msi`
+has only ever been a file. Worth doing before it is anybody's first
+impression.
