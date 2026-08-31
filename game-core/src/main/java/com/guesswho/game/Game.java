@@ -671,4 +671,129 @@ public class Game {
             throw new IllegalArgumentException(fieldName + " must not be blank");
         }
     }
+
+    // --- saving and resuming ------------------------------------------
+
+    /**
+     * Describes this game completely enough to be rebuilt from.
+     *
+     * @return the state worth keeping
+     * @throws IllegalStateException if the game has not started
+     */
+    public GameSnapshot snapshot() {
+        if (status == GameStatus.STARTING) {
+            throw new IllegalStateException("A game that has not started has nothing to save");
+        }
+        return new GameSnapshot(
+                status,
+                winner.orElse(null),
+                questionMode,
+                computerDifficulty,
+                pendingComputerQuestion == null ? null : pendingComputerQuestion.getQuestion(),
+                stateOf(firstPlayer, firstPlayer.getUsername(), firstPlayer.getBirthday()),
+                secondPlayer == null
+                        ? null
+                        : stateOf(secondPlayer, secondPlayer.getUsername(),
+                                secondPlayer.getBirthday()),
+                computerPlayer == null ? null : computerState());
+    }
+
+    /**
+     * Rebuilds a game from a snapshot.
+     *
+     * <p>The game is started the ordinary way and then replayed onto: every
+     * question is recorded through the same method that records one during
+     * play, and every elimination through the same method the computer uses
+     * when it rules a character out. Anything derived from those — which
+     * questions remain, how many characters each one still splits — is
+     * rebuilt by making them happen rather than being copied across, so a
+     * resumed game cannot hold a tally that disagrees with itself.</p>
+     *
+     * @param snapshot state previously taken from {@link #snapshot()}
+     * @return a game in the state the snapshot describes
+     * @throws NullPointerException if {@code snapshot} is null
+     * @throws Exception if the board resources cannot be loaded
+     */
+    public static Game restoredFrom(GameSnapshot snapshot) throws Exception {
+        Objects.requireNonNull(snapshot, "snapshot");
+        Game game = new Game();
+
+        //Started with a fixed opening rather than a random one: the snapshot
+        //says whose turn it actually is, and a coin flip here would be undone
+        //a few lines later anyway.
+        if (snapshot.isAgainstComputer()) {
+            game.startComputerGame(snapshot.firstPlayer().username(),
+                    snapshot.computerDifficulty(), ComputerGameStart.PLAYER,
+                    snapshot.questionMode());
+        }
+        else {
+            game.startPlayerGame(
+                    snapshot.firstPlayer().username(), snapshot.firstPlayer().birthday(),
+                    snapshot.secondPlayer().username(), snapshot.secondPlayer().birthday(),
+                    PlayerGameStart.FIRST_PLAYER, snapshot.questionMode());
+        }
+
+        game.replay(game.firstPlayer, snapshot.firstPlayer());
+        if (snapshot.isAgainstComputer()) {
+            game.replay(game.computerPlayer, snapshot.computer().player());
+            for (int ruledOut : snapshot.computer().ruledOut()) {
+                game.computerPlayer.ruleOut(ruledOut);
+            }
+        }
+        else {
+            game.replay(game.secondPlayer, snapshot.secondPlayer());
+        }
+
+        game.status = snapshot.status();
+        game.winner = Optional.ofNullable(snapshot.winner());
+        game.pendingComputerQuestion = snapshot.pendingComputerQuestion() == null
+                ? null
+                : game.firstPlayer.getGameBoard().findQuestion(snapshot.pendingComputerQuestion());
+        return game;
+    }
+
+    private GameSnapshot.PlayerState stateOf(Player player, String username, int birthday) {
+        List<String> questions = new ArrayList<>();
+        for (Question asked : player.getQuestionsAsked()) {
+            questions.add(asked.getQuestion());
+        }
+        CharacterCommitment commitment =
+                player instanceof User user ? user.getCommitment() : null;
+        return new GameSnapshot.PlayerState(
+                username,
+                birthday,
+                player.getSelectedCharacter() == null
+                        ? null : player.getSelectedCharacter().getName(),
+                commitment == null ? null : commitment.hash(),
+                commitment == null ? null : commitment.nonce(),
+                questions,
+                new ArrayList<>(player.getQuestionAnswers()),
+                player.getIsTurn());
+    }
+
+    private GameSnapshot.ComputerState computerState() {
+        List<Integer> ruledOut = new ArrayList<>();
+        boolean[] possible = computerPlayer.stillPossible();
+        for (int index = 0; index < possible.length; index++) {
+            if (!possible[index]) {
+                ruledOut.add(index);
+            }
+        }
+        return new GameSnapshot.ComputerState(stateOf(computerPlayer, null, 0), ruledOut);
+    }
+
+    /** Puts a player back where they were by doing again what they did. */
+    private void replay(Player player, GameSnapshot.PlayerState state) {
+        if (state.selectedCharacter() != null) {
+            player.setSelectedCharacter(player.findCharacter(state.selectedCharacter()));
+        }
+        if (player instanceof User user && state.commitment() != null) {
+            user.setCommitment(state.commitment());
+        }
+        for (int i = 0; i < state.questionsAsked().size(); i++) {
+            player.recordQuestionAnswer(
+                    state.questionsAsked().get(i), state.questionAnswers().get(i));
+        }
+        player.setIsTurn(state.isTurn());
+    }
 }
