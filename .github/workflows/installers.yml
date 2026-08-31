@@ -13,8 +13,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# Writing is needed to create the release a tag publishes. A manual run only
+# uploads artifacts and never touches it.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -56,9 +58,39 @@ jobs:
         shell: bash
         run: ./packaging/build-installer.sh
 
+      # Kept for manual runs, where there is no release to attach anything to.
+      # These expire, and downloading one needs a GitHub account even on a
+      # public repository, so they are for checking a build rather than for
+      # giving anybody the game.
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.pattern }}
           if-no-files-found: error
+
+  # A separate job, rather than each build publishing its own installer: two
+  # jobs creating the same release race each other, and GitHub will happily
+  # hold two drafts of one tag, each with half the downloads.
+  release:
+    name: Draft the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Collect both installers
+        uses: actions/download-artifact@v8
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Draft the release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: installers/*
+          # Left as a draft on purpose. The notes want reading before anybody
+          # can download the thing they describe.
+          draft: true
+          fail_on_unmatched_files: true
+          generate_release_notes: true
