@@ -298,6 +298,83 @@ class GameResultControllerTest {
                         """);
     }
 
+    @Test
+    void rejectsANameLongerThanTheColumnHolds() throws Exception {
+        //Without a length check this reaches the database, fails the VARCHAR(255)
+        //constraint, and comes back as a 500 — a server error for what is
+        //plainly a bad request.
+        expectRejected(resultWith("name", "a".repeat(256)));
+    }
+
+    @Test
+    void rejectsAQuestionLongerThanTheColumnHolds() throws Exception {
+        expectRejected(resultWith("question", "a".repeat(2001)));
+    }
+
+    @Test
+    void rejectsAnOversizedWinner() throws Exception {
+        expectRejected(resultWith("winner", "a".repeat(256)));
+    }
+
+    @Test
+    void rejectsAnOversizedCharacterName() throws Exception {
+        expectRejected(resultWith("selectedCharacter", "a".repeat(256)));
+    }
+
+    @Test
+    void acceptsFieldsRightUpToTheLimit() throws Exception {
+        //The boundary belongs to the valid side: 255 characters fit the column,
+        //so rejecting them would be the opposite bug.
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resultWith("selectedCharacter", "a".repeat(255))))
+                .andExpect(status().isCreated());
+
+        assertEquals(1, storedGameCount());
+    }
+
+    private void expectRejected(String requestBody) throws Exception {
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, storedGameCount());
+    }
+
+    /** A valid submission with one field replaced by an oversized value. */
+    private static String resultWith(String field, String value) {
+        String name = "name".equals(field) ? value : "Player 1";
+        String character = "selectedCharacter".equals(field) ? value : "Olivia";
+        String question = "question".equals(field) ? value
+                : "Does your character wear glasses?";
+        //The winner has to keep matching a participant, or the request is
+        //rejected for that instead and the test proves nothing.
+        String winner = "winner".equals(field) ? value : name;
+        if ("winner".equals(field)) {
+            name = value;
+        }
+        return """
+                {
+                  "participants": [
+                    {
+                      "name": "%s",
+                      "selectedCharacter": "%s",
+                      "questionAnswers": [{"question": "%s", "answer": true}]
+                    },
+                    {
+                      "name": "Player 2",
+                      "selectedCharacter": "Nick",
+                      "questionAnswers": [{"question": "Is the person wearing a hat?", "answer": false}]
+                    }
+                  ],
+                  "winner": "%s",
+                  "mode": "PVP_LOCAL",
+                  "questionMode": "PRESET"
+                }
+                """.formatted(name, character, question, winner);
+    }
+
     private int storedGameCount() {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM game_results", Integer.class);
