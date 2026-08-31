@@ -44,8 +44,8 @@ public class HttpGameResultClient implements GameResultClient {
     }
 
     @Override
-    public CompletableFuture<Void> submit(GameResult gameResult) {
-        return httpPoster.post(endpoint, toJson(gameResult))
+    public CompletableFuture<Void> submit(GameResult gameResult, String token) {
+        return httpPoster.post(endpoint, toJson(gameResult), token)
                 .thenCompose(statusCode -> {
                     if (statusCode == 201) {
                         return CompletableFuture.completedFuture(null);
@@ -59,10 +59,14 @@ public class HttpGameResultClient implements GameResultClient {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(REQUEST_TIMEOUT)
                 .build();
-        return (endpoint, body) -> {
-            HttpRequest request = HttpRequest.newBuilder(endpoint)
+        return (endpoint, body, token) -> {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint)
                     .timeout(REQUEST_TIMEOUT)
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", "application/json");
+            if (token != null && !token.isBlank()) {
+                builder.header("Authorization", "Bearer " + token);
+            }
+            HttpRequest request = builder
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
@@ -148,6 +152,6 @@ public class HttpGameResultClient implements GameResultClient {
 
     @FunctionalInterface
     interface HttpPoster {
-        CompletableFuture<Integer> post(URI endpoint, String body);
+        CompletableFuture<Integer> post(URI endpoint, String body, String token);
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -37,6 +38,7 @@ public class GameResultController {
     private static final int MAX_QUESTION = 2000;
 
     private final GameResultRepository gameResultRepository;
+    private final SessionService sessions;
     private final GameResultHistoryRepository gameResultHistoryRepository;
 
     /**
@@ -47,9 +49,11 @@ public class GameResultController {
      */
     public GameResultController(
             GameResultRepository gameResultRepository,
-            GameResultHistoryRepository gameResultHistoryRepository) {
+            GameResultHistoryRepository gameResultHistoryRepository,
+            SessionService sessions) {
         this.gameResultRepository = gameResultRepository;
         this.gameResultHistoryRepository = gameResultHistoryRepository;
+        this.sessions = sessions;
     }
 
     /**
@@ -85,9 +89,19 @@ public class GameResultController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public void createGameResult(@RequestBody GameResult gameResult) {
+    public void createGameResult(
+            @RequestBody GameResult gameResult,
+            @RequestHeader(value = org.springframework.http.HttpHeaders.AUTHORIZATION,
+                    required = false) String authorization) {
         validate(gameResult);
-        gameResultRepository.save(gameResult);
+        //Who played is decided by the token, not by anything in the body. A
+        //body that could name an account is a body that could claim one.
+        //No token is a guest, which is a supported way to play, so this is
+        //never a reason to refuse the result.
+        Long accountId = sessions.accountFor(BearerToken.from(authorization))
+                .map(com.guesswho.account.Account::id)
+                .orElse(null);
+        gameResultRepository.save(gameResult, accountId);
     }
 
     private void validate(GameResult gameResult) {

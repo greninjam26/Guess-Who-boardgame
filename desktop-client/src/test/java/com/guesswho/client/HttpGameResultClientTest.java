@@ -24,7 +24,7 @@ class HttpGameResultClientTest {
         AtomicReference<String> postedBody = new AtomicReference<>();
         HttpGameResultClient client = new HttpGameResultClient(
                 URI.create("https://games.example/guess-who"),
-                (uri, body) -> {
+                (uri, body, token) -> {
                     postedUri.set(uri);
                     postedBody.set(body);
                     return CompletableFuture.completedFuture(201);
@@ -49,7 +49,7 @@ class HttpGameResultClientTest {
     void rejectsNonCreatedServerResponse() {
         HttpGameResultClient client = new HttpGameResultClient(
                 URI.create("http://localhost:8080"),
-                (uri, body) -> CompletableFuture.completedFuture(500));
+                (uri, body, token) -> CompletableFuture.completedFuture(500));
 
         assertThrows(CompletionException.class, () -> client.submit(gameResult()).join());
     }
@@ -60,7 +60,7 @@ class HttpGameResultClientTest {
         CharacterCommitment commitment = CharacterCommitment.to("Olivia");
         HttpGameResultClient client = new HttpGameResultClient(
                 URI.create("http://localhost:8080"),
-                (uri, body) -> {
+                (uri, body, token) -> {
                     postedBody.set(body);
                     return CompletableFuture.completedFuture(201);
                 });

@@ -33,6 +33,8 @@ class GameResultControllerTest {
 
     @BeforeEach
     void clearResults() {
+        jdbcTemplate.update("DELETE FROM account_sessions");
+        jdbcTemplate.update("DELETE FROM accounts");
         jdbcTemplate.update("DELETE FROM game_results");
     }
 
@@ -392,5 +394,78 @@ class GameResultControllerTest {
     }
 
     private record QuestionAnswerRow(int playOrder, String question, boolean answer) {
+    }
+
+    // --- who a result belongs to ---------------------------------------
+
+    @Test
+    void attributesAResultToWhoeverTheTokenBelongsTo() throws Exception {
+        String token = signUpAndIn("greninja", "a-good-password");
+
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content(resultWith("name", "greninja")))
+                .andExpect(status().isCreated());
+
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_result_participants WHERE account_id IS NOT NULL",
+                Integer.class));
+    }
+
+    @Test
+    void storesAGuestsResultWithoutAnOwner() throws Exception {
+        //Playing without an account is supported, so this is stored, just not
+        //owned by anybody.
+        submitGameResult(resultWith("name", "Player 1"));
+
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_result_participants WHERE account_id IS NOT NULL",
+                Integer.class));
+        assertEquals(1, storedGameCount());
+    }
+
+    @Test
+    void attributesOnlyTheSubmittingPlayerNotTheirOpponent() throws Exception {
+        //The second player is whoever else was at the keyboard, and the
+        //computer belongs to nobody.
+        String token = signUpAndIn("greninja", "a-good-password");
+
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content(resultWith("name", "greninja")))
+                .andExpect(status().isCreated());
+
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_result_participants WHERE account_id IS NULL",
+                Integer.class));
+    }
+
+    @Test
+    void ignoresAMadeUpTokenRatherThanRefusingTheResult() throws Exception {
+        //A bad token means nobody is signed in, which is a guest. Losing
+        //somebody's finished game over a stale token would be worse.
+        mockMvc.perform(post("/api/game-results")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer not-a-real-token")
+                        .content(resultWith("name", "Player 1")))
+                .andExpect(status().isCreated());
+
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_result_participants WHERE account_id IS NOT NULL",
+                Integer.class));
+    }
+
+    private String signUpAndIn(String username, String password) throws Exception {
+        String credentials =
+                "{\"username\": \"%s\", \"password\": \"%s\"}".formatted(username, password);
+        mockMvc.perform(post("/api/accounts")
+                .contentType(MediaType.APPLICATION_JSON).content(credentials));
+        String body = mockMvc.perform(post("/api/sessions")
+                        .contentType(MediaType.APPLICATION_JSON).content(credentials))
+                .andReturn().getResponse().getContentAsString();
+        int start = body.indexOf("\"token\":\"") + 9;
+        return body.substring(start, body.indexOf('"', start));
     }
 }

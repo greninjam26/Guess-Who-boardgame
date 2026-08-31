@@ -68,10 +68,19 @@ public class JdbcGameResultRepository
     @Override
     @Transactional
     public void save(GameResult gameResult) {
+        save(gameResult, null);
+    }
+
+    @Override
+    @Transactional
+    public void save(GameResult gameResult, Long accountId) {
         long gameResultId = insertGameResult(gameResult);
         for (int playOrder = 0; playOrder < gameResult.participants().size(); playOrder++) {
             GameResult.Participant participant = gameResult.participants().get(playOrder);
-            long participantId = insertParticipant(gameResultId, playOrder, participant);
+            //Only the first participant belongs to the account: the second is
+            //whoever else was sitting there, and the computer belongs to nobody.
+            Long owner = playOrder == 0 ? accountId : null;
+            long participantId = insertParticipant(gameResultId, playOrder, participant, owner);
             insertQuestionAnswers(participantId, participant.questionAnswers());
         }
     }
@@ -146,15 +155,16 @@ public class JdbcGameResultRepository
     private long insertParticipant(
             long gameResultId,
             int playOrder,
-            GameResult.Participant participant) {
+            GameResult.Participant participant,
+            Long accountId) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
                     """
                     INSERT INTO game_result_participants
                         (game_result_id, play_order, name, selected_character,
-                         commitment_hash, commitment_nonce)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                         commitment_hash, commitment_nonce, account_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     new String[] {"id"});
             statement.setLong(1, gameResultId);
@@ -167,6 +177,12 @@ public class JdbcGameResultRepository
             statement.setString(6, participant.commitment() == null
                     ? null
                     : participant.commitment().nonce());
+            if (accountId == null) {
+                statement.setNull(7, java.sql.Types.BIGINT);
+            }
+            else {
+                statement.setLong(7, accountId);
+            }
             return statement;
         }, keyHolder);
         return generatedId(keyHolder);
