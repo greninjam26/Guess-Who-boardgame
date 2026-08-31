@@ -11,11 +11,11 @@ leaderboard (PR #23) merged.
 
 | Release | What it is | Phases |
 | --- | --- | --- |
-| **v0.5** | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07 |
-| **v1.0** | The same game with accounts and room-code online multiplayer, deployed and reachable | 08–10 |
-| **Post-v1** | History, replay, chat, spectating, and scaling if it's ever measured | 11–13 |
+| **v1.0** | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07 |
+| **v2.0** | The same game with accounts and room-code online multiplayer, deployed and reachable | 08–10 |
+| **Post-v2** | History, replay, chat, spectating, and scaling if it's ever measured | 11–13 |
 
-Shipping v0.5 before the backend work matters. It is a real milestone you can
+Shipping v1.0 before the backend work matters. It is a real milestone you can
 install and hand to someone, and it arrives well before the two XL phases.
 
 ## Locked decisions
@@ -31,10 +31,10 @@ install and hand to someone, and it arrives well before the two XL phases.
 ## The dependency spine
 
 ```text
-v0.5    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ▸  06 ✔  →  07
+v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  →  07 ▸
                                    06  needs 00 only — slot in anywhere
 
-v1.0    08  Accounts  →  09  Online PvP  →  10  Ship
+v2.0    08  Accounts  →  09  Online PvP  →  10  Ship
 
 post    11  Stats and replay  →  12  Chat and spectating
         13  External session storage — only if measured
@@ -73,7 +73,7 @@ this is a build-out rather than a rewrite.
 
 ---
 
-# v0.5 — Playable desktop
+# v1.0 — Playable desktop
 
 ## Phase 00 — Repair the engine · S — done
 
@@ -372,7 +372,7 @@ mechanisms, not one. Both are in place.
 > The board question is stored, not the words typed, so a transcript stays
 > comparable across games however the question was phrased.
 
-## Phase 07 — Ship v0.5 · S
+## Phase 07 — Ship v1.0 · S
 
 **Needs:** 03, 04, 05
 
@@ -388,14 +388,30 @@ mechanisms, not one. Both are in place.
       launched from the Finder that is the root of the disk, where the write
       fails: every result finished while the server was unreachable would have
       been lost, silently, on exactly the builds this phase produces.
-- [ ] `jpackage` installers for macOS and Windows with a bundled JRE.
-- [ ] README pass covering the desktop game, the verification rules, and how to
-      run the local server for leaderboards.
-- [ ] Tag `v0.5`.
+- [x] **`jpackage` installers for macOS and Windows with a bundled JRE.** One
+      script for both, since `jpackage` only produces the format of the machine
+      it runs on and CI therefore needs a runner of each. The bundled runtime
+      is trimmed to the modules `jdeps` finds at build time — 69 MB down to 43 —
+      rather than a hand-written list that would fail when somebody ran the
+      game rather than when the installer was built.
+- [x] **README pass** covering installing the game rather than only building
+      it, including the unsigned-app step each platform needs.
+- [ ] Release notes and the `v1.0.0` tag.
+
+> **The version is 1.0.0 because it had to be.** `jpackage` refuses an
+> `--app-version` whose first number is zero on macOS: *"the first number in an
+> app-version cannot be zero or negative"*. Shipping this as v0.5 would have
+> meant the installer reporting a version the tag disagreed with, so the
+> release milestones moved up one — online play is v2.0.
+
+> **Neither installer is signed.** macOS shows "the developer cannot be
+> verified" and Windows shows SmartScreen, both fixable by the user in one
+> extra click, both documented in the README. Signing costs $99 a year for
+> Apple alone, which is not worth it for this.
 
 ---
 
-# v1.0 — Online
+# v2.0 — Online
 
 ## Phase 08 — Accounts · L
 
@@ -472,7 +488,7 @@ thin and never decide anything.
 > Put that reasoning in the README. Explaining why you *didn't* distribute reads
 > better than having distributed something that didn't need it.
 
-## Phase 10 — Ship v1.0 · M
+## Phase 10 — Ship v2.0 · M
 
 **Needs:** everything above
 
@@ -483,11 +499,11 @@ thin and never decide anything.
 - [ ] Rebuild installers against the deployed server.
 - [ ] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and screenshots.
-- [ ] Tag `v1.0`.
+- [ ] Tag `v2.0`.
 
 ---
 
-# Post-v1
+# Post-v2
 
 ## Phase 11 — Stats and replay · M
 
@@ -557,7 +573,7 @@ cannot be selected rather than failing partway through a game.
 - **A web client** — the whole reason this plan is one language and one rules
   engine. Reconsider only if reach beats maintenance cost.
 - **Custom character packs** — uploads, storage, and moderation. A large surface
-  for a nice-to-have. Revisit after v1.0.
+  for a nice-to-have. Revisit after v2.0.
 - **Public matchmaking** — room codes cover playing with friends and keep chat
   moderation entirely out of scope.
 - **Microservices and message queues** — no load problem exists to solve.
@@ -593,7 +609,6 @@ longer they wait — 02 because every feature added first has to be dismantled,
 04 because it changes an API that Phase 09 will freeze. Everything after 05 can
 be reordered as interest dictates.
 
-**Next branch:** Phase 07. Its two prerequisites that were really blockers —
-assets that could not be redistributed, and files written to a directory an
-installed application does not control — are both done, so what is left is
-packaging: icons, `jpackage`, a CI matrix for macOS and Windows, and the tag.
+**Next branch:** the release itself. Everything Phase 07 needs is built; what
+remains is running the installer workflow once to check the Windows job, which
+has never executed, then writing the notes and tagging `v1.0.0`.
