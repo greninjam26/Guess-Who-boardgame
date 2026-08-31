@@ -214,6 +214,19 @@ public class ComputerPlayer extends Player{
      *
      * @param index board index of the character
      */
+    /**
+     * Which characters the computer has not ruled out.
+     *
+     * <p>Copied, because this is the whole of what the computer has worked out
+     * and handing out the array itself would let a caller change its mind for
+     * it.</p>
+     *
+     * @return one flag per board position, true while still possible
+     */
+    boolean[] stillPossible() {
+        return stillPossible.clone();
+    }
+
     void ruleOut(int index) {
         if (!stillPossible[index]) {
             return;

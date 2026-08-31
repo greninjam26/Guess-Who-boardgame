@@ -119,6 +119,52 @@ method holding ~35 anonymous listeners and mutable fields (`curPlayer`,
 
 ---
 
+## Saving a game in progress
+
+Phase 05. A half-finished game is spread across both modules, and leaving any
+part of it behind produces a game that looks resumed but plays wrong.
+
+```text
+  GameSetup      mode, difficulty, question mode, names, birthdays
+  Game           status, winner, pending computer question, whose turn
+  User x2        selected character, commitment, answers given
+  ComputerPlayer stillPossible[] — the whole of what the computer knows
+  CharacterBoard faceDown[] per player — the cards a player has flipped
+  QuestionHistory the transcript down either side
+```
+
+**The flipped cards are not decoration.** They are the player's working notes,
+and restoring a game to twenty-four face-up cards hands back a position they
+can no longer reason about. That is worse than not offering the resume, so a
+save either captures them or is not worth writing.
+
+- **Written after every turn**, not on exit. A crash or a force-quit is
+  precisely when someone wants their game back, and an on-exit save is the one
+  that misses those.
+- **Deleted when the game finishes.** A completed game offered back as
+  resumable would read as a bug.
+- **One slot**, `saved-game.json`, in the same application directory as the
+  upload queue.
+- **Versioned, and never fatal.** An unreadable or unrecognised save is
+  discarded and the game starts normally. A resume is a convenience; failing to
+  read one must not stop the application launching.
+
+### Crossing the module boundary
+
+`game-core` has no runtime dependencies, which is worth keeping, so nothing in
+it knows about JSON. `Game` instead describes itself as a `GameSnapshot` — a
+plain record — and rebuilds from one, keeping its invariants rather than
+exposing its fields to a serialiser. The client turns that into JSON using the
+Jackson it already carries for the upload queue.
+
+Derived state is recomputed rather than stored: the computer's `answerCount[]`
+and `possibleCharactersCount` both follow from `stillPossible[]`, and storing
+them would create two sources of truth that can disagree.
+
+Online games are excluded. A server-side session is not this file's business.
+
+---
+
 ## Server
 
 ```text
