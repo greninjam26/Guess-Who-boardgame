@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.guesswho</groupId>
         <artifactId>guess-who-boardgame</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>desktop-client</artifactId>
@@ -46,6 +46,41 @@
                 <configuration>
                     <mainClass>com.guesswho.ui.GUI</mainClass>
                 </configuration>
+            </plugin>
+
+            <!-- jpackage is handed a directory of jars and told which one to
+                 start. These two plugins build that directory: the manifest
+                 says what to run and where its libraries are, and the jars
+                 themselves are gathered beside it. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.guesswho.ui.GUI</mainClass>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>collect-runtime-libraries</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

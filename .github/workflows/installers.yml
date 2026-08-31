@@ -1,0 +1,64 @@
+# Builds the desktop installers.
+#
+# jpackage produces only the native format of the machine it runs on, so a
+# .dmg needs a macOS runner and an .msi a Windows one. There is no Linux job:
+# it could not build either of them.
+#
+# Not run on every push. These take minutes and produce tens of megabytes, and
+# nothing between releases needs them.
+name: Installers
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not hide whether the other worked.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS (Apple Silicon)
+            artifact: installer-macos
+            pattern: target/installer/*.dmg
+          - os: windows-latest
+            label: Windows
+            artifact: installer-windows
+            pattern: target/installer/*.msi
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # jpackage builds an .msi through WiX rather than itself, and fails with
+      # "Can not find WiX tools" when it is absent.
+      - name: Install WiX
+        if: runner.os == 'Windows'
+        run: choco install wixtoolset --no-progress -y
+
+      - name: Build installer
+        # bash on the Windows runner too, so one script covers both platforms.
+        shell: bash
+        run: ./packaging/build-installer.sh
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error
