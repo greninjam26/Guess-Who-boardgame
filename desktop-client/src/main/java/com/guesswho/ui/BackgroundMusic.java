@@ -11,10 +11,10 @@ import javax.sound.sampled.FloatControl;
  * The background music, and the three things a player wants to do to it: change
  * how loud it is, silence it, and stop it.
  *
- * <p>Every control works whether or not there is anything to play. The bundled
- * audio file contains no sound data, so the clip is usually absent, and a
- * settings screen that only worked when it happened to load would be worse than
- * one that quietly does nothing.</p>
+ * <p>Every control works whether or not there is anything to play. A machine
+ * with no sound device, or a build without the audio file, leaves the clip
+ * absent; a settings screen that only worked when it happened to load would be
+ * worse than one that quietly does nothing.</p>
  */
 class BackgroundMusic {
     private static final String VOLUME_KEY = "musicVolume";

@@ -96,7 +96,7 @@ public final class GameResources {
      *         unsupported, or unavailable
      */
     public static Optional<Clip> loadBackgroundMusic() {
-        URL resource = GameResources.class.getResource("/audio/Bloom of Youth.wav");
+        URL resource = GameResources.class.getResource("/audio/Guessing Game.wav");
         if (resource == null) {
             return Optional.empty();
         }
@@ -107,7 +107,8 @@ public final class GameResources {
             clip.open(audioStream);
             return Optional.of(clip);
         }
-        catch (IOException | LineUnavailableException | UnsupportedAudioFileException exception) {
+        catch (IOException | IllegalArgumentException | LineUnavailableException
+                | UnsupportedAudioFileException exception) {
             if (clip != null) {
                 clip.close();
             }
