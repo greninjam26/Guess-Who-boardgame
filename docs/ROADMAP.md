@@ -34,7 +34,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  07 ✔   shipped
                                    06  needs 00 only — slot in anywhere
 
-v2.0    08  Accounts  →  09  Online PvP  →  10  Ship
+v2.0    08 ✔  →  09  Online PvP  →  10  Ship (and Postgres)
 
 post    11  Stats and replay  →  12  Chat and spectating
         13  External session storage — only if measured
@@ -417,7 +417,7 @@ mechanisms, not one. Both are in place.
 
 # v2.0 — Online
 
-## Phase 08 — Accounts · L
+## Phase 08 — Accounts · L — done
 
 **Blocks:** 09, 11 **Needs:** 02
 
@@ -425,22 +425,39 @@ Identity is the hook both the leaderboard rework and online play hang from.
 Local PvP stays exactly as it is: one account, one computer, two people — the
 account owns the record and player two is just a name.
 
-- [ ] Registration and login, Spring Security with BCrypt. Token storage on the
-      desktop side, since there's no browser to hold a session.
-- [ ] Guest mode. People should be able to try the game without registering —
-      this matters more for "usable" than any other single decision here.
-- [ ] Persistent login so the app doesn't ask on every launch.
-- [ ] Move production storage to Postgres, keeping H2 in-memory for tests. By now
-      this is a Flyway migration, not a schema rewrite.
-- [ ] Re-key leaderboard entries from typed names to account IDs. Until this
-      lands, two people typing `Gavin` share a row and anyone can claim any name.
-- [ ] Decide what happens to pre-accounts standings — most likely archive or
-      discard rather than trying to attribute them.
-- [ ] Fix ranking while you're in there: ties currently break alphabetically, so
-      `Aaron` permanently outranks `Zoe` at equal wins. Sort on win rate, or on
-      wins then fewer games.
-- [ ] Server-side length and content validation on usernames and questions.
-      `question` is `VARCHAR(2000)` with nothing enforcing it client-side.
+- [x] **Registration and login**, Spring Security for BCrypt only. Sessions are
+      opaque tokens in a table, not JWTs: revocable, no key management, and
+      obvious failure modes. The server stores each token's SHA-256 hash, so a
+      copy of the database yields nothing anyone can present.
+- [x] **Guest mode**, on the first screen beside Sign in and Create an account.
+      No confirmation and no nagging: the whole game works without an account,
+      and signing in is offered rather than demanded.
+- [x] **Persistent login.** The token lives in the application directory as an
+      owner-only file rather than in preferences, which on macOS are
+      world-readable. Resumed before the window is shown, so nobody types into
+      a screen that then vanishes.
+- [ ] **Moved to Phase 10.** Postgres matters when something is deployed, and
+      nothing is yet. The migrations turned out to be portable already — no H2
+      syntax anywhere — so switching engines is configuration, not a rewrite,
+      and doing it early would only oblige everyone to run a database.
+- [x] **Leaderboard keyed on accounts.** Standings group by account where there
+      is one and by typed name where there is not. The account comes from the
+      bearer token and never from the request body — a body that could name an
+      account is a body that could claim one.
+- [x] **Pre-accounts standings stay unattributed.** Every row from before the
+      migration keeps a null account and drops off the registered side.
+      Guessing which account an old `Player 1` belonged to would put somebody
+      else's games on somebody's record.
+- [x] **Ranking fixed**: wins, then fewer games played, then the name as a last
+      resort. The name has to stay in as a tiebreak, or two identical records
+      order differently between calls and a paginated board shows one player
+      twice — but it must not be the second key, which is what made `Aaron`
+      outrank `Zoe`.
+- [x] **Server-side validation.** Field lengths are checked against the column
+      widths before the insert, so an oversized value is a 400 rather than a
+      constraint violation surfacing as a 500. Usernames are limited to letters,
+      digits, underscores and hyphens: a name that cannot be typed back
+      reliably is a name that can impersonate another.
 
 ## Phase 09 — Online PvP · XL
 
