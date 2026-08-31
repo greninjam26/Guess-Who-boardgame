@@ -120,4 +120,35 @@ class CharacterBoard extends JPanel {
     boolean isFaceDown(int characterIndex) {
         return faceDown[characterIndex];
     }
+
+    /**
+     * Which cards are face down, for saving a game in progress.
+     *
+     * @return one flag per board position, oldest board order
+     */
+    List<Boolean> faceDownCards() {
+        List<Boolean> flipped = new ArrayList<>(CHARACTER_COUNT);
+        for (boolean down : faceDown) {
+            flipped.add(down);
+        }
+        return flipped;
+    }
+
+    /**
+     * Puts the cards back the way a saved game left them.
+     *
+     * <p>Goes through {@link #flip} rather than assigning the flags, so the
+     * pictures follow. Setting the array directly would restore a board that
+     * knew which cards were down but did not show it.</p>
+     *
+     * @param flipped one flag per board position
+     */
+    void restore(List<Boolean> flipped) {
+        reset();
+        for (int index = 0; index < CHARACTER_COUNT && index < flipped.size(); index++) {
+            if (Boolean.TRUE.equals(flipped.get(index))) {
+                flip(index);
+            }
+        }
+    }
 }
