@@ -28,7 +28,12 @@ public class TokenStore {
         this(ApplicationDirectory.forThisMachine().resolve("session-token"));
     }
 
-    TokenStore(Path file) {
+    /**
+     * Keeps the token in a given file.
+     *
+     * @param file where to keep it
+     */
+    public TokenStore(Path file) {
         this.file = file;
     }
 

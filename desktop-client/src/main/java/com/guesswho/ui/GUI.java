@@ -1,13 +1,16 @@
 package com.guesswho.ui;
 
 import com.guesswho.client.GameResultSubmissionService;
+import com.guesswho.client.HttpAccountClient;
 import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
 import com.formdev.flatlaf.FlatLightLaf;
 
+import com.guesswho.client.AccountClient;
 import com.guesswho.client.ApplicationDirectory;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
+import com.guesswho.client.TokenStore;
 import com.guesswho.game.Game;
 import com.guesswho.game.GameStatus;
 
@@ -37,6 +40,10 @@ public class GUI {
                     new HttpGameResultClient(),
                     new FilePendingGameResultStore(ApplicationDirectory.forThisMachine()
                             .resolve("pending-game-results.jsonl")));
+    //who is playing: a signed-in account, or a guest
+    private final AccountClient accountClient = new HttpAccountClient();
+    private PlayerIdentity identity;
+    private SignInScreen signInScreen;
     //keeps the game in progress, so a closed window is not a lost game
     private final SavedGameStore savedGames = new SavedGameStore();
     //retrieves server-backed leaderboard standings without blocking Swing
@@ -80,8 +87,10 @@ public class GUI {
         frame.setLayout(new BorderLayout());
         //inialization of some of the veriables
         GameSetup setup = new GameSetup();
+        identity = new PlayerIdentity(accountClient, new TokenStore());
         controller = new GameController(new Game(), setup);
         setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
+        signInScreen = new SignInScreen(accountClient, identity, this::beginSetup);
         endingScreens = new EndingScreens(controller, images,
                 trustworthy -> {
                     if (trustworthy) {
@@ -144,8 +153,10 @@ public class GUI {
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
 
-        // Add start panel to the frame
-        frame.add(setupScreens.panel(), BorderLayout.CENTER);
+        //Signed in already, or asking. Resuming a session is checked before
+        //the window is shown, so nobody types into a screen that then vanishes.
+        boolean signedIn = identity.resumePreviousSession().isPresent();
+        frame.add(signedIn ? setupScreens.panel() : signInScreen.panel(), BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.NORTH);
         // Show the frame
         frame.pack();
@@ -285,6 +296,19 @@ public class GUI {
         endingScreens.begin(outcome);
         refreshFrame();
     }
+    /**
+     * Moves on from the sign-in screen, whether they signed in or not.
+     *
+     * <p>A signed-in player has already given their name once, so the setup
+     * screens do not ask again.</p>
+     */
+    private void beginSetup() {
+        frame.remove(signInScreen.panel());
+        identity.username().ifPresent(controller.setup()::firstUsername);
+        frame.add(setupScreens.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
     // --- saving and resuming ------------------------------------------
 
     private void beginComputerPlay() {
