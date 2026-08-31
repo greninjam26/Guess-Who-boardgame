@@ -26,7 +26,13 @@ public class JdbcLeaderboardRepository implements LeaderboardRepository {
               ON game_result.id = participant.game_result_id
             %s
             GROUP BY participant.name
-            ORDER BY wins DESC, participant.name
+            -- Wins first, then whoever needed fewer games to get them. The
+            -- name is only ever the last resort: without it the order of two
+            -- identical records is whatever the database felt like, and a
+            -- leaderboard that reshuffles between calls can show one player
+            -- twice across a page boundary. Sorting on it any earlier means
+            -- rewarding a username, which is what this used to do.
+            ORDER BY wins DESC, games_played ASC, participant.name
             LIMIT ?
             """;
 
