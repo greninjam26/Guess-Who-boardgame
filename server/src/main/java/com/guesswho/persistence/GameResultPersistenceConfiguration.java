@@ -32,4 +32,15 @@ public class GameResultPersistenceConfiguration {
     public LeaderboardRepository leaderboardRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcLeaderboardRepository(jdbcTemplate);
     }
+
+    /**
+     * Creates the repository holding registered players.
+     *
+     * @param jdbcTemplate configured database operations
+     * @return configured account repository
+     */
+    @Bean
+    public AccountRepository accountRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcAccountRepository(jdbcTemplate);
+    }
 }
