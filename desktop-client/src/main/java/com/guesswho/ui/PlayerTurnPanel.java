@@ -33,6 +33,8 @@ class PlayerTurnPanel extends JPanel {
     private final GameController controller;
     private final QuestionHistory history;
     private final Boards boards;
+    private Runnable onTurnChange = () -> {
+    };
 
     private final JLabel prompt = new JLabel();
     private final JLabel answerShown = new JLabel("");
@@ -79,6 +81,7 @@ class PlayerTurnPanel extends JPanel {
      * Prepares the controls for whoever's turn it now is.
      */
     void beginTurn() {
+        onTurnChange.run();
         prompt.setText(controller.game().getCurrentPlayerName()
                 + (controller.setup().isFreeFormQuestions()
                         ? ", input a question or guess the character"
@@ -92,6 +95,19 @@ class PlayerTurnPanel extends JPanel {
         ask.setEnabled(true);
         boards.showBoardForCurrentPlayer();
     }
+
+    /**
+     * Told whenever a turn begins, so a game in progress can be kept.
+     *
+     * <p>A listener rather than a constructor argument: it is something that
+     * watches turns happen, not something the panel needs in order to work.</p>
+     *
+     * @param listener run at the start of each turn
+     */
+    void onTurnChange(Runnable listener) {
+        onTurnChange = listener;
+    }
+
 
     private void askOpponent() {
         String question = controller.setup().isFreeFormQuestions()

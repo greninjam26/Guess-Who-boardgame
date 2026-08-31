@@ -44,6 +44,8 @@ class CharacterBoard extends JPanel {
     private final CharacterImages images;
     private final List<JButton> cards = new ArrayList<>();
     private final boolean[] faceDown = new boolean[CHARACTER_COUNT];
+    private Runnable onFlip = () -> {
+    };
 
     private CharacterBoard(CharacterImages images, Selection selection) {
         //Twenty-four cards in six columns is a grid, so let one lay it out. The
@@ -68,8 +70,21 @@ class CharacterBoard extends JPanel {
      * @return a board whose cards flip face down and back
      */
     static CharacterBoard tracking(CharacterImages images) {
+        return tracking(images, () -> {
+        });
+    }
+
+    /**
+     * Creates a tracking board that reports when a player turns a card over.
+     *
+     * @param images portraits shown on the cards
+     * @param onFlip run after a player flips a card, so the game can be saved
+     * @return a board whose cards flip face down and back
+     */
+    static CharacterBoard tracking(CharacterImages images, Runnable onFlip) {
         CharacterBoard board = new CharacterBoard(images, index -> {
         });
+        board.onFlip = onFlip;
         board.makeCardsFlip();
         return board;
     }
@@ -93,9 +108,22 @@ class CharacterBoard extends JPanel {
         }
     }
 
+    /** A player turning a card over, which is worth saving. */
     private void flip(int characterIndex) {
-        faceDown[characterIndex] = !faceDown[characterIndex];
-        cards.get(characterIndex).setIcon(faceDown[characterIndex]
+        setFaceDown(characterIndex, !faceDown[characterIndex]);
+        onFlip.run();
+    }
+
+    /**
+     * Turns one card, without treating it as something the player just did.
+     *
+     * <p>Resetting and restoring both move cards, and neither is a move worth
+     * saving: one is starting a new game, the other is putting a saved one
+     * back.</p>
+     */
+    private void setFaceDown(int characterIndex, boolean down) {
+        faceDown[characterIndex] = down;
+        cards.get(characterIndex).setIcon(down
                 ? images.eliminated()
                 : images.portrait(characterIndex));
     }
@@ -105,9 +133,7 @@ class CharacterBoard extends JPanel {
      */
     void reset() {
         for (int index = 0; index < CHARACTER_COUNT; index++) {
-            if (faceDown[index]) {
-                flip(index);
-            }
+            setFaceDown(index, false);
         }
     }
 
@@ -137,18 +163,16 @@ class CharacterBoard extends JPanel {
     /**
      * Puts the cards back the way a saved game left them.
      *
-     * <p>Goes through {@link #flip} rather than assigning the flags, so the
-     * pictures follow. Setting the array directly would restore a board that
-     * knew which cards were down but did not show it.</p>
+     * <p>Sets each card through the same method a flip uses, so the pictures
+     * follow. Assigning the flags alone would restore a board that knew which
+     * cards were down but did not show it.</p>
      *
      * @param flipped one flag per board position
      */
     void restore(List<Boolean> flipped) {
         reset();
         for (int index = 0; index < CHARACTER_COUNT && index < flipped.size(); index++) {
-            if (Boolean.TRUE.equals(flipped.get(index))) {
-                flip(index);
-            }
+            setFaceDown(index, Boolean.TRUE.equals(flipped.get(index)));
         }
     }
 }

@@ -50,4 +50,26 @@ record SavedGame(
     boolean isReadable() {
         return version == VERSION;
     }
+
+    /**
+     * Puts the setup screens' choices back as this game left them.
+     *
+     * <p>Read out of the snapshot rather than stored separately, so the setup
+     * a resumed game runs under is the same one the rules are using.</p>
+     *
+     * @param setup the setup to repopulate
+     */
+    void restoreSetup(GameSetup setup) {
+        if (game.isAgainstComputer()) {
+            setup.againstComputer(game.computerDifficulty(), game.questionMode());
+        }
+        else {
+            setup.againstPlayer(game.questionMode());
+            setup.secondUsername(game.secondPlayer().username());
+            setup.secondBirthday(game.secondPlayer().birthday());
+        }
+        setup.firstUsername(game.firstPlayer().username());
+        setup.firstBirthday(game.firstPlayer().birthday());
+        setup.tellsCharacterUpFront(tellsCharacterUpFront);
+    }
 }

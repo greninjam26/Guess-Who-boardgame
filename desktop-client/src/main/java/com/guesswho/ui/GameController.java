@@ -82,6 +82,29 @@ class GameController {
         start(openingTurn);
     }
 
+    /**
+     * Returns who took the first turn, so a game can be saved as it was set up.
+     *
+     * @return the opening turn, or null before a game has started
+     */
+    OpeningTurn openingTurn() {
+        return openingTurn;
+    }
+
+    /**
+     * Takes over a game that was restored from a save.
+     *
+     * <p>The existing controller is reused rather than replaced, because every
+     * screen already holds a reference to it.</p>
+     *
+     * @param resumed     the restored game
+     * @param openingTurn who started it, so a rematch can start the same way
+     */
+    void resume(Game resumed, OpeningTurn openingTurn) {
+        this.game = resumed;
+        this.openingTurn = openingTurn;
+    }
+
     private ComputerGameStart computerStart(OpeningTurn openingTurn) {
         return switch (openingTurn) {
             case COMPUTER -> ComputerGameStart.COMPUTER;
