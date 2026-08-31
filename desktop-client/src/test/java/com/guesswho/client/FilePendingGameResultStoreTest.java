@@ -97,7 +97,7 @@ class FilePendingGameResultStoreTest {
     }
 
     private FilePendingGameResultStore store() {
-        return new FilePendingGameResultStore(queueFile().toString());
+        return new FilePendingGameResultStore(queueFile());
     }
 
     private Path queueFile() {

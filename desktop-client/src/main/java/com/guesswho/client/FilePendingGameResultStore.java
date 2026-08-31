@@ -28,10 +28,14 @@ public class FilePendingGameResultStore implements PendingGameResultStore {
     /**
      * Creates a queue backed by the given file.
      *
+     * <p>The caller chooses the location, because a bare file name would be
+     * resolved against the working directory, which an installed application
+     * does not control. See {@link ApplicationDirectory}.</p>
+     *
      * @param queueFile file used to hold results awaiting upload
      */
-    public FilePendingGameResultStore(String queueFile) {
-        this.queueFile = Path.of(queueFile);
+    public FilePendingGameResultStore(Path queueFile) {
+        this.queueFile = queueFile;
     }
 
     /**
