@@ -21,3 +21,6 @@ guess-who-data.trace.db
 # Operating-system files
 .DS_Store
 Thumbs.db
+
+# Intermediate icon sizes; ApplicationIcon regenerates them
+packaging/GuessWho.iconset/
