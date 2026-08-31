@@ -5,6 +5,7 @@ import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
 import com.formdev.flatlaf.FlatLightLaf;
 
+import com.guesswho.client.ApplicationDirectory;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.Game;
@@ -32,7 +33,8 @@ public class GUI {
     private final GameResultSubmissionService resultSubmissionService =
             new GameResultSubmissionService(
                     new HttpGameResultClient(),
-                    new FilePendingGameResultStore("pending-game-results.jsonl"));
+                    new FilePendingGameResultStore(ApplicationDirectory.forThisMachine()
+                            .resolve("pending-game-results.jsonl")));
     //retrieves server-backed leaderboard standings without blocking Swing
     private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
     //the music
