@@ -80,11 +80,16 @@ class LeaderboardControllerTest {
         submitGame("Alex", "AI", "Alex", "PVE");
         submitGame("Alex", "Blake", "Blake", "PVP_LOCAL");
 
+        //Alex played in both games, which is the point of the test: a game in
+        //each mode counts towards one combined record. Blake is ahead on one
+        //win from one game against Alex's one from two.
         mockMvc.perform(get("/api/leaderboard"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Alex"))
-                .andExpect(jsonPath("$[0].gamesPlayed").value(2))
-                .andExpect(jsonPath("$[0].wins").value(1));
+                .andExpect(jsonPath("$[0].name").value("Blake"))
+                .andExpect(jsonPath("$[0].gamesPlayed").value(1))
+                .andExpect(jsonPath("$[1].name").value("Alex"))
+                .andExpect(jsonPath("$[1].gamesPlayed").value(2))
+                .andExpect(jsonPath("$[1].wins").value(1));
     }
 
     @Test
