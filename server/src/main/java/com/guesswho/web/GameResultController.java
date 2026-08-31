@@ -29,6 +29,13 @@ public class GameResultController {
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
 
+    //These match the column widths in V1__baseline.sql. Without them an
+    //oversized field reaches the database, breaks the constraint there, and
+    //surfaces as a 500 — the server reporting its own error for what is
+    //plainly a bad request. Change one of these and change the migration.
+    private static final int MAX_NAME = 255;
+    private static final int MAX_QUESTION = 2000;
+
     private final GameResultRepository gameResultRepository;
     private final GameResultHistoryRepository gameResultHistoryRepository;
 
@@ -96,16 +103,20 @@ public class GameResultController {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Question mode must be supplied");
         }
+        requireAtMost("winner", gameResult.winner(), MAX_NAME);
         for (GameResult.Participant participant : gameResult.participants()) {
             if (participant == null || isBlank(participant.name())
                     || isBlank(participant.selectedCharacter())
                     || participant.questionAnswers() == null) {
                 throw incompleteResult();
             }
+            requireAtMost("Participant name", participant.name(), MAX_NAME);
+            requireAtMost("Selected character", participant.selectedCharacter(), MAX_NAME);
             for (GameResult.QuestionAnswer questionAnswer : participant.questionAnswers()) {
                 if (questionAnswer == null || isBlank(questionAnswer.question())) {
                     throw incompleteResult();
                 }
+                requireAtMost("Question", questionAnswer.question(), MAX_QUESTION);
             }
         }
         boolean winnerIsParticipant = gameResult.participants().stream()
@@ -113,6 +124,14 @@ public class GameResultController {
         if (!winnerIsParticipant) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Winner must match a participant");
+        }
+    }
+
+    private void requireAtMost(String name, String value, int maximum) {
+        if (value.length() > maximum) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    name + " must be at most " + maximum + " characters");
         }
     }
 
