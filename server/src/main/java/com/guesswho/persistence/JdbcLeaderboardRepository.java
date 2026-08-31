@@ -13,9 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
  * Reads leaderboard standings from saved game results.
  */
 public class JdbcLeaderboardRepository implements LeaderboardRepository {
+    //Grouped on the account where there is one and the typed name where there
+    //is not. An account's row cannot be joined by somebody typing its name,
+    //which is the whole point of signing in; guests keep sharing a row with
+    //anyone who typed the same thing, which is what being anonymous costs.
     private static final String STANDINGS_TEMPLATE = """
             SELECT
-                participant.name,
+                COALESCE(account.username, participant.name) AS name,
+                CASE WHEN participant.account_id IS NULL THEN FALSE ELSE TRUE END
+                    AS registered,
                 COUNT(DISTINCT participant.game_result_id) AS games_played,
                 COUNT(DISTINCT CASE
                     WHEN game_result.winner = participant.name
@@ -24,15 +30,17 @@ public class JdbcLeaderboardRepository implements LeaderboardRepository {
             FROM game_result_participants participant
             JOIN game_results game_result
               ON game_result.id = participant.game_result_id
+            LEFT JOIN accounts account
+              ON account.id = participant.account_id
             %s
-            GROUP BY participant.name
+            GROUP BY participant.account_id, COALESCE(account.username, participant.name)
             -- Wins first, then whoever needed fewer games to get them. The
             -- name is only ever the last resort: without it the order of two
             -- identical records is whatever the database felt like, and a
             -- leaderboard that reshuffles between calls can show one player
             -- twice across a page boundary. Sorting on it any earlier means
             -- rewarding a username, which is what this used to do.
-            ORDER BY wins DESC, games_played ASC, participant.name
+            ORDER BY wins DESC, games_played ASC, name
             LIMIT ?
             """;
 
@@ -57,7 +65,8 @@ public class JdbcLeaderboardRepository implements LeaderboardRepository {
         RowMapper<LeaderboardEntry> rowMapper = (resultSet, rowNumber) -> new LeaderboardEntry(
                 resultSet.getString("name"),
                 resultSet.getInt("games_played"),
-                resultSet.getInt("wins"));
+                resultSet.getInt("wins"),
+                resultSet.getBoolean("registered"));
         if (mode == null) {
             return jdbcTemplate.query(ALL_MODES_SQL, rowMapper, limit);
         }

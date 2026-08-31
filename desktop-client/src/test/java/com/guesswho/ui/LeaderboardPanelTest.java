@@ -34,8 +34,8 @@ class LeaderboardPanelTest {
         assertFalse(table.isVisible());
 
         response.complete(List.of(
-                new LeaderboardEntry("Alex", 3, 2),
-                new LeaderboardEntry("AI", 3, 1)));
+                new LeaderboardEntry("Alex", 3, 2, false),
+                new LeaderboardEntry("AI", 3, 1, false)));
         SwingUtilities.invokeAndWait(() -> {
         });
 
@@ -110,7 +110,7 @@ class LeaderboardPanelTest {
                         new IllegalStateException("Server unavailable"));
             }
             return CompletableFuture.completedFuture(
-                    List.of(new LeaderboardEntry("Alex", 3, 2)));
+                    List.of(new LeaderboardEntry("Alex", 3, 2, false)));
         }, GameMode.PVE)));
         SwingUtilities.invokeAndWait(() -> {
         });

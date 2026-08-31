@@ -18,7 +18,7 @@ class GameResultSubmissionServiceTest {
     @Test
     void successfulServerSubmissionDoesNotQueueResultLocally() {
         CapturingStore pending = new CapturingStore();
-        GameResultClient serverClient = result -> CompletableFuture.completedFuture(null);
+        GameResultClient serverClient = (result, token) -> CompletableFuture.completedFuture(null);
         GameResultSubmissionService submissionService =
                 new GameResultSubmissionService(serverClient, pending);
 
@@ -30,7 +30,7 @@ class GameResultSubmissionServiceTest {
     @Test
     void failedServerSubmissionQueuesResultLocally() {
         CapturingStore pending = new CapturingStore();
-        GameResultClient serverClient = result -> CompletableFuture.failedFuture(
+        GameResultClient serverClient = (result, token) -> CompletableFuture.failedFuture(
                 new IOException("Server unavailable"));
         GameResultSubmissionService submissionService =
                 new GameResultSubmissionService(serverClient, pending);
@@ -47,7 +47,7 @@ class GameResultSubmissionServiceTest {
         GameResult queued = gameResult("Earlier");
         pending.add(queued);
         List<GameResult> submitted = new ArrayList<>();
-        GameResultClient serverClient = result -> {
+        GameResultClient serverClient = (result, token) -> {
             submitted.add(result);
             return CompletableFuture.completedFuture(null);
         };
@@ -66,7 +66,7 @@ class GameResultSubmissionServiceTest {
         CapturingStore pending = new CapturingStore();
         GameResult queued = gameResult("Earlier");
         pending.add(queued);
-        GameResultClient serverClient = result -> result.winner().equals("Player")
+        GameResultClient serverClient = (result, token) -> result.winner().equals("Player")
                 ? CompletableFuture.completedFuture(null)
                 : CompletableFuture.failedFuture(new IOException("Rejected"));
         GameResultSubmissionService submissionService =

@@ -22,7 +22,13 @@ import tools.jackson.databind.json.JsonMapper;
 public class HttpLeaderboardClient implements LeaderboardClient {
     private static final String DEFAULT_SERVER_URL = "http://localhost:8080";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+    //A field the response does not carry reads as its default rather than
+    //failing the whole list. A server too old to say whether a row belongs to
+    //an account is a server where none of them do, which is what false means.
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder()
+            .disable(tools.jackson.databind.DeserializationFeature
+                    .FAIL_ON_NULL_FOR_PRIMITIVES)
+            .build();
 
     private final URI endpoint;
     private final HttpGetter httpGetter;

@@ -385,7 +385,11 @@ public class GUI {
     }
 
     private void submitGameResult() {
-        resultSubmissionService.submit(controller.game().getGameResult())
+        //Signed in, and the server attributes the game to that account rather
+        //than to whatever name was typed. A guest sends no token and their
+        //result is still stored, just not owned by anybody.
+        resultSubmissionService.submit(
+                        controller.game().getGameResult(), identity.token().orElse(null))
                 .exceptionally(failure -> {
                     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
                             frame,

@@ -4,7 +4,9 @@ import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.util.List;
@@ -33,8 +35,8 @@ class HttpLeaderboardClientTest {
 
         assertEquals(
                 List.of(
-                        new LeaderboardEntry("Alex", 3, 2),
-                        new LeaderboardEntry("AI", 3, 1)),
+                        new LeaderboardEntry("Alex", 3, 2, false),
+                        new LeaderboardEntry("AI", 3, 1, false)),
                 client.fetch(null).join());
         assertEquals(
                 URI.create("https://games.example/api/leaderboard"),
@@ -87,5 +89,34 @@ class HttpLeaderboardClientTest {
                         new IllegalStateException("Server unavailable")));
 
         assertThrows(CompletionException.class, () -> client.fetch(null).join());
+    }
+
+    @Test
+    void readsARowThatSaysWhetherItBelongsToAnAccount() {
+        LeaderboardEntry entry = returning(
+                "[{\"name\":\"greninja\",\"gamesPlayed\":3,\"wins\":2,\"registered\":true}]")
+                .fetch(null).join().get(0);
+
+        assertTrue(entry.registered());
+        assertEquals("greninja", entry.name());
+    }
+
+    @Test
+    void survivesAResponseWithoutTheRegisteredField() {
+        //An older server does not send it. Failing to parse the whole list over
+        //a missing flag would take the leaderboard down entirely.
+        LeaderboardEntry entry = returning(
+                "[{\"name\":\"Sam\",\"gamesPlayed\":3,\"wins\":2}]")
+                .fetch(null).join().get(0);
+
+        assertFalse(entry.registered());
+        assertEquals(3, entry.gamesPlayed());
+    }
+
+    private static HttpLeaderboardClient returning(String body) {
+        return new HttpLeaderboardClient(
+                URI.create("https://games.example"),
+                endpoint -> java.util.concurrent.CompletableFuture.completedFuture(
+                        new HttpLeaderboardClient.Response(200, body)));
     }
 }

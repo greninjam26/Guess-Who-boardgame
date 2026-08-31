@@ -1,6 +1,8 @@
 package com.guesswho.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.guesswho.GuessWhoServerApplication;
 import com.guesswho.game.ComputerDifficulty;
@@ -30,6 +32,7 @@ class JdbcLeaderboardRepositoryTest {
     @BeforeEach
     void clearResults() {
         jdbcTemplate.update("DELETE FROM game_results");
+        jdbcTemplate.update("DELETE FROM accounts");
     }
 
     @Test
@@ -125,5 +128,83 @@ class JdbcLeaderboardRepositoryTest {
                 .map(LeaderboardEntry::name)
                 .filter(name -> !"AI".equals(name))
                 .toList();
+    }
+
+    // --- accounts ------------------------------------------------------
+
+    @Test
+    void keepsASignedInPlayerApartFromAGuestWhoTypedTheSameName() {
+        //The whole point of signing in: a row that cannot be joined by
+        //somebody typing your name.
+        long accountId = account("greninja");
+        winGamesAs("greninja", accountId, 3);
+        winGames("greninja", 1);
+
+        List<LeaderboardEntry> standings = leaderboardRepository.findStandings(null, 10);
+
+        assertEquals(2, standings.stream()
+                .filter(entry -> entry.name().equals("greninja")).count(),
+                "The account and the guest are two different players");
+        assertTrue(standings.stream()
+                .anyMatch(entry -> entry.name().equals("greninja") && entry.registered()));
+        assertTrue(standings.stream()
+                .anyMatch(entry -> entry.name().equals("greninja") && !entry.registered()));
+    }
+
+    @Test
+    void addsUpEveryGameAnAccountPlayed() {
+        long accountId = account("greninja");
+        winGamesAs("greninja", accountId, 2);
+        loseGamesAs("greninja", accountId, 1);
+
+        LeaderboardEntry entry = standingFor("greninja");
+
+        assertEquals(3, entry.gamesPlayed());
+        assertEquals(2, entry.wins());
+        assertTrue(entry.registered());
+    }
+
+    @Test
+    void showsTheAccountsNameEvenAfterItIsTypedDifferently() {
+        //Attribution is by account, so the row is labelled by the account.
+        long accountId = account("Greninja");
+        gameResultRepository.save(result("greninja", "greninja"), accountId);
+
+        assertTrue(leaderboardRepository.findStandings(null, 10).stream()
+                .anyMatch(entry -> entry.name().equals("Greninja") && entry.registered()));
+    }
+
+    @Test
+    void leavesGamesFromBeforeAccountsUnattributed() {
+        //Guessing which account an old row belonged to would put somebody
+        //else's games on somebody's record.
+        winGames("Player 1", 2);
+
+        LeaderboardEntry entry = standingFor("Player 1");
+
+        assertEquals(2, entry.gamesPlayed());
+        assertFalse(entry.registered());
+    }
+
+    private long account(String username) {
+        jdbcTemplate.update(
+                "INSERT INTO accounts (username, username_folded, password_hash)"
+                        + " VALUES (?, ?, 'x')",
+                username, username.toLowerCase(java.util.Locale.ROOT));
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM accounts WHERE username_folded = ?",
+                Long.class, username.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private void winGamesAs(String name, long accountId, int count) {
+        for (int game = 0; game < count; game++) {
+            gameResultRepository.save(result(name, name), accountId);
+        }
+    }
+
+    private void loseGamesAs(String name, long accountId, int count) {
+        for (int game = 0; game < count; game++) {
+            gameResultRepository.save(result(name, "AI"), accountId);
+        }
     }
 }

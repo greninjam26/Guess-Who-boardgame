@@ -36,7 +36,19 @@ public class GameResultSubmissionService {
      * @return future completed once the result is stored or queued
      */
     public CompletableFuture<Void> submit(GameResult gameResult) {
-        return serverClient.submit(gameResult)
+        return submit(gameResult, null);
+    }
+
+    /**
+     * Submits a completed game as a signed-in player, queueing it if the server
+     * cannot be reached.
+     *
+     * @param gameResult completed game to submit
+     * @param token      the session token, or null when playing as a guest
+     * @return completes once the result is stored or safely queued
+     */
+    public CompletableFuture<Void> submit(GameResult gameResult, String token) {
+        return serverClient.submit(gameResult, token)
                 .handle((ignored, failure) -> failure == null)
                 .thenCompose(accepted -> {
                     if (!accepted) {
