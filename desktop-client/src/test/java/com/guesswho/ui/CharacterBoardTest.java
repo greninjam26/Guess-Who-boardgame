@@ -127,6 +127,89 @@ class CharacterBoardTest {
         }
     }
 
+    @Test
+    void reportsACardTheUserTurnedOver() throws Exception {
+        List<String> flips = new ArrayList<>();
+        CharacterBoard board = tracking(() -> flips.add("flipped"));
+
+        SwingUtilities.invokeAndWait(() -> cards(board).get(4).doClick());
+
+        assertEquals(1, flips.size(),
+                "A flipped card is a note the player made and the game should be saved");
+    }
+
+    @Test
+    void saysNothingWhileACardIsBeingPutBack() throws Exception {
+        List<String> flips = new ArrayList<>();
+        CharacterBoard board = tracking(() -> flips.add("flipped"));
+
+        SwingUtilities.invokeAndWait(() -> board.restore(faceDown(1, 2, 3)));
+
+        assertTrue(flips.isEmpty(),
+                "Restoring a saved game is not the player making twenty-four moves");
+    }
+
+    @Test
+    void saysNothingWhileTheBoardIsBeingCleared() throws Exception {
+        List<String> flips = new ArrayList<>();
+        CharacterBoard board = tracking(() -> flips.add("flipped"));
+        SwingUtilities.invokeAndWait(() -> board.restore(faceDown(0)));
+        flips.clear();
+
+        SwingUtilities.invokeAndWait(board::reset);
+
+        assertTrue(flips.isEmpty());
+    }
+
+    @Test
+    void putsTheCardsAndTheirPicturesBackTogether() throws Exception {
+        CharacterBoard board = tracking();
+
+        SwingUtilities.invokeAndWait(() -> board.restore(faceDown(2, 7)));
+
+        assertTrue(board.isFaceDown(2));
+        assertTrue(board.isFaceDown(7));
+        assertFalse(board.isFaceDown(3));
+        assertSame(images.eliminated(), cards(board).get(2).getIcon(),
+                "A restored board that knows a card is down but still shows the face is worse "
+                        + "than one that forgot");
+        assertSame(images.portrait(3), cards(board).get(3).getIcon());
+    }
+
+    @Test
+    void handsBackWhichCardsAreDown() throws Exception {
+        CharacterBoard board = tracking();
+
+        SwingUtilities.invokeAndWait(() -> board.restore(faceDown(5)));
+
+        assertEquals(faceDown(5), board.faceDownCards());
+    }
+
+    @Test
+    void survivesASaveThatIsShorterThanTheBoard() throws Exception {
+        CharacterBoard board = tracking();
+
+        SwingUtilities.invokeAndWait(() -> board.restore(List.of(true, true)));
+
+        assertTrue(board.isFaceDown(0));
+        assertFalse(board.isFaceDown(23));
+    }
+
+    private static List<Boolean> faceDown(int... flipped) {
+        Boolean[] cards = new Boolean[CharacterBoard.CHARACTER_COUNT];
+        java.util.Arrays.fill(cards, false);
+        for (int index : flipped) {
+            cards[index] = true;
+        }
+        return List.of(cards);
+    }
+
+    private CharacterBoard tracking(Runnable onFlip) throws Exception {
+        AtomicReference<CharacterBoard> reference = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> reference.set(CharacterBoard.tracking(images, onFlip)));
+        return reference.get();
+    }
+
     private CharacterBoard tracking() throws Exception {
         AtomicReference<CharacterBoard> reference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> reference.set(CharacterBoard.tracking(images)));

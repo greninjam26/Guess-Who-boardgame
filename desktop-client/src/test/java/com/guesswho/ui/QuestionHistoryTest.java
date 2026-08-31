@@ -72,4 +72,30 @@ class QuestionHistoryTest {
                 "A name must not be rendered as markup by the label showing it");
     }
 
+    @Test
+    void handsBackTheTranscriptsAndTakesThemAgain() throws Exception {
+        QuestionHistory history = new QuestionHistory();
+        history.begin("sam", "alex");
+        history.recordForFirst("Does your character wear glasses? Yes");
+        history.recordForSecond("Is the person wearing a hat? No");
+
+        String first = history.firstEntries();
+        String second = history.secondEntries();
+        QuestionHistory resumed = new QuestionHistory();
+        resumed.restore(first, second);
+
+        assertEquals(history.firstText(), resumed.firstText());
+        assertEquals(history.secondText(), resumed.secondText());
+        assertTrue(resumed.firstText().contains("glasses"),
+                "The transcript is the record of how the position was reached");
+    }
+
+    @Test
+    void restoringNothingLeavesAnEmptyTranscriptRatherThanFailing() {
+        QuestionHistory history = new QuestionHistory();
+
+        history.restore(null, null);
+
+        assertEquals("<html></html>", history.firstText());
+    }
 }

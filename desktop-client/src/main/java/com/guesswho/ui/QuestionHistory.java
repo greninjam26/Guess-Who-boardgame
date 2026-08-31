@@ -87,6 +87,33 @@ class QuestionHistory {
         return second.label.getText();
     }
 
+    /**
+     * The transcripts as stored, for saving a game.
+     *
+     * @return the first player's entries, without the surrounding markup
+     */
+    String firstEntries() {
+        return first.entries.toString();
+    }
+
+    /**
+     * @return the second player's entries, without the surrounding markup
+     */
+    String secondEntries() {
+        return second.entries.toString();
+    }
+
+    /**
+     * Puts both transcripts back as a saved game left them.
+     *
+     * @param firstSaved  the first player's entries
+     * @param secondSaved the second player's entries
+     */
+    void restore(String firstSaved, String secondSaved) {
+        first.restore(firstSaved);
+        second.restore(secondSaved);
+    }
+
     private static final class Side {
         private final JPanel panel = new JPanel();
         private final JLabel label = new JLabel();
@@ -105,6 +132,12 @@ class QuestionHistory {
 
         private void append(String entry) {
             entries.append(entry).append("<br>");
+            render();
+        }
+
+        private void restore(String saved) {
+            entries.setLength(0);
+            entries.append(saved == null ? "" : saved);
             render();
         }
 

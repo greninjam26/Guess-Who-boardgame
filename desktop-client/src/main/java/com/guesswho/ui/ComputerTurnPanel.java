@@ -39,6 +39,8 @@ class ComputerTurnPanel extends JPanel {
     private final GameController controller;
     private final QuestionHistory history;
     private final GameOver gameOver;
+    private Runnable onTurnChange = () -> {
+    };
 
     private final JLabel prompt = new JLabel();
     private final JLabel answerShown = new JLabel("");
@@ -94,6 +96,7 @@ class ComputerTurnPanel extends JPanel {
      * Runs one turn, which belongs either to the player or to the computer.
      */
     void beginTurn() {
+        onTurnChange.run();
         showOnly();
         answerShown.setText("");
         if (controller.game().getCurrentPlayerName()
@@ -104,6 +107,19 @@ class ComputerTurnPanel extends JPanel {
         }
         computerTurn();
     }
+
+    /**
+     * Told whenever a turn begins, so a game in progress can be kept.
+     *
+     * <p>A listener rather than a constructor argument: it is something that
+     * watches turns happen, not something the panel needs in order to work.</p>
+     *
+     * @param listener run at the start of each turn
+     */
+    void onTurnChange(Runnable listener) {
+        onTurnChange = listener;
+    }
+
 
     private void computerTurn() {
         Optional<String> readyToGuess = controller.game().getComputerGuessName();

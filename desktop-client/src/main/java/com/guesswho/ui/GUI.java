@@ -9,6 +9,7 @@ import com.guesswho.client.ApplicationDirectory;
 import com.guesswho.client.FilePendingGameResultStore;
 import com.guesswho.client.LeaderboardClient;
 import com.guesswho.game.Game;
+import com.guesswho.game.GameStatus;
 
 /*Author: Gavin Liu
  * Date: Jan 8 2024
@@ -19,6 +20,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Optional;
 
 /**
  * Swing user interface for configuring and playing Guess Who games.
@@ -35,6 +37,8 @@ public class GUI {
                     new HttpGameResultClient(),
                     new FilePendingGameResultStore(ApplicationDirectory.forThisMachine()
                             .resolve("pending-game-results.jsonl")));
+    //keeps the game in progress, so a closed window is not a lost game
+    private final SavedGameStore savedGames = new SavedGameStore();
     //retrieves server-backed leaderboard standings without blocking Swing
     private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
     //the music
@@ -90,8 +94,8 @@ public class GUI {
         JPanel controlPanel = new JPanel();
         JButton settingsButton = new JButton("Settings");
         controlPanel.add(settingsButton);
-        boardPanel1 = CharacterBoard.tracking(images);
-        boardPanel2 = CharacterBoard.tracking(images);
+        boardPanel1 = CharacterBoard.tracking(images, this::saveGame);
+        boardPanel2 = CharacterBoard.tracking(images, this::saveGame);
         guessBoardPanel = CharacterBoard.selecting(images, characterIndex -> {
             frame.remove(guessBoardPanel);
             guessPVP(controller.game().getCurrentPlayerName(), characterIndex);
@@ -105,10 +109,7 @@ public class GUI {
                 playerTurns.beginTurn();//adds the board, then the controls over it
                 return;
             }
-            frame.add(boardPanel1, BorderLayout.CENTER);
-            frame.add(computerTurns, BorderLayout.SOUTH);
-            refreshFrame();
-            computerTurns.beginTurn();
+            beginComputerPlay();
         });
         computerTurns = new ComputerTurnPanel(controller, history, outcome -> {
             frame.remove(boardPanel1);
@@ -137,6 +138,8 @@ public class GUI {
                 refreshFrame();
             }
         });
+        computerTurns.onTurnChange(this::saveGame);
+        playerTurns.onTurnChange(this::saveGame);
         //this panel is used to display the ending massages
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
@@ -148,6 +151,7 @@ public class GUI {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+        offerSavedGame();
         settingsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -248,6 +252,7 @@ public class GUI {
      * ended
      */
     private void playAgain() {
+        savedGames.clear();
         try {
             controller.rematch();
         }
@@ -272,12 +277,89 @@ public class GUI {
     }
 
     private void showEnding(String outcome) {
+        //The game is over, so there is nothing left to come back to.
+        savedGames.clear();
         frame.add(endingScreens.panel(), BorderLayout.CENTER);
         frame.add(history.firstPanel(), BorderLayout.EAST);
         frame.add(history.secondPanel(), BorderLayout.WEST);
         endingScreens.begin(outcome);
         refreshFrame();
     }
+    // --- saving and resuming ------------------------------------------
+
+    private void beginComputerPlay() {
+        frame.add(boardPanel1, BorderLayout.CENTER);
+        frame.add(computerTurns, BorderLayout.SOUTH);
+        refreshFrame();
+        computerTurns.beginTurn();
+    }
+
+    /**
+     * Keeps the game as it stands, after anything that changes it.
+     *
+     * <p>Called on every flipped card as well as every turn, because the cards
+     * are the player's working notes and losing an evening of them would be
+     * the thing they noticed.</p>
+     */
+    private void saveGame() {
+        if (controller.game().getStatus() != GameStatus.IN_PROGRESS) {
+            return;
+        }
+        savedGames.save(new SavedGame(
+                SavedGame.VERSION,
+                controller.game().snapshot(),
+                controller.setup().tellsCharacterUpFront(),
+                controller.openingTurn(),
+                boardPanel1.faceDownCards(),
+                boardPanel2.faceDownCards(),
+                history.firstEntries(),
+                history.secondEntries()));
+    }
+
+    /** Asks, on launch, whether to pick up where the last game left off. */
+    private void offerSavedGame() {
+        Optional<SavedGame> saved = savedGames.read();
+        if (saved.isEmpty()) {
+            return;
+        }
+        int answer = JOptionPane.showConfirmDialog(
+                frame,
+                "You have a game in progress. Carry on with it?",
+                "Resume game",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (answer == JOptionPane.YES_OPTION) {
+            resume(saved.get());
+            return;
+        }
+        //Declining is a decision, and leaving the file would ask again next time.
+        savedGames.clear();
+    }
+
+    private void resume(SavedGame saved) {
+        try {
+            saved.restoreSetup(controller.setup());
+            controller.resume(Game.restoredFrom(saved.game()), saved.openingTurn());
+        }
+        catch (Exception exception) {
+            //The save is the only thing that failed. Drop it and let them play.
+            savedGames.clear();
+            handleGameStartFailure(exception);
+            return;
+        }
+        boardPanel1.restore(saved.firstBoard());
+        boardPanel2.restore(saved.secondBoard());
+        history.restore(saved.firstTranscript(), saved.secondTranscript());
+
+        frame.remove(setupScreens.panel());
+        if (controller.setup().isAgainstPlayer()) {
+            playerTurns.beginTurn();
+        }
+        else {
+            beginComputerPlay();
+        }
+    }
+
     private void submitGameResult() {
         resultSubmissionService.submit(controller.game().getGameResult())
                 .exceptionally(failure -> {
