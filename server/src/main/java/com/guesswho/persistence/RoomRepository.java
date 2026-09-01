@@ -104,6 +104,7 @@ public interface RoomRepository {
      * @param guestAccountId who joined, or null
      * @param guestName      their username, or null
      * @param gameState      the serialised game, or null while waiting
+     * @param createdAt      when the room was opened, which fixes its ceiling
      * @param expiresAt      when it is given up on
      */
     record StoredRoom(
@@ -114,6 +115,7 @@ public interface RoomRepository {
             Long guestAccountId,
             String guestName,
             String gameState,
+            Instant createdAt,
             Instant expiresAt) {
 
         /** Whether an account is one of the two people in this room. */

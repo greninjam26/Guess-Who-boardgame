@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class JdbcRoomRepository implements RoomRepository {
     private static final String SELECT_SQL = """
-            SELECT room.code, room.status, room.game_state, room.expires_at,
+            SELECT room.code, room.status, room.game_state, room.created_at, room.expires_at,
                    room.host_account_id, host.username AS host_name,
                    room.guest_account_id, guest.username AS guest_name
             FROM game_rooms room
@@ -148,6 +148,7 @@ public class JdbcRoomRepository implements RoomRepository {
                     guestAccountId,
                     resultSet.getString("guest_name"),
                     resultSet.getString("game_state"),
+                    resultSet.getTimestamp("created_at").toInstant(),
                     resultSet.getTimestamp("expires_at").toInstant());
         };
     }
