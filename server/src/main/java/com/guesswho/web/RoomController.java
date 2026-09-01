@@ -29,11 +29,16 @@ public class RoomController {
     /**
      * The header a client puts its own key for a move in.
      *
-     * <p>Optional, because a request without one cannot be recognised as a
-     * retry anyway and refusing it would only turn a missing header into a lost
-     * move. Clients should always send one.</p>
+     * <p>Required. A move without one cannot be recognised as a retry, so a
+     * lost response becomes a move applied twice — and since this project ships
+     * the only client, a request arriving without a key is a bug rather than
+     * somebody else's client being awkward. Better to say so than to accept it
+     * and lose the guarantee quietly.</p>
      */
     static final String MOVE_KEY_HEADER = "Idempotency-Key";
+
+    /** Matches the column in V9__add_move_keys.sql. */
+    private static final int MAX_MOVE_KEY = 64;
 
     private final RoomService rooms;
     private final SessionService sessions;
@@ -135,12 +140,13 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        String key = requireMoveKey(moveKey);
         if (choice == null || choice.character() == null || choice.character().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Choose a character");
         }
         try {
-            return rooms.chooseCharacter(code, player, choice.character(), moveKey);
+            return rooms.chooseCharacter(code, player, choice.character(), key);
         }
         catch (RoomService.NoSuchRoomException unknown) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game with that code");
@@ -170,10 +176,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        String key = requireMoveKey(moveKey);
         if (asked == null || asked.question() == null || asked.question().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ask a question");
         }
-        return played(() -> rooms.ask(code, player, asked.question(), moveKey));
+        return played(() -> rooms.ask(code, player, asked.question(), key));
     }
 
     /**
@@ -192,10 +199,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        String key = requireMoveKey(moveKey);
         if (given == null || given.answer() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer yes or no");
         }
-        return played(() -> rooms.answer(code, player, given.answer(), moveKey));
+        return played(() -> rooms.answer(code, player, given.answer(), key));
     }
 
     /**
@@ -214,10 +222,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        String key = requireMoveKey(moveKey);
         if (guess == null || guess.character() == null || guess.character().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name a character");
         }
-        return played(() -> rooms.guess(code, player, guess.character(), moveKey));
+        return played(() -> rooms.guess(code, player, guess.character(), key));
     }
 
     /**
@@ -270,6 +279,26 @@ public class RoomController {
      * @param character the character's name
      */
     public record CharacterChoice(String character) {
+    }
+
+    /**
+     * Checks a move carries a usable key.
+     *
+     * <p>The length matters as much as the presence: an oversized key reaches
+     * the database, breaks the column, and comes back as a 500 for what is
+     * plainly a bad request.</p>
+     */
+    private String requireMoveKey(String moveKey) {
+        if (moveKey == null || moveKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Every move needs an " + MOVE_KEY_HEADER + " header");
+        }
+        String key = moveKey.trim();
+        if (key.length() > MAX_MOVE_KEY) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    MOVE_KEY_HEADER + " must be at most " + MAX_MOVE_KEY + " characters");
+        }
+        return key;
     }
 
     private Account requireSignedIn(String authorization) {

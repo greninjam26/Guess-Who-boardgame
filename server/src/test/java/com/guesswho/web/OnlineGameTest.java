@@ -183,6 +183,7 @@ class OnlineGameTest {
     private ResultActions choose(String token, String character) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/character")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, aFreshKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"character\": \"%s\"}".formatted(character)));
     }
@@ -190,6 +191,7 @@ class OnlineGameTest {
     private ResultActions ask(String token, String question) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/questions")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, aFreshKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"question\": \"%s\"}".formatted(question)));
     }
@@ -197,6 +199,7 @@ class OnlineGameTest {
     private ResultActions answer(String token, boolean answer) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/answers")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, aFreshKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"answer\": %s}".formatted(answer)));
     }
@@ -204,8 +207,14 @@ class OnlineGameTest {
     private ResultActions guess(String token, String character) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/guesses")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, aFreshKey())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"character\": \"%s\"}".formatted(character)));
+    }
+
+    /** A key per call, which is what a client generates for each move. */
+    private static String aFreshKey() {
+        return java.util.UUID.randomUUID().toString();
     }
 
     private static String codeFrom(ResultActions created) throws Exception {

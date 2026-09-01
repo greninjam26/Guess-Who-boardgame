@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.guesswho.GuessWhoServerApplication;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -121,16 +122,63 @@ class IdempotentMovesTest {
     }
 
     @Test
-    void stillWorksForAClientThatSendsNoKey() throws Exception {
-        //A request without one cannot be recognised as a retry anyway, so
-        //refusing it would turn a missing header into a lost move.
+    void refusesAMoveWithNoKeyAtAll() throws Exception {
+        //Once this project ships the only client, a request without a key is a
+        //bug rather than somebody else being awkward — and accepting it loses
+        //the guarantee quietly, which is worse than saying so.
         mockMvc.perform(post("/api/rooms/" + code + "/questions")
                         .header("Authorization", "Bearer " + asker)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\": \"Does your character wear glasses?\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.yourUnansweredQuestion")
-                        .value("Does your character wear glasses?"));
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, answeredQuestions());
+    }
+
+    @Test
+    void refusesABlankKey() throws Exception {
+        mockMvc.perform(post("/api/rooms/" + code + "/questions")
+                        .header("Authorization", "Bearer " + asker)
+                        .header(RoomController.MOVE_KEY_HEADER, "   ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\": \"Does your character wear glasses?\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refusesAKeyWiderThanTheColumn() throws Exception {
+        //Otherwise it reaches the database, breaks the column, and comes back
+        //as a 500 for what is plainly a bad request.
+        mockMvc.perform(post("/api/rooms/" + code + "/questions")
+                        .header("Authorization", "Bearer " + asker)
+                        .header(RoomController.MOVE_KEY_HEADER, "k".repeat(65))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\": \"Does your character wear glasses?\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsAKeyRightUpToTheLimit() throws Exception {
+        mockMvc.perform(post("/api/rooms/" + code + "/questions")
+                        .header("Authorization", "Bearer " + asker)
+                        .header(RoomController.MOVE_KEY_HEADER, "k".repeat(64))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\": \"Does your character wear glasses?\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refusesAKeylessMoveOnEveryMoveEndpoint() throws Exception {
+        //All four, because one endpoint forgetting the check is exactly how
+        //character choice ended up without a key in the first place.
+        for (String segment : List.of("character", "questions", "answers", "guesses")) {
+            mockMvc.perform(post("/api/rooms/" + code + "/" + segment)
+                            .header("Authorization", "Bearer " + asker)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"character\": \"Sam\", \"question\": \"Q?\","
+                                    + " \"answer\": true}"))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
