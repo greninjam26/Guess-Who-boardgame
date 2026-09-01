@@ -118,6 +118,56 @@ class OnlineTurnPanelTest {
     }
 
     @Test
+    void saysNothingUnusualWhileTheOpponentIsStillThere() throws Exception {
+        show(playing().withYourTurn(false));
+
+        assertTrue(promptText().contains("to move"));
+        assertFalse(promptText().contains("seems to have left"));
+    }
+
+    @Test
+    void saysWhenTheOpponentSeemsToHaveGone() throws Exception {
+        //The point of tracking presence: silence from somebody thinking and
+        //silence from somebody who quit look identical without this.
+        show(playing().withYourTurn(false).withOpponentPresent(false));
+
+        assertTrue(promptText().contains("seems to have left"), promptText());
+    }
+
+    @Test
+    void saysItAsASuspicionRatherThanAFact() throws Exception {
+        //A phone that went through a tunnel looks like one that was put away.
+        show(playing().withYourTurn(false).withOpponentPresent(false));
+
+        assertTrue(promptText().contains("in case they come back"), promptText());
+    }
+
+    @Test
+    void saysItWhicheverWayTheGameIsWaiting() throws Exception {
+        //All three waiting states, because one of them forgetting is how a
+        //player ends up staring at a screen that tells them nothing.
+        for (Playing waiting : List.of(
+                playing().withOpponentHasChosen(false).withOpponentPresent(false),
+                playing().withYourUnansweredQuestion("Do they wear glasses?")
+                        .withOpponentPresent(false),
+                playing().withYourTurn(false).withOpponentPresent(false))) {
+            show(waiting);
+
+            assertTrue(promptText().contains("seems to have left"), promptText());
+        }
+    }
+
+    @Test
+    void stillOffersYourOwnTurnWhenTheOpponentHasGone() throws Exception {
+        //Their absence does not stop you playing: you can still guess, which is
+        //the one move that ends a game nobody else is going to finish.
+        show(playing().withOpponentPresent(false));
+
+        assertTrue(isShown("Guess"));
+        assertTrue(isShown("Ask"));
+    }
+
+    @Test
     void sendsTheChosenQuestion() throws Exception {
         show(playing());
 
@@ -222,45 +272,51 @@ class OnlineTurnPanelTest {
     }
 
     private static Playing playing() {
-        return new Playing("Olivia", true, true, null, null);
+        return new Playing("Olivia", true, true, true, null, null);
     }
 
     /** A state under construction, so each test can vary one thing about it. */
     private record Playing(
             String yourCharacter,
             boolean opponentHasChosen,
+            boolean opponentPresent,
             boolean yourTurn,
             String questionAwaitingYourAnswer,
             String yourUnansweredQuestion) {
 
         Playing withYourCharacter(String character) {
-            return new Playing(character, opponentHasChosen, yourTurn,
+            return new Playing(character, opponentHasChosen, opponentPresent, yourTurn,
                     questionAwaitingYourAnswer, yourUnansweredQuestion);
         }
 
         Playing withOpponentHasChosen(boolean chosen) {
-            return new Playing(yourCharacter, chosen, yourTurn,
+            return new Playing(yourCharacter, chosen, opponentPresent, yourTurn,
+                    questionAwaitingYourAnswer, yourUnansweredQuestion);
+        }
+
+        Playing withOpponentPresent(boolean present) {
+            return new Playing(yourCharacter, opponentHasChosen, present, yourTurn,
                     questionAwaitingYourAnswer, yourUnansweredQuestion);
         }
 
         Playing withYourTurn(boolean turn) {
-            return new Playing(yourCharacter, opponentHasChosen, turn,
+            return new Playing(yourCharacter, opponentHasChosen, opponentPresent, turn,
                     questionAwaitingYourAnswer, yourUnansweredQuestion);
         }
 
         Playing withQuestionAwaitingYourAnswer(String question) {
-            return new Playing(yourCharacter, opponentHasChosen, yourTurn,
+            return new Playing(yourCharacter, opponentHasChosen, opponentPresent, yourTurn,
                     question, yourUnansweredQuestion);
         }
 
         Playing withYourUnansweredQuestion(String question) {
-            return new Playing(yourCharacter, opponentHasChosen, yourTurn,
+            return new Playing(yourCharacter, opponentHasChosen, opponentPresent, yourTurn,
                     questionAwaitingYourAnswer, question);
         }
 
         RoomState state() {
             return new RoomState("BCDFGH", RoomStatus.IN_PROGRESS, "host", "guest",
-                    yourCharacter, opponentHasChosen, true, yourTurn,
+                    yourCharacter, opponentHasChosen, opponentPresent, yourTurn,
                     yourTurn ? "host" : "guest",
                     questionAwaitingYourAnswer, yourUnansweredQuestion,
                     List.of(), List.of(), null, Instant.now().plusSeconds(600));

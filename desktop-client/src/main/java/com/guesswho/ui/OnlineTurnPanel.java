@@ -111,7 +111,7 @@ class OnlineTurnPanel {
             return;
         }
         if (!state.opponentHasChosen()) {
-            say("Waiting for " + state.opponent() + " to choose a character...");
+            say(waitingFor(state, "choose a character"));
             return;
         }
         if (state.questionAwaitingYourAnswer() != null) {
@@ -122,16 +122,35 @@ class OnlineTurnPanel {
             return;
         }
         if (state.yourUnansweredQuestion() != null) {
-            say("Waiting for " + state.opponent() + " to answer...");
+            say(waitingFor(state, "answer"));
             return;
         }
         if (!state.yourTurn()) {
-            say("Waiting for " + state.opponent() + " to move...");
+            say(waitingFor(state, "move"));
             return;
         }
         say("Your turn. Ask a question, or guess.");
         showOnly(prompt, freeFormQuestions ? typedQuestion : presetQuestions,
                 askButton, guessButton);
+    }
+
+    /**
+     * What to say while waiting on the other player.
+     *
+     * <p>The whole reason the server tracks presence: somebody deliberating and
+     * somebody who has closed their laptop produce the same silence, and a
+     * player who cannot tell them apart does not know whether to keep waiting.</p>
+     *
+     * <p>Worded as a suspicion rather than a fact. A phone that went through a
+     * tunnel looks exactly like one that was put away, and telling somebody
+     * their opponent has left when they are about to answer would be worse than
+     * saying nothing.</p>
+     */
+    private static String waitingFor(RoomState state, String what) {
+        if (state.opponentPresent()) {
+            return "Waiting for " + state.opponent() + " to " + what + "...";
+        }
+        return state.opponent() + " seems to have left. Still waiting, in case they come back.";
     }
 
     private void askWhateverIsChosen() {
