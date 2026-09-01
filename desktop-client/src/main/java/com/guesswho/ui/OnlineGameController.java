@@ -124,6 +124,19 @@ class OnlineGameController {
         move(client.guess(code, character, token.get()));
     }
 
+    /**
+     * Sends further updates somewhere else.
+     *
+     * <p>The room screen watches until there is a game; the board watches from
+     * then on. Without this the room screen would keep receiving states it has
+     * already handed over.</p>
+     *
+     * @param next told what to show from now on
+     */
+    void showOn(View next) {
+        this.view = next;
+    }
+
     /** Leaves the game, and stops asking about it. */
     void leave() {
         poller.stop();
