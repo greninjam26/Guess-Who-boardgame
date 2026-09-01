@@ -48,12 +48,20 @@ public interface RoomRepository {
     /**
      * Replaces the stored game and pushes the deadline out.
      *
-     * @param code      the room's code
-     * @param gameState the game after a move
-     * @param status    where the room has got to
-     * @param expiresAt the new deadline
+     * <p>Conditional on the room still being the version the move was worked
+     * out from. Two requests can read the same state and each write its own
+     * result; without this the second silently replaces the first, and the
+     * player whose move vanished is told nothing.</p>
+     *
+     * @param code            the room's code
+     * @param gameState       the game after a move
+     * @param status          where the room has got to
+     * @param expiresAt       the new deadline
+     * @param expectedVersion the version the move was worked out from
+     * @return true when the write landed; false when somebody else moved first
      */
-    void updateGame(String code, String gameState, RoomStatus status, Instant expiresAt);
+    boolean updateGame(String code, String gameState, RoomStatus status, Instant expiresAt,
+            long expectedVersion);
 
     /**
      * How many rooms an account currently has open.
@@ -104,6 +112,7 @@ public interface RoomRepository {
      * @param guestAccountId who joined, or null
      * @param guestName      their username, or null
      * @param gameState      the serialised game, or null while waiting
+     * @param version        how many times it has changed
      * @param createdAt      when the room was opened, which fixes its ceiling
      * @param expiresAt      when it is given up on
      */
@@ -115,6 +124,7 @@ public interface RoomRepository {
             Long guestAccountId,
             String guestName,
             String gameState,
+            long version,
             Instant createdAt,
             Instant expiresAt) {
 

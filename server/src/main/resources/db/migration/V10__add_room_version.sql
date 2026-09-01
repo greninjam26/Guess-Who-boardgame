@@ -1,0 +1,11 @@
+-- What the room has been through, counted.
+--
+-- Every move is worked out from the state a request read, and two requests can
+-- read the same state. Both players choosing a character at the same moment is
+-- the ordinary case: each reads a game where nobody has chosen, each writes its
+-- own choice, and the second overwrites the first. Nobody sees an error and one
+-- player's character is simply gone.
+--
+-- A write now says which version it was based on, and only lands if that is
+-- still the current one.
+ALTER TABLE game_rooms ADD COLUMN version BIGINT DEFAULT 0 NOT NULL;

@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class JdbcRoomRepository implements RoomRepository {
     private static final String SELECT_SQL = """
-            SELECT room.code, room.status, room.game_state, room.created_at, room.expires_at,
+            SELECT room.code, room.status, room.game_state, room.version,
+                   room.created_at, room.expires_at,
                    room.host_account_id, host.username AS host_name,
                    room.guest_account_id, guest.username AS guest_name
             FROM game_rooms room
@@ -78,14 +79,18 @@ public class JdbcRoomRepository implements RoomRepository {
 
     @Override
     @Transactional
-    public void updateGame(String code, String gameState, RoomStatus status,
-            Instant expiresAt) {
-        jdbcTemplate.update("""
+    public boolean updateGame(String code, String gameState, RoomStatus status,
+            Instant expiresAt, long expectedVersion) {
+        //The version in the WHERE clause is what decides. Reading it first and
+        //comparing in Java would leave the same gap it is meant to close.
+        int updated = jdbcTemplate.update("""
                 UPDATE game_rooms
                 SET game_state = ?, status = ?, expires_at = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE code = ?
-                """, gameState, status.name(), Timestamp.from(expiresAt), code);
+                    version = version + 1, updated_at = CURRENT_TIMESTAMP
+                WHERE code = ? AND version = ?
+                """, gameState, status.name(), Timestamp.from(expiresAt), code,
+                expectedVersion);
+        return updated == 1;
     }
 
     @Override
@@ -148,6 +153,7 @@ public class JdbcRoomRepository implements RoomRepository {
                     guestAccountId,
                     resultSet.getString("guest_name"),
                     resultSet.getString("game_state"),
+                    resultSet.getLong("version"),
                     resultSet.getTimestamp("created_at").toInstant(),
                     resultSet.getTimestamp("expires_at").toInstant());
         };
