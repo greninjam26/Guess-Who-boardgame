@@ -332,6 +332,40 @@ public class Game {
     }
 
     /**
+     * The player the game is waiting on, if it is waiting on anybody.
+     *
+     * <p>Not always whose turn it is. A question that has been asked is owed an
+     * answer by the other player, and it is they who are holding the game up
+     * even though the turn still belongs to the asker. Anything deciding who
+     * has stalled a game needs this one rather than the turn, and getting the
+     * two the wrong way round blames the player who did their part.</p>
+     *
+     * @return the username owing the next action, or empty when no game is in
+     *         progress
+     */
+    public Optional<String> getPlayerOwingAMove() {
+        if (status != GameStatus.IN_PROGRESS) {
+            return Optional.empty();
+        }
+        return getPendingPlayerQuestion()
+                .map(pending -> opponentOf(pending.asker()))
+                .or(() -> Optional.of(getCurrentPlayerName()));
+    }
+
+    /**
+     * The other participant's name.
+     *
+     * @param username one participant
+     * @return whoever is not them
+     */
+    private String opponentOf(String username) {
+        if (firstPlayer != null && firstPlayer.getUsername().equals(username)) {
+            return secondPlayer != null ? secondPlayer.getUsername() : COMPUTER_WINNER;
+        }
+        return firstPlayer.getUsername();
+    }
+
+    /**
      * Transfers the active turn to the other participant.
      *
      * @throws IllegalStateException if no game is in progress or the computer
