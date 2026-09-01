@@ -6,8 +6,10 @@ not.
 
 Two kinds of note appear throughout:
 
-- **Not built.** Something described here that has not been written. There is
-  one left, on disconnection.
+- **Still missing.** Something named here that has not been written. What is
+  left is narrow: a *reconnecting* state for your own connection, a screen for
+  an expired game, API versioning, and rate limits. `docs/ROADMAP.md` has them
+  in Phase 09.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
@@ -300,18 +302,30 @@ first.
 
 ### Disconnection
 
-**Not built.** What exists is expiry: a room dies after ten minutes unjoined,
-thirty idle, or twenty-four hours regardless, and a scheduled sweep removes it.
-So an abandoned game ends eventually rather than hanging for ever, but the
-player left waiting is told nothing until it does.
+Presence is measured by requests rather than moves. A client polls every couple
+of seconds, so one that is open keeps its player present without them doing
+anything — which is the distinction worth drawing: somebody deliberating still
+has a client watching for them, and somebody who quit does not. Fifteen seconds
+of silence counts as gone, which is several missed polls.
 
-What is still wanted, and why each matters:
+The waiting player is told, and told tentatively — *"seems to have left"* —
+because a phone that went through a tunnel looks exactly like one that was put
+away.
 
-- **Last-seen timestamps per player**, driving *reconnecting*, *opponent
-  reconnecting* and *game expired* on screen. Today a disappeared opponent and
-  a slow one look identical.
-- **A turn timer**, so abandonment costs the abandoner rather than the person
-  waiting. Whether expiry passes the turn or forfeits the game is still open.
+A turn that runs out forfeits to whoever stayed. Passing the turn instead would
+only move the stall along and still leave the sweep to end the game; a forfeit
+gives the player who stayed a result. It blames whoever **owed the move**, which
+is not always whose turn it is: an unanswered question is held up by the
+answerer while the turn still belongs to the asker.
+
+Checked when a player reads the game rather than only on a schedule, because the
+person waiting is the one polling. Version-checked like any other write, so two
+simultaneous polls cannot forfeit the same game twice.
+
+**Still missing:** a *reconnecting* state for your own connection, and a screen
+for a game that expired rather than finished. Both are about what you are told
+when the fault is at your end, which nothing currently distinguishes from the
+server simply being slow.
 
 ---
 
