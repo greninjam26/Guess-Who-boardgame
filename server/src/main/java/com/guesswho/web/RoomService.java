@@ -227,8 +227,14 @@ public class RoomService {
         RoomStatus status = game.getStatus() == com.guesswho.game.GameStatus.FINISHED
                 ? RoomStatus.FINISHED
                 : room.status();
-        rooms.updateGame(room.code(), serialise(game.snapshot()), status,
-                nextDeadline(room));
+        boolean landed = rooms.updateGame(room.code(), serialise(game.snapshot()), status,
+                nextDeadline(room), room.version());
+        if (!landed) {
+            //Somebody else moved between reading this state and writing the
+            //result. Applying it anyway would replace their move with one
+            //worked out from a game that no longer exists.
+            throw new RoomMovedOnException();
+        }
         return state(room.code(), account.id());
     }
 
@@ -303,6 +309,22 @@ public class RoomService {
     private static Room toRoom(RoomRepository.StoredRoom stored) {
         return new Room(stored.code(), stored.status(), stored.hostName(),
                 stored.guestName(), stored.expiresAt());
+    }
+
+    /**
+     * Thrown when the room changed between reading it and writing the result.
+     *
+     * <p>Not an error in the move: it was worked out from a game that has since
+     * moved on. The client polls, sees the new state, and the player acts from
+     * there.</p>
+     */
+    public static class RoomMovedOnException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        /** Creates the exception. */
+        public RoomMovedOnException() {
+            super("Your opponent moved first. The game has moved on.");
+        }
     }
 
     /** Thrown when a code opens nothing the caller may see. */

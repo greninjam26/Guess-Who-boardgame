@@ -238,6 +238,11 @@ public class RoomController {
         catch (RoomService.RoomNotJoinableException notReady) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, notReady.getMessage());
         }
+        catch (RoomService.RoomMovedOnException movedOn) {
+            //Also a conflict, and for the same reason as the others: the
+            //request was fine and arrived at the wrong moment.
+            throw new ResponseStatusException(HttpStatus.CONFLICT, movedOn.getMessage());
+        }
         catch (IllegalStateException | IllegalArgumentException refused) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, refused.getMessage());
         }
