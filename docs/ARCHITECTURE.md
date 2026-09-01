@@ -1,10 +1,19 @@
-# Guess Who — Target Architecture
+# Guess Who — Architecture
 
-This describes the system as it is **intended to be**, not as it currently
-stands. It is a design document that the phases in `docs/ROADMAP.md` implement.
+This began as a design document describing a system that did not exist. Most of
+it is now built, so it describes what is there, and says plainly where it does
+not.
 
-Where the current code differs, that difference is noted — those gaps are the
-work.
+Two kinds of note appear throughout:
+
+- **Not built.** Something described here that has not been written. There is
+  one left, on disconnection.
+- **What was actually built differs.** Somewhere the design was tried and
+  something else turned out to be right. These are the interesting ones, and
+  they are kept rather than tidied away: the reasoning that changed is worth
+  more than a document that pretends it never did.
+
+`docs/ROADMAP.md` has the order of work and what remains.
 
 ---
 
@@ -26,9 +35,13 @@ work.
 
 ## Module structure
 
-Target of Phase 03. Today everything is a single Maven module, which means
-`jpackage` would bundle Spring Boot, H2, HikariCP, and Jackson into the desktop
-installer.
+Done in Phase 03. Before it, everything was one Maven module, so `jpackage`
+would have bundled Spring Boot, H2 and HikariCP into the desktop installer.
+
+As built, the desktop installer carries five runtime jars — `game-core`,
+FlatLaf and three Jackson jars, about 15 MB — and no Spring. `game-core` has no
+runtime dependencies at all, which is what lets it be shared by a Swing client
+and a Spring server without dragging either into the other.
 
 ```text
 guess-who-boardgame  (parent pom)
@@ -85,9 +98,15 @@ reproducible in tests.
 
 ## Desktop client
 
-Target of Phase 02. Today `GUI.java` is ~1,160 lines with a single 770-line
-method holding ~35 anonymous listeners and mutable fields (`curPlayer`,
-`modeChoice`, `AIQuestion`) acting as implicit state.
+Done in Phase 02, which took `GUI.java` from ~1,160 lines and a single
+770-line method to a frame that swaps screens. It is about 500 lines now, and
+the growth since has been the online flow's screen swapping rather than logic:
+`OnlineGameController` holds the room and the poll, `OnlineGameScreens` holds
+what an online game shows, and `GUI` shows one or the other.
+
+The shape below was the target. What was actually built keeps the split but not
+the names: `GameController` for local play, `OnlineGameController` for online,
+and screens that render a state rather than a `UiState` enum.
 
 ```text
       user input                     server events
@@ -245,28 +264,54 @@ whole offending payload, and was reverted.
 
 ### Durability
 
-Sessions persist in **Postgres**, on the single instance already running. This is
+Sessions persist in the result database — H2 today, Postgres when there is
+something deployed. The migrations use no engine-specific syntax, so that is a
+configuration change rather than a rewrite, and moving it early would only
+oblige everyone running the server to install a database. This is
 not a scaling decision — in-memory sessions die on restart, so deploying while two
 friends are mid-game destroys their game. Redis is an upgrade to consider only if
 session reads ever appear in profiling.
 
 ### Idempotency and concurrency
 
-Every intent carries a client-generated idempotency key. The server records
-applied keys per session and returns the existing result on a repeat, so a
-timeout-and-retry cannot record a question twice.
+Every move carries a client-generated key, required rather than optional: a
+move without one cannot be recognised as a retry, and this project ships the
+only client, so a request arriving without a key is a bug rather than somebody
+else's client being awkward. Keys are scoped to their room and checked against
+the column width — an oversized one is a bad request, not a constraint
+violation surfacing as a 500.
 
-Session state carries a monotonic `version`. Intents declare the version they were
-composed against; a mismatch is rejected with the current state rather than
-applied blindly. This covers both simultaneous submission and a client acting on
-a stale poll.
+The key is claimed inside the move's transaction, so a move the rules refuse
+releases its key instead of consuming it. Without that, one out-of-turn attempt
+would disable that key for ever and the client's retry would silently do
+nothing.
+
+Rooms carry a monotonic `version`. **The client never sees it** — an earlier
+sketch had intents declaring the version they were composed against, but the
+server already reads the room to apply a move, so the version it read is the
+one the write is conditional on. `UPDATE ... WHERE code = ? AND version = ?`
+is what decides; comparing in Java would leave the gap it is meant to close.
+
+A losing write is rejected with a conflict rather than applied. The clearest
+case is not exotic: both players choosing a character at the same moment, which
+happens at the start of every game. Each reads a game where nobody has chosen,
+each writes its own choice, and without this the second silently replaces the
+first.
 
 ### Disconnection
 
-Last-seen timestamps per player drive the states the UI must render:
-*reconnecting*, *opponent reconnecting*, *game expired*. A turn timer bounds
-abandonment — on expiry the turn passes or the game forfeits, per the decision
-still open in the roadmap.
+**Not built.** What exists is expiry: a room dies after ten minutes unjoined,
+thirty idle, or twenty-four hours regardless, and a scheduled sweep removes it.
+So an abandoned game ends eventually rather than hanging for ever, but the
+player left waiting is told nothing until it does.
+
+What is still wanted, and why each matters:
+
+- **Last-seen timestamps per player**, driving *reconnecting*, *opponent
+  reconnecting* and *game expired* on screen. Today a disappeared opponent and
+  a slow one look identical.
+- **A turn timer**, so abandonment costs the abandoner rather than the person
+  waiting. Whether expiry passes the turn or forfeits the game is still open.
 
 ---
 
