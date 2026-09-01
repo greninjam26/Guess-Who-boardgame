@@ -1,7 +1,6 @@
 package com.guesswho.web;
 
 import com.guesswho.account.Account;
-import com.guesswho.game.ComputerGameStart;
 import com.guesswho.game.Game;
 import com.guesswho.game.GameSnapshot;
 import com.guesswho.game.PlayerGameStart;
@@ -9,6 +8,7 @@ import com.guesswho.game.QuestionMode;
 import com.guesswho.persistence.RoomRepository;
 import com.guesswho.room.Room;
 import com.guesswho.room.RoomCode;
+import com.guesswho.room.RoomState;
 import com.guesswho.room.RoomStatus;
 import java.time.Duration;
 import java.time.Instant;
@@ -128,6 +128,56 @@ public class RoomService {
         //whose code was wrong. Distinguishing them turns the endpoint into a
         //way to find out which codes are live.
         return rooms.findByCode(tidied).filter(room -> room.includes(accountId));
+    }
+
+    /**
+     * Chooses the character a player will be guessed at.
+     *
+     * @param code      the room's code
+     * @param account   who is choosing
+     * @param character the character they are holding
+     * @return the room as they may now see it
+     * @throws NoSuchRoomException if the code opens nothing of theirs
+     * @throws IllegalStateException if they have already chosen
+     */
+    public RoomState chooseCharacter(
+            String code, Account account, String character) {
+        RoomRepository.StoredRoom room = forPlayer(code, account.id())
+                .orElseThrow(NoSuchRoomException::new);
+        if (room.gameState() == null) {
+            throw new RoomNotJoinableException("Nobody has joined that game yet");
+        }
+        Game game = restore(room.gameState());
+        //Named by whoever is asking, so a player can only ever choose their
+        //own: the username comes from the token, not from the request.
+        game.selectCharacter(account.username(), character);
+        rooms.updateGame(room.code(), serialise(game.snapshot()), room.status(),
+                Instant.now().plus(IDLE_LIFETIME));
+        return state(room.code(), account.id());
+    }
+
+    /**
+     * Reads a room as one player may see it.
+     *
+     * @param code      the room's code
+     * @param accountId who is asking
+     * @return their view of it
+     * @throws NoSuchRoomException if the code opens nothing of theirs
+     */
+    public RoomState state(String code, long accountId) {
+        return forPlayer(code, accountId)
+                .map(room -> RoomProjection.forPlayer(room, accountId))
+                .orElseThrow(NoSuchRoomException::new);
+    }
+
+    private static Game restore(String gameState) {
+        try {
+            return Game.restoredFrom(deserialise(gameState));
+        }
+        catch (Exception unrestorable) {
+            throw new IllegalStateException("The stored game could not be read",
+                    unrestorable);
+        }
     }
 
     /**
