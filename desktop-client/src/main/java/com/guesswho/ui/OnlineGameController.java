@@ -1,0 +1,233 @@
+package com.guesswho.ui;
+
+import com.guesswho.client.OnlineGameClient;
+import com.guesswho.client.OnlineOutcome;
+import com.guesswho.room.Room;
+import com.guesswho.room.RoomState;
+import com.guesswho.room.RoomStatus;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+import javax.swing.SwingUtilities;
+
+/**
+ * Drives an online game: which room, what the server last said, and what to do
+ * about it.
+ *
+ * <p>Separate from {@link GUI} because online play has a lifecycle that local
+ * play does not — a room to open or join, a poll to keep running, and a set of
+ * failures that mean different things. Putting it in the frame would take
+ * {@code GUI} back towards the thing Phase 02 pulled apart.</p>
+ */
+class OnlineGameController {
+    /** Told what to show. Every call arrives on the interface thread. */
+    interface View {
+        /**
+         * @param room the room just opened, whose code needs sharing
+         */
+        void roomOpened(Room room);
+
+        /**
+         * @param state the game as this player may see it
+         */
+        void stateChanged(RoomState state);
+
+        /**
+         * @param message what went wrong, in words a player can act on
+         */
+        void problem(String message);
+
+        /** The session is no longer good and the player has to sign in again. */
+        void signedOut();
+    }
+
+    private final OnlineGameClient client;
+    private final RoomPoller poller;
+    private final Supplier<String> token;
+
+    private View view;
+    private String code;
+    private RoomState state;
+
+    /**
+     * @param client talks to the server
+     * @param poller keeps asking what has happened
+     * @param token  supplies the session token, which can change
+     */
+    OnlineGameController(OnlineGameClient client, RoomPoller poller, Supplier<String> token) {
+        this.client = client;
+        this.poller = poller;
+        this.token = token;
+    }
+
+    /**
+     * Opens a room and starts waiting for somebody to join it.
+     *
+     * @param view told what to show
+     */
+    void createRoom(View view) {
+        this.view = view;
+        handle(client.createRoom(token.get()), room -> {
+            code = room.code();
+            view.roomOpened(room);
+            beginPolling();
+        });
+    }
+
+    /**
+     * Joins somebody else's room.
+     *
+     * @param typedCode the code they shared
+     * @param view      told what to show
+     */
+    void joinRoom(String typedCode, View view) {
+        this.view = view;
+        handle(client.joinRoom(typedCode, token.get()), room -> {
+            code = room.code();
+            view.roomOpened(room);
+            beginPolling();
+        });
+    }
+
+    /**
+     * Chooses the character this player will be guessed at.
+     *
+     * @param character the character they are holding
+     */
+    void chooseCharacter(String character) {
+        move(client.chooseCharacter(code, character, token.get()));
+    }
+
+    /**
+     * Asks the opponent a question.
+     *
+     * @param question what to ask
+     */
+    void ask(String question) {
+        move(client.ask(code, question, token.get()));
+    }
+
+    /**
+     * Answers the question the opponent asked.
+     *
+     * @param answer yes or no
+     */
+    void answer(boolean answer) {
+        move(client.answer(code, answer, token.get()));
+    }
+
+    /**
+     * Guesses the opponent's character, which ends the game either way.
+     *
+     * @param character who they think it is
+     */
+    void guess(String character) {
+        move(client.guess(code, character, token.get()));
+    }
+
+    /** Leaves the game, and stops asking about it. */
+    void leave() {
+        poller.stop();
+        view = null;
+        code = null;
+        state = null;
+    }
+
+    /**
+     * The game as the server last described it.
+     *
+     * @return the last state, or null before there is one
+     */
+    RoomState state() {
+        return state;
+    }
+
+    /**
+     * The code to share, once there is a room.
+     *
+     * @return the room's code, or null when not in one
+     */
+    String code() {
+        return code;
+    }
+
+    private void beginPolling() {
+        poller.start(code, token.get(), new RoomPoller.Listener() {
+            @Override
+            public void updated(RoomState updated) {
+                apply(updated);
+            }
+
+            @Override
+            public void failed(OnlineOutcome<RoomState> outcome) {
+                report(outcome);
+            }
+        });
+    }
+
+    /**
+     * Applies a move, and shows what it produced without waiting for a poll.
+     *
+     * <p>The server answers every move with the state it left behind, so the
+     * player who moved sees it at once. Polling is for the opponent's moves,
+     * which is the only thing this client cannot know about already.</p>
+     */
+    private void move(CompletableFuture<OnlineOutcome<RoomState>> request) {
+        handle(request, this::apply);
+    }
+
+    private void apply(RoomState updated) {
+        state = updated;
+        if (view != null) {
+            view.stateChanged(updated);
+        }
+        if (updated.status() == RoomStatus.FINISHED) {
+            //Nothing more will change. Polling a finished game is asking a
+            //question whose answer cannot move again.
+            poller.stop();
+        }
+    }
+
+    private <T> void handle(CompletableFuture<OnlineOutcome<T>> request,
+            java.util.function.Consumer<T> onSuccess) {
+        request.whenComplete((outcome, failure) -> onInterfaceThread(() -> {
+            View told = view;
+            if (told == null) {
+                //Left the game while this was in flight.
+                return;
+            }
+            if (failure != null) {
+                told.problem("The server could not be reached.");
+                return;
+            }
+            if (outcome.isOk()) {
+                onSuccess.accept(outcome.value());
+                return;
+            }
+            report(outcome);
+        }));
+    }
+
+    private void report(OnlineOutcome<?> outcome) {
+        View told = view;
+        if (told == null) {
+            return;
+        }
+        if (outcome.kind() == OnlineOutcome.Kind.SIGNED_OUT) {
+            //Not something to do differently in the game: they have to sign in
+            //again, and polling on a dead token would only repeat the message.
+            poller.stop();
+            told.signedOut();
+            return;
+        }
+        told.problem(outcome.message());
+    }
+
+    private static void onInterfaceThread(Runnable work) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            work.run();
+        }
+        else {
+            SwingUtilities.invokeLater(work);
+        }
+    }
+}
