@@ -3,10 +3,16 @@ package com.guesswho.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApplicationDirectoryTest {
+    @org.junit.jupiter.api.io.TempDir
+    private Path directory;
+
     @Test
     void putsMacFilesWhereMacKeepsThem() {
         assertEquals(
@@ -75,12 +81,59 @@ class ApplicationDirectoryTest {
     }
 
     @Test
-    void createsSomewhereWritableOnThisMachine() throws Exception {
-        Path directory = ApplicationDirectory.forThisMachine();
+    void skipsADirectoryItCannotWriteTo() throws Exception {
+        //Creating a directory succeeds when it already exists, whatever its
+        //permissions. Existing is not the same as usable, and a path that
+        //cannot be written to looks fine until the first save fails.
+        Path unwritable = directory.resolve("unwritable");
+        Files.createDirectories(unwritable);
+        Files.setPosixFilePermissions(unwritable, Set.of(PosixFilePermission.OWNER_READ));
+        Path writable = directory.resolve("writable");
 
-        assertTrue(java.nio.file.Files.isDirectory(directory),
-                "Should have created " + directory);
-        assertTrue(java.nio.file.Files.isWritable(directory),
-                "Should be able to write to " + directory);
+        assertEquals(writable, ApplicationDirectory.firstUsable(unwritable, writable));
+    }
+
+    @Test
+    void prefersTheFirstUsableOne() {
+        Path first = directory.resolve("first");
+        Path second = directory.resolve("second");
+
+        assertEquals(first, ApplicationDirectory.firstUsable(first, second));
+    }
+
+    @Test
+    void skipsAPathThatCannotBeADirectory() throws Exception {
+        //A file where a directory should be: creating it fails outright.
+        Path file = directory.resolve("a-file");
+        Files.writeString(file, "not a directory");
+        Path writable = directory.resolve("writable");
+
+        assertEquals(writable, ApplicationDirectory.firstUsable(file, writable));
+    }
+
+    @Test
+    void ignoresACandidateThatCouldNotBeWorkedOut() {
+        //A property or variable can be refused outright, leaving nothing to try.
+        Path writable = directory.resolve("writable");
+
+        assertEquals(writable, ApplicationDirectory.firstUsable(null, writable));
+    }
+
+    @Test
+    void fallsBackToTheWorkingDirectoryWhenNothingElseWorks() throws Exception {
+        Path unwritable = directory.resolve("also-unwritable");
+        Files.createDirectories(unwritable);
+        Files.setPosixFilePermissions(unwritable, Set.of(PosixFilePermission.OWNER_READ));
+
+        assertEquals(Path.of(""), ApplicationDirectory.firstUsable(unwritable));
+    }
+
+    @Test
+    void createsSomewhereWritableOnThisMachine() {
+        Path chosen = ApplicationDirectory.forThisMachine();
+
+        assertTrue(Files.isDirectory(chosen), "Should have created " + chosen);
+        //The whole promise: whatever it picked, it can be written to.
+        assertTrue(Files.isWritable(chosen), "Should be able to write to " + chosen);
     }
 }

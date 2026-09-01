@@ -32,20 +32,66 @@ public final class ApplicationDirectory {
      * @return an existing directory the game can write to
      */
     public static Path forThisMachine() {
-        Path directory = resolve(
-                System.getProperty("os.name", ""),
-                System.getenv("APPDATA"),
-                System.getenv("XDG_DATA_HOME"),
-                System.getProperty("user.home", ""));
+        return firstUsable(preferred(), temporary());
+    }
+
+    /**
+     * The first of these the game can actually write to.
+     *
+     * <p>Creating a directory succeeds when it already exists, whatever its
+     * permissions, so existing is not the same as usable. A directory that
+     * cannot be written to is worse than no directory at all: everything looks
+     * fine until the first save fails.</p>
+     *
+     * @param candidates the places to try, best first
+     * @return the first writable one, or the working directory if none are
+     */
+    static Path firstUsable(Path... candidates) {
+        for (Path candidate : candidates) {
+            if (candidate != null && isUsable(candidate)) {
+                return candidate;
+            }
+        }
+        //Where these files went before any of this existed. It may not be
+        //writable either, but the stores all treat a failed write as a
+        //disappointment rather than a crash, so this cannot make things worse.
+        return Path.of("");
+    }
+
+    private static boolean isUsable(Path directory) {
         try {
             Files.createDirectories(directory);
-            return directory;
+            return Files.isDirectory(directory) && Files.isWritable(directory);
         }
-        catch (IOException unwritable) {
-            //A read-only or unusual home should not stop the game starting. The
-            //working directory is where these files went before, so falling
-            //back to it leaves things no worse than they were.
-            return Path.of("");
+        catch (IOException | RuntimeException unusable) {
+            //RuntimeException as well: a restrictive security manager throws
+            //rather than returning false, and a game that will not start
+            //because of one is worse than a game that saves nothing.
+            return false;
+        }
+    }
+
+    private static Path preferred() {
+        try {
+            return resolve(
+                    System.getProperty("os.name", ""),
+                    System.getenv("APPDATA"),
+                    System.getenv("XDG_DATA_HOME"),
+                    System.getProperty("user.home", ""));
+        }
+        catch (RuntimeException unavailable) {
+            //Reading a property or a variable can be refused outright.
+            return null;
+        }
+    }
+
+    /** Lost on a reboot, but writable, which the alternative may not be. */
+    private static Path temporary() {
+        try {
+            return Path.of(System.getProperty("java.io.tmpdir", "."), UNIX_NAME);
+        }
+        catch (RuntimeException unavailable) {
+            return null;
         }
     }
 
