@@ -170,6 +170,65 @@ class LiveOnlineGameTest {
                 games.chooseCharacter(code, "Nick", hostToken).join().kind());
     }
 
+    @Test
+    void anOpponentWhoIsWatchingCountsAsPresent() {
+        String code = games.createRoom(hostToken).join().value().code();
+        games.joinRoom(code, guestToken).join();
+
+        //The guest polls, as an open client does every couple of seconds.
+        games.state(code, guestToken).join();
+
+        assertTrue(games.state(code, hostToken).join().value().opponentPresent(),
+                "A client that is open and watching should keep its player present");
+    }
+
+    @Test
+    void anOpponentWhoHasNeverBeenHeardFromIsNotPresent() {
+        //Somebody who created a room and closed the app has not arrived, and
+        //saying otherwise would have the other player wait for nobody.
+        String code = games.createRoom(hostToken).join().value().code();
+        games.joinRoom(code, guestToken).join();
+
+        //Only the host has made a request since joining.
+        RoomState seenByGuest = games.state(code, guestToken).join().value();
+
+        assertFalse(seenByGuest.opponentPresent());
+    }
+
+    @Test
+    void anOpponentGoesAbsentOnceTheyStopBeingHeardFrom() {
+        //The distinction the whole feature exists for: somebody thinking hard
+        //has a client polling for them, and somebody who closed their laptop
+        //does not.
+        String code = games.createRoom(hostToken).join().value().code();
+        games.joinRoom(code, guestToken).join();
+        games.state(code, guestToken).join();
+        assertTrue(games.state(code, hostToken).join().value().opponentPresent());
+
+        jdbcTemplate.update(
+                "UPDATE game_rooms SET guest_last_seen = ? WHERE code = ?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)), code);
+
+        assertFalse(games.state(code, hostToken).join().value().opponentPresent(),
+                "A player last heard from a minute ago is not sitting there watching");
+    }
+
+    @Test
+    void beingPresentIsNotAMove() {
+        //Polling must not look like a move to anything watching for one, or a
+        //waiting opponent would appear to be playing.
+        String code = games.createRoom(hostToken).join().value().code();
+        games.joinRoom(code, guestToken).join();
+        long before = jdbcTemplate.queryForObject(
+                "SELECT version FROM game_rooms WHERE code = ?", Long.class, code);
+
+        games.state(code, hostToken).join();
+        games.state(code, guestToken).join();
+
+        assertEquals(before, jdbcTemplate.queryForObject(
+                "SELECT version FROM game_rooms WHERE code = ?", Long.class, code));
+    }
+
     private static String signUpAndIn(AccountClient accounts, String username, String password) {
         accounts.register(username, password).join();
         AccountClient.Outcome signedIn = accounts.logIn(username, password).join();

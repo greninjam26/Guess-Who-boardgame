@@ -201,7 +201,7 @@ class OnlineRoomScreenTest {
     }
 
     private static RoomState roomState(RoomStatus status) {
-        return new RoomState("BCDFGH", status, "host", "guest", null, false, true,
+        return new RoomState("BCDFGH", status, "host", "guest", null, false, true, true,
                 "host", null, null, List.of(), List.of(), null,
                 Instant.now().plusSeconds(600));
     }

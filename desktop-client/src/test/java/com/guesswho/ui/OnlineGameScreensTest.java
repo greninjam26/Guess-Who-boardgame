@@ -162,7 +162,7 @@ class OnlineGameScreensTest {
             List<RoomState.AskedQuestion> yours, List<RoomState.AskedQuestion> theirs,
             String winner) {
         return new RoomState("BCDFGH", status, "host", "guest", yourCharacter,
-                true, true, "host", null, null, yours, theirs, winner,
+                true, true, true, "host", null, null, yours, theirs, winner,
                 Instant.now().plusSeconds(600));
     }
 

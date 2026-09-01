@@ -167,7 +167,7 @@ class RoomPollerTest {
 
     private static RoomState state() {
         return new RoomState("BCDFGH", RoomStatus.IN_PROGRESS, "host", "guest",
-                "Olivia", true, true, "host", null, null, List.of(), List.of(), null,
+                "Olivia", true, true, true, "host", null, null, List.of(), List.of(), null,
                 Instant.now().plusSeconds(600));
     }
 

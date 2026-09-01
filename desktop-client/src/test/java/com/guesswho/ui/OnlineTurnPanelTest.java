@@ -211,13 +211,13 @@ class OnlineTurnPanelTest {
 
     private static RoomState waiting() {
         return new RoomState("BCDFGH", RoomStatus.WAITING, "host", null,
-                null, false, false, null, null, null, List.of(), List.of(), null,
+                null, false, false, false, null, null, null, List.of(), List.of(), null,
                 Instant.now().plusSeconds(600));
     }
 
     private static RoomState finished(String winner) {
         return new RoomState("BCDFGH", RoomStatus.FINISHED, "host", "guest",
-                "Olivia", true, false, null, null, null, List.of(), List.of(), winner,
+                "Olivia", true, true, false, null, null, null, List.of(), List.of(), winner,
                 Instant.now().plusSeconds(600));
     }
 
@@ -260,7 +260,7 @@ class OnlineTurnPanelTest {
 
         RoomState state() {
             return new RoomState("BCDFGH", RoomStatus.IN_PROGRESS, "host", "guest",
-                    yourCharacter, opponentHasChosen, yourTurn,
+                    yourCharacter, opponentHasChosen, true, yourTurn,
                     yourTurn ? "host" : "guest",
                     questionAwaitingYourAnswer, yourUnansweredQuestion,
                     List.of(), List.of(), null, Instant.now().plusSeconds(600));
