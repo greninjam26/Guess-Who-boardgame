@@ -26,6 +26,15 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/rooms")
 public class RoomController {
+    /**
+     * The header a client puts its own key for a move in.
+     *
+     * <p>Optional, because a request without one cannot be recognised as a
+     * retry anyway and refusing it would only turn a missing header into a lost
+     * move. Clients should always send one.</p>
+     */
+    static final String MOVE_KEY_HEADER = "Idempotency-Key";
+
     private final RoomService rooms;
     private final SessionService sessions;
 
@@ -157,12 +166,13 @@ public class RoomController {
             @PathVariable String code,
             @RequestBody QuestionAsked asked,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization) {
+            String authorization,
+            @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
         if (asked == null || asked.question() == null || asked.question().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ask a question");
         }
-        return played(() -> rooms.ask(code, player, asked.question()));
+        return played(() -> rooms.ask(code, player, asked.question(), moveKey));
     }
 
     /**
@@ -178,12 +188,13 @@ public class RoomController {
             @PathVariable String code,
             @RequestBody AnswerGiven given,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization) {
+            String authorization,
+            @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
         if (given == null || given.answer() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer yes or no");
         }
-        return played(() -> rooms.answer(code, player, given.answer()));
+        return played(() -> rooms.answer(code, player, given.answer(), moveKey));
     }
 
     /**
@@ -199,12 +210,13 @@ public class RoomController {
             @PathVariable String code,
             @RequestBody CharacterChoice guess,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization) {
+            String authorization,
+            @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
         if (guess == null || guess.character() == null || guess.character().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name a character");
         }
-        return played(() -> rooms.guess(code, player, guess.character()));
+        return played(() -> rooms.guess(code, player, guess.character(), moveKey));
     }
 
     /**

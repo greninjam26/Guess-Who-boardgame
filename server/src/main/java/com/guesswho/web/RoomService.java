@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -164,8 +165,10 @@ public class RoomService {
      * @param question what they asked
      * @return their view of the game afterwards
      */
-    public RoomState ask(String code, Account account, String question) {
-        return move(code, account, game -> game.askQuestion(account.username(), question));
+    @Transactional
+    public RoomState ask(String code, Account account, String question, String moveKey) {
+        return move(code, account, moveKey,
+                game -> game.askQuestion(account.username(), question));
     }
 
     /**
@@ -176,8 +179,10 @@ public class RoomService {
      * @param answer  what they said
      * @return their view of the game afterwards
      */
-    public RoomState answer(String code, Account account, boolean answer) {
-        return move(code, account, game -> game.answerQuestion(account.username(), answer));
+    @Transactional
+    public RoomState answer(String code, Account account, boolean answer, String moveKey) {
+        return move(code, account, moveKey,
+                game -> game.answerQuestion(account.username(), answer));
     }
 
     /**
@@ -188,8 +193,10 @@ public class RoomService {
      * @param character who they think their opponent is holding
      * @return their view of the game afterwards
      */
-    public RoomState guess(String code, Account account, String character) {
-        return move(code, account, game -> game.guessOpponent(account.username(), character));
+    @Transactional
+    public RoomState guess(String code, Account account, String character, String moveKey) {
+        return move(code, account, moveKey,
+                game -> game.guessOpponent(account.username(), character));
     }
 
     /**
@@ -200,11 +207,22 @@ public class RoomService {
      * turn or answer its own question, because the game refuses rather than
      * because the controller remembered to check.</p>
      */
-    private RoomState move(String code, Account account, java.util.function.Consumer<Game> play) {
+    //Not annotated: Spring cannot intercept a private method, and a call from
+    //inside the same object does not pass through the proxy either. The
+    //transaction has to begin at the public method a client actually reaches,
+    //which is where the annotations are.
+    private RoomState move(String code, Account account, String moveKey,
+            java.util.function.Consumer<Game> play) {
         RoomRepository.StoredRoom room = forPlayer(code, account.id())
                 .orElseThrow(NoSuchRoomException::new);
         if (room.gameState() == null) {
             throw new RoomNotJoinableException("Nobody has joined that game yet");
+        }
+        //Claimed before the move is applied. A key that was already used means
+        //this is a retry of something that has happened, so the answer is the
+        //state it left behind rather than the move happening again.
+        if (moveKey != null && !rooms.claimMove(room.code(), moveKey)) {
+            return state(room.code(), account.id());
         }
         Game game = restore(room.gameState());
         play.accept(game);
