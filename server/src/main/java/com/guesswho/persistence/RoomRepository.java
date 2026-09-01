@@ -130,6 +130,9 @@ public interface RoomRepository {
      * @param hostLastSeen   when the host was last heard from, or null
      * @param guestLastSeen  when the guest was last heard from, or null
      * @param createdAt      when the room was opened, which fixes its ceiling
+     * @param updatedAt      when the game last changed, which is when the
+     *                       current turn began; polling deliberately does not
+     *                       touch it
      * @param expiresAt      when it is given up on
      */
     record StoredRoom(
@@ -144,6 +147,7 @@ public interface RoomRepository {
             Instant hostLastSeen,
             Instant guestLastSeen,
             Instant createdAt,
+            Instant updatedAt,
             Instant expiresAt) {
 
         /** Whether an account is one of the two people in this room. */

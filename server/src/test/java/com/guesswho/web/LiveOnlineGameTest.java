@@ -229,6 +229,86 @@ class LiveOnlineGameTest {
                 "SELECT version FROM game_rooms WHERE code = ?", Long.class, code));
     }
 
+    @Test
+    void givesTheGameToWhoeverStayedWhenATurnRunsOut() {
+        //The abandoner pays, not the person waiting. Passing the turn instead
+        //would only move the stall along and still need the sweep to end it.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String stayed = fromHost.yourTurn() ? guestToken : hostToken;
+        String stayedName = fromHost.yourTurn() ? "guest" : "host";
+
+        runTheTurnOut(code);
+
+        RoomState after = games.state(code, stayed).join().value();
+        assertEquals(RoomStatus.FINISHED, after.status());
+        assertEquals(stayedName, after.winner());
+    }
+
+    @Test
+    void blamesWhoeverOwedTheMoveRatherThanWhoseTurnItIs() {
+        //A question that has been asked is owed an answer by the other player,
+        //and it is they who are holding the game up even though the turn still
+        //belongs to the asker.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String asker = fromHost.yourTurn() ? hostToken : guestToken;
+        String askerName = fromHost.yourTurn() ? "host" : "guest";
+        games.ask(code, "Does your character wear glasses?", asker).join();
+
+        runTheTurnOut(code);
+
+        //The asker did their part; the answerer did not.
+        assertEquals(askerName, games.state(code, asker).join().value().winner());
+    }
+
+    @Test
+    void leavesAGameAloneWhileTheTurnStillHasTimeOnIt() {
+        String code = playingGame();
+
+        assertEquals(RoomStatus.IN_PROGRESS,
+                games.state(code, hostToken).join().value().status());
+    }
+
+    @Test
+    void doesNotForfeitAGameNobodyHasJoined() {
+        //Nobody owes a move in a room with one player in it, and it has its own
+        //shorter expiry for exactly this.
+        String code = games.createRoom(hostToken).join().value().code();
+        runTheTurnOut(code);
+
+        assertEquals(RoomStatus.WAITING,
+                games.state(code, hostToken).join().value().status());
+    }
+
+    @Test
+    void forfeitsOnlyOnce() {
+        String code = playingGame();
+        runTheTurnOut(code);
+
+        String firstWinner = games.state(code, hostToken).join().value().winner();
+        String secondWinner = games.state(code, guestToken).join().value().winner();
+
+        assertEquals(firstWinner, secondWinner,
+                "Two players polling at the same moment must not forfeit twice");
+    }
+
+    /** A joined game with both characters chosen. */
+    private String playingGame() {
+        String code = games.createRoom(hostToken).join().value().code();
+        games.joinRoom(code, guestToken).join();
+        games.chooseCharacter(code, "Olivia", hostToken).join();
+        games.chooseCharacter(code, "Sam", guestToken).join();
+        return code;
+    }
+
+    /** Puts the last move far enough in the past that the turn has run out. */
+    private void runTheTurnOut(String code) {
+        jdbcTemplate.update("UPDATE game_rooms SET updated_at = ? WHERE code = ?",
+                java.sql.Timestamp.from(java.time.Instant.now()
+                        .minus(RoomService.TURN_LIMIT).minusSeconds(60)), code);
+    }
+
     private static String signUpAndIn(AccountClient accounts, String username, String password) {
         accounts.register(username, password).join();
         AccountClient.Outcome signedIn = accounts.logIn(username, password).join();

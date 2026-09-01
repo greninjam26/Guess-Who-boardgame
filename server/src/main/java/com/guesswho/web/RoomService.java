@@ -32,6 +32,17 @@ public class RoomService {
     static final Duration IDLE_LIFETIME = Duration.ofMinutes(30);
     /** Nothing lives past this, however lively it looks. */
     static final Duration MAXIMUM_LIFETIME = Duration.ofHours(24);
+    /**
+     * How long a player has to make their move before losing the game.
+     *
+     * <p>Generous for thinking, short enough that somebody who walked away does
+     * not cost their opponent half an hour of waiting. It is the abandoner who
+     * pays: passing the turn instead would only move the stall along, and the
+     * game would still need the sweep to end it. A forfeit gives the player who
+     * stayed a result and a place on the leaderboard.</p>
+     */
+    static final Duration TURN_LIMIT = Duration.ofMinutes(3);
+
     /** Enough for a game with each of a few friends; not enough to fill a table. */
     static final int MAX_OPEN_ROOMS = 5;
     /** Codes are unique, and a clash is chance rather than exhaustion. */
@@ -253,9 +264,62 @@ public class RoomService {
         //makes no moves at all, and treating only moves as presence would have
         //them vanish while they sat watching the board.
         rooms.markSeen(room.code(), room.hostAccountId() == accountId, Instant.now());
+        //Checked here rather than only on a schedule: the player who is waiting
+        //is the one polling, so this is where they find out, within a couple of
+        //seconds rather than whenever a sweep next runs.
+        RoomRepository.StoredRoom current = forfeitIfAbandoned(room).orElse(room);
         //Projected from the row already read, so this player's own poll does
         //not make them look freshly present to themselves.
-        return RoomProjection.forPlayer(room, accountId);
+        return RoomProjection.forPlayer(current, accountId);
+    }
+
+    /**
+     * Ends a game whose turn ran out, in favour of whoever is still there.
+     *
+     * @param room the room as it stands
+     * @return the room after forfeiting, or empty when nothing was forfeited
+     */
+    private Optional<RoomRepository.StoredRoom> forfeitIfAbandoned(
+            RoomRepository.StoredRoom room) {
+        if (room.status() != RoomStatus.IN_PROGRESS || room.gameState() == null) {
+            return Optional.empty();
+        }
+        if (room.updatedAt().isAfter(Instant.now().minus(TURN_LIMIT))) {
+            return Optional.empty();
+        }
+        Game game = restore(room.gameState());
+        String owes = whoOwesAMove(game);
+        if (owes == null) {
+            return Optional.empty();
+        }
+        String stayed = owes.equals(room.hostName()) ? room.guestName() : room.hostName();
+        game.finish(stayed);
+        //Version-checked like any other write: two players polling at the same
+        //moment would otherwise both forfeit the same game.
+        boolean landed = rooms.updateGame(room.code(), serialise(game.snapshot()),
+                RoomStatus.FINISHED, nextDeadline(room), room.version());
+        return landed ? rooms.findByCode(room.code()) : Optional.empty();
+    }
+
+    /**
+     * Whose move the game is waiting on.
+     *
+     * <p>Not always whose turn it is: a question that has been asked is owed an
+     * answer by the other player, and it is they who are holding the game up.</p>
+     */
+    private static String whoOwesAMove(Game game) {
+        return game.getPendingPlayerQuestion()
+                .map(pending -> pending.asker().equals(game.getFirstPlayer().getUsername())
+                        ? game.getSecondPlayer().getUsername()
+                        : game.getFirstPlayer().getUsername())
+                .orElseGet(() -> {
+                    try {
+                        return game.getCurrentPlayerName();
+                    }
+                    catch (IllegalStateException notInProgress) {
+                        return null;
+                    }
+                });
     }
 
     /**
