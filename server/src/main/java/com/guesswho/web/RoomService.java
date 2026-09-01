@@ -157,6 +157,66 @@ public class RoomService {
     }
 
     /**
+     * Asks the opponent a question.
+     *
+     * @param code     the room's code
+     * @param account  who is asking
+     * @param question what they asked
+     * @return their view of the game afterwards
+     */
+    public RoomState ask(String code, Account account, String question) {
+        return move(code, account, game -> game.askQuestion(account.username(), question));
+    }
+
+    /**
+     * Answers the question the opponent asked.
+     *
+     * @param code    the room's code
+     * @param account who is answering
+     * @param answer  what they said
+     * @return their view of the game afterwards
+     */
+    public RoomState answer(String code, Account account, boolean answer) {
+        return move(code, account, game -> game.answerQuestion(account.username(), answer));
+    }
+
+    /**
+     * Guesses the opponent's character, which ends the game either way.
+     *
+     * @param code      the room's code
+     * @param account   who is guessing
+     * @param character who they think their opponent is holding
+     * @return their view of the game afterwards
+     */
+    public RoomState guess(String code, Account account, String character) {
+        return move(code, account, game -> game.guessOpponent(account.username(), character));
+    }
+
+    /**
+     * Applies one move and stores what it left behind.
+     *
+     * <p>Every move goes through here, so every move is validated by the rules
+     * rather than by the endpoint that called it. A client cannot ask out of
+     * turn or answer its own question, because the game refuses rather than
+     * because the controller remembered to check.</p>
+     */
+    private RoomState move(String code, Account account, java.util.function.Consumer<Game> play) {
+        RoomRepository.StoredRoom room = forPlayer(code, account.id())
+                .orElseThrow(NoSuchRoomException::new);
+        if (room.gameState() == null) {
+            throw new RoomNotJoinableException("Nobody has joined that game yet");
+        }
+        Game game = restore(room.gameState());
+        play.accept(game);
+        RoomStatus status = game.getStatus() == com.guesswho.game.GameStatus.FINISHED
+                ? RoomStatus.FINISHED
+                : room.status();
+        rooms.updateGame(room.code(), serialise(game.snapshot()), status,
+                Instant.now().plus(IDLE_LIFETIME));
+        return state(room.code(), account.id());
+    }
+
+    /**
      * Reads a room as one player may see it.
      *
      * @param code      the room's code

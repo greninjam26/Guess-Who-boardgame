@@ -23,6 +23,11 @@ import java.util.Objects;
  *                                two-player game
  * @param pendingComputerQuestion the question the computer has asked and is
  *                                waiting to hear the answer to, else null
+ * @param pendingQuestionAsker    the player waiting on an answer, else null.
+ *                                Without this a question asked on one machine
+ *                                disappears before the other machine is told
+ *                                about it
+ * @param pendingQuestionText     what they asked, else null
  * @param firstPlayer             the player who set the game up
  * @param secondPlayer            the second player, null when the opponent is
  *                                the computer
@@ -35,6 +40,8 @@ public record GameSnapshot(
         QuestionMode questionMode,
         ComputerDifficulty computerDifficulty,
         String pendingComputerQuestion,
+        String pendingQuestionAsker,
+        String pendingQuestionText,
         PlayerState firstPlayer,
         PlayerState secondPlayer,
         ComputerState computer) {

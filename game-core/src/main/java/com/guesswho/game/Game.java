@@ -25,6 +25,10 @@ public class Game {
     private ComputerDifficulty computerDifficulty;
     private QuestionMode questionMode;
     private Question pendingComputerQuestion;
+    //A question one player has asked and the other has not answered yet.
+    //Local play has no use for this: the opponent answers out loud and the
+    //asker types both halves at once. Two people on two machines cannot.
+    private PendingQuestion pendingPlayerQuestion;
     private GameStatus status;
     private Optional<String> winner;
 
@@ -251,6 +255,80 @@ public class Game {
         User player = getPlayer(username);
         requireTurn(player);
         player.recordQuestionAnswer(question, answer);
+    }
+
+    /**
+     * Asks the other player a question, and waits for them to answer it.
+     *
+     * <p>The turn does not pass yet. Until the question is answered neither
+     * player may do anything else, which is what stops a game where one person
+     * asks five questions while the other is deciding.</p>
+     *
+     * @param username who is asking
+     * @param question what they asked
+     * @throws IllegalArgumentException if the username is not a player here
+     * @throws IllegalStateException if it is not their turn, or a question is
+     *         already waiting to be answered
+     */
+    public void askQuestion(String username, String question) {
+        requireInProgress();
+        User player = getPlayer(username);
+        requireTurn(player);
+        if (question == null || question.isBlank()) {
+            throw new IllegalArgumentException("A question must not be blank");
+        }
+        if (pendingPlayerQuestion != null) {
+            throw new IllegalStateException(
+                    "A question is already waiting to be answered");
+        }
+        pendingPlayerQuestion = new PendingQuestion(username, question.trim());
+    }
+
+    /**
+     * Answers the question the other player asked.
+     *
+     * <p>Recorded against whoever asked, because it is their board it narrows,
+     * and the turn passes once it is answered.</p>
+     *
+     * @param username who is answering
+     * @param answer   what they said
+     * @throws IllegalArgumentException if they are not a player here, or are
+     *         the one who asked
+     * @throws IllegalStateException if no question is waiting
+     */
+    public void answerQuestion(String username, boolean answer) {
+        requireInProgress();
+        getPlayer(username);
+        if (pendingPlayerQuestion == null) {
+            throw new IllegalStateException("No question is waiting to be answered");
+        }
+        if (pendingPlayerQuestion.asker().equals(username)) {
+            //Answering your own question would let one player narrow their own
+            //board however they liked.
+            throw new IllegalArgumentException("You cannot answer your own question");
+        }
+        getPlayer(pendingPlayerQuestion.asker())
+                .recordQuestionAnswer(pendingPlayerQuestion.question(), answer);
+        pendingPlayerQuestion = null;
+        advanceTurn();
+    }
+
+    /**
+     * The question waiting to be answered, if there is one.
+     *
+     * @return the pending question, or empty when nobody is waiting
+     */
+    public Optional<PendingQuestion> getPendingPlayerQuestion() {
+        return Optional.ofNullable(pendingPlayerQuestion);
+    }
+
+    /**
+     * A question asked and not yet answered.
+     *
+     * @param asker    who asked it
+     * @param question what they asked
+     */
+    public record PendingQuestion(String asker, String question) {
     }
 
     /**
@@ -513,6 +591,43 @@ public class Game {
     }
 
     /**
+     * Guesses the opponent's character, with the game deciding whether it is right.
+     *
+     * <p>Unlike {@link #resolvePlayerGuess}, nobody is asked to confirm the
+     * answer. Two people sharing a keyboard can see each other and a lie is
+     * caught; two people on separate machines cannot, and asking the loser to
+     * confirm that they lost is not a check worth having.</p>
+     *
+     * @param username who is guessing
+     * @param characterName who they think their opponent is holding
+     * @return the winner's username
+     * @throws IllegalArgumentException if the character is not on the board
+     * @throws IllegalStateException if it is not their turn, if a question is
+     *         waiting, or if the opponent has not chosen yet
+     */
+    public String guessOpponent(String username, String characterName) {
+        requirePlayerGame();
+        User guessingPlayer = getPlayer(username);
+        requireTurn(guessingPlayer);
+        if (pendingPlayerQuestion != null) {
+            throw new IllegalStateException(
+                    "Answer the question you were asked before guessing");
+        }
+        guessingPlayer.findCharacter(characterName);
+        User opponent = guessingPlayer == firstPlayer ? secondPlayer : firstPlayer;
+        Character held = opponent.getSelectedCharacter();
+        if (held == null) {
+            //Guessing before they have chosen would let somebody win against a
+            //character nobody was holding.
+            throw new IllegalStateException("Your opponent has not chosen a character yet");
+        }
+        String winningUsername =
+                held.getName().equals(characterName) ? username : opponent.getUsername();
+        finish(winningUsername);
+        return winningUsername;
+    }
+
+    /**
      * Returns corrections for answers that did not match the human player's
      * selected character.
      *
@@ -690,6 +805,8 @@ public class Game {
                 questionMode,
                 computerDifficulty,
                 pendingComputerQuestion == null ? null : pendingComputerQuestion.getQuestion(),
+                pendingPlayerQuestion == null ? null : pendingPlayerQuestion.asker(),
+                pendingPlayerQuestion == null ? null : pendingPlayerQuestion.question(),
                 stateOf(firstPlayer, firstPlayer.getUsername(), firstPlayer.getBirthday()),
                 secondPlayer == null
                         ? null
@@ -749,6 +866,10 @@ public class Game {
         game.pendingComputerQuestion = snapshot.pendingComputerQuestion() == null
                 ? null
                 : game.firstPlayer.getGameBoard().findQuestion(snapshot.pendingComputerQuestion());
+        game.pendingPlayerQuestion = snapshot.pendingQuestionAsker() == null
+                ? null
+                : new PendingQuestion(
+                        snapshot.pendingQuestionAsker(), snapshot.pendingQuestionText());
         return game;
     }
 
