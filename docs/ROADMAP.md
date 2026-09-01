@@ -9,24 +9,24 @@ leaderboard (PR #23) merged.
 
 ## Releases
 
-| Release | What it is | Phases |
-| --- | --- | --- |
-| **v1.0** | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07 |
-| **v2.0** | The same game with accounts and room-code online multiplayer, deployed and reachable | 08–10 |
-| **Post-v2** | History, replay, chat, spectating, and scaling if it's ever measured | 11–13 |
+| Release     | What it is                                                                                                                    | Phases |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **v1.0**    | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07  |
+| **v2.0**    | The same game with accounts and room-code online multiplayer, deployed and reachable                                          | 08–10  |
+| **Post-v2** | History, replay, chat, spectating, and scaling if it's ever measured                                                          | 11–13  |
 
 Shipping v1.0 before the backend work matters. It is a real milestone you can
 install and hand to someone, and it arrives well before the two XL phases.
 
 ## Locked decisions
 
-| Area | Decision | Why |
-| --- | --- | --- |
-| Stack | Java end to end | No web client. One language, one rules engine, no port. |
-| Client | Swing + FlatLaf | The work ahead is architectural, not visual. Switching toolkits would stack a rewrite on a refactor. |
-| Server | One Spring Boot app | A monolith, deliberately. The load never justifies anything else. |
-| Transport | Polling, not sockets | Turns take a human ten seconds. A 1–2s poll is indistinguishable from realtime. |
-| Delivery | `jpackage` installers | Native `.dmg` / `.exe` with a bundled JRE. Nobody installs Java. |
+| Area      | Decision              | Why                                                                                                  |
+| --------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Stack     | Java end to end       | No web client. One language, one rules engine, no port.                                              |
+| Client    | Swing + FlatLaf       | The work ahead is architectural, not visual. Switching toolkits would stack a rewrite on a refactor. |
+| Server    | One Spring Boot app   | A monolith, deliberately. The load never justifies anything else.                                    |
+| Transport | Polling, not sockets  | Turns take a human ten seconds. A 1–2s poll is indistinguishable from realtime.                      |
+| Delivery  | `jpackage` installers | Native `.dmg` / `.exe` with a bundled JRE. Nobody installs Java.                                     |
 
 ## The dependency spine
 
@@ -67,7 +67,7 @@ this is a build-out rather than a rewrite.
   pattern the online client will reuse.
 - `HttpGameResultClient` and `HttpLeaderboardClient` are where the polling client
   starts — the HTTP plumbing and async handling already exist.
-- `LeaderboardPanel` and `LeaderboardPanelTest` prove the Swing layer *can* be
+- `LeaderboardPanel` and `LeaderboardPanelTest` prove the Swing layer _can_ be
   separated and unit-tested. That's the pattern Phase 02 applies to everything
   else.
 
@@ -97,7 +97,7 @@ Fixing it after the client and server depend on it means re-testing all of them.
       currently mutates the board's own state.
 - [x] Delete the dead `persistence/Leaderboard` class. It is unreferenced, reads a
       `Leaderboard.csv` that does not exist, and sorts ascending so the worst
-      score lands first. It is *not* related to the working server-backed
+      score lands first. It is _not_ related to the working server-backed
       leaderboard added in PR #23 — that one stays.
 
 ## Phase 01 — Migrations, modes, and API limits · L — done
@@ -137,7 +137,7 @@ Suggested as three branches:
 - [x] Split the leaderboard by mode: `GET /api/leaderboard?mode=PVE`, with the
       parameter optional so the endpoint keeps working unchanged.
 - [x] Two boards in the UI, not four — **vs Computer** and **vs Player** as tabs
-      in `LeaderboardDialog`, with difficulty as a *column* inside the PvE board.
+      in `LeaderboardDialog`, with difficulty as a _column_ inside the PvE board.
       Four boards means four nearly-empty tables at your player count.
 
 **`feat/bound-history-apis`**
@@ -155,14 +155,14 @@ Suggested as three branches:
 > beating a human are not comparable achievements, and one combined number
 > averages them into nonsense. Per-mode boards make each one internally fair
 > without hiding any data — and an `AI` row stops being strange, because on a
-> vs-Computer board *"AI has won 40 of 60"* is a genuinely interesting stat about
+> vs-Computer board _"AI has won 40 of 60"_ is a genuinely interesting stat about
 > how well the AI plays.
 
 > **Hotseat stays farmable.** You control both sides of a local PvP game, so that
 > board is self-refereed no matter how it's sliced. Either leave it unranked or
 > label it casual — just don't pretend it's competitive.
 
-## Phase 02 — Split the client · L
+## Phase 02 — Split the client · L — done
 
 **Blocks:** 03, 04, 05, 08 **Needs:** 00
 
@@ -194,22 +194,22 @@ model first and extract onto it.
 
 - [x] Replace the stringly-typed mode flags with an explicit enum-backed state
       model.
-- [ ] Every branch leaves the app working and the suite green.
-- [ ] Give the controller a view-update path. It currently starts games and holds
-      the setup, but the screens still read state directly rather than being
-      pushed to — that push is what online play needs.
-- [ ] Establish the EDT discipline: every state change arrives through one
+- [x] Every branch leaves the app working and the suite green.
+- [x] Give the controller a view-update path. `OnlineGameController.View` is
+      that push, and online play is what needed it: the screens are told what to
+      show rather than reading state for themselves.
+- [x] Establish the EDT discipline: every state change arrives through one
       `SwingUtilities.invokeLater` boundary rather than scattered through
-      listeners. Deferred from branch 1, which had no async source yet.
-- [ ] Bring each extracted piece under test as it lands. `LeaderboardPanel` is the
-      model to copy — its test covers loading, success, empty, error, and retry,
-      and the README lists untested Swing as a known limitation.
+      listeners. `RoomPoller` hands everything to `onInterfaceThread`, which is
+      the single boundary the polling thread crosses.
+- [x] Bring each extracted piece under test as it lands. Every extracted screen
+      has one, in the shape `LeaderboardPanelTest` set.
 
 > **Do this before it gets harder.** Every feature added ahead of this phase gets
 > built into the structure that has to be dismantled, then rebuilt. It's the
 > least fun phase and the one most worth front-loading.
 
-## Phase 03 — Split the build · S
+## Phase 03 — Split the build · S — done
 
 **Blocks:** 07 **Needs:** 02
 **Branch:** `chore/multi-module-build`
@@ -221,18 +221,18 @@ server and a database engine to every player.
 Done here rather than at packaging time because Phase 02 has just finished
 drawing these boundaries; doing both in one pass beats discovering it later.
 
-- [ ] Parent pom with three modules: `game-core`, `desktop-client`, `server`.
-- [ ] `game-core` — the `game` package plus the CSV, image, and audio resources,
+- [x] Parent pom with three modules: `game-core`, `desktop-client`, `server`.
+- [x] `game-core` — the `game` package plus the CSV, image, and audio resources,
       and the shared types both sides need (`GameResult`, `LeaderboardEntry`).
-- [ ] `desktop-client` — `ui`, `client`, and the CSV-writing half of
+- [x] `desktop-client` — `ui`, `client`, and the CSV-writing half of
       `persistence` (`CsvGameResultRepository`, `StoreResult`). Depends on
       `game-core` only.
-- [ ] `server` — `web`, `leaderboard`, and the JDBC half of `persistence`.
+- [x] `server` — `web`, `leaderboard`, and the JDBC half of `persistence`.
       Depends on `game-core` only.
-- [ ] Split the `persistence` package deliberately: the `GameResultRepository`
+- [x] Split the `persistence` package deliberately: the `GameResultRepository`
       interface is used by both sides and belongs in core; the JDBC and CSV
       implementations do not.
-- [ ] Verify the desktop artifact resolves no Spring dependencies.
+- [x] Verify the desktop artifact resolves no Spring dependencies.
 
 ## Phase 04 — Commit the character · M — done
 
@@ -243,8 +243,8 @@ mechanisms, not one. Both are in place.
 
 - [x] Move character selection to game start. `Player` stops auto-assigning;
       `Game.selectCharacter()` moves from `FINISHED` to setup.
-- [x] Add the store-my-character setting, as a choice about *when* rather than
-      *whether*: name your character before playing, or keep it to yourself and
+- [x] Add the store-my-character setting, as a choice about _when_ rather than
+      _whether_: name your character before playing, or keep it to yourself and
       say at the end. The answer review runs either way.
 - [x] Add `CharacterCommitment` — `SHA-256(character, nonce)` in `game-core`,
       recorded at the moment of choosing, carried on `GameResult.Participant`,
@@ -258,7 +258,7 @@ mechanisms, not one. Both are in place.
 > before Phase 09, because it means the crypto is not load-bearing today and
 > nothing local depends on it.
 >
-> What the commitment buys is verification *without disclosure*. In an online
+> What the commitment buys is verification _without disclosure_. In an online
 > game the opponent's own client answers questions about their character, so the
 > server can record a whole game without ever learning either character, and
 > still check both at the end. It cannot leak what it never held.
@@ -357,7 +357,7 @@ mechanisms, not one. Both are in place.
 
 > **Information gain and closest-to-half are the same rule.** The plan called
 > for replacing one with the other. Maximising the entropy of a two-way split
-> *is* getting closest to half, and every board question is two-way, so the
+> _is_ getting closest to half, and every board question is two-way, so the
 > change would not alter a single decision the AI makes.
 >
 > Checked rather than assumed: comparing both rules pairwise across every board
@@ -373,7 +373,7 @@ mechanisms, not one. Both are in place.
 > The board question is stored, not the words typed, so a transcript stays
 > comparable across games however the question was phrased.
 
-## Phase 07 — Ship v1.0 · S
+## Phase 07 — Ship v1.0 · S — done
 
 **Needs:** 03, 04, 05
 
@@ -403,8 +403,8 @@ mechanisms, not one. Both are in place.
       earlier point at which it can be tested.
 
 > **The version is 1.0.0 because it had to be.** `jpackage` refuses an
-> `--app-version` whose first number is zero on macOS: *"the first number in an
-> app-version cannot be zero or negative"*. Shipping this as v0.5 would have
+> `--app-version` whose first number is zero on macOS: _"the first number in an
+> app-version cannot be zero or negative"_. Shipping this as v0.5 would have
 > meant the installer reporting a version the tag disagreed with, so the
 > release milestones moved up one — online play is v2.0.
 
@@ -470,9 +470,11 @@ Two people can now play a game: create a room, share the code, join, choose,
 ask, answer, guess. What remains is what a deployment needs rather than what a
 game needs — timers, reconnect, rate limits and versioning.
 
-> **Untested as a whole.** Every layer has tests and the chain has never run
-> end to end against a live server. That is the next thing to do, not the next
-> thing to build.
+> **Automated end to end, not yet played.** `LiveOnlineGameTest` runs the real
+> client against a real server over a real socket, through a whole game and
+> through a forfeit, which is where the contract bugs between layers surface.
+> What has still never happened is two people at two machines. That is the next
+> thing to do, not the next thing to build.
 
 - [x] **Rooms, not a registry.** Six-character codes from an alphabet without
       the characters people mishear reading one screen and typing into another.
@@ -505,6 +507,17 @@ game needs — timers, reconnect, rate limits and versioning.
       whoever stayed, blaming whoever owed the move rather than whose turn it
       is: an unanswered question is held up by the answerer, and getting that
       backwards would forfeit the game of the player who did their part.
+      Running out is necessary but not sufficient — the player who owes the
+      move must also have stopped being heard from, or a long think ends the
+      game of somebody sitting there watching it. A room already past its
+      expiry is left to the sweep rather than forfeited, since settling it
+      would also carry a deadline that brings the room back to life.
+- [x] **Finished online games recorded**, against both accounts rather than
+      whichever client noticed. `GameMode.PVP_ONLINE` existed and nothing
+      produced it, so every online game — forfeits included — was invisible to
+      the leaderboard the accounts exist for. Written by the server on the
+      version-checked write that ended the game, which is what makes it happen
+      exactly once when both players are polling.
 
 - [x] **Three clocks.** Ten minutes unjoined, thirty idle, twenty-four hours
       absolute. The unjoined room dies soonest because creating one and walking
@@ -531,7 +544,7 @@ game needs — timers, reconnect, rate limits and versioning.
 > work worth doing here is durable sessions, idempotent moves, and reconnect —
 > not microservices or a message queue.
 >
-> Put that reasoning in the README. Explaining why you *didn't* distribute reads
+> Put that reasoning in the README. Explaining why you _didn't_ distribute reads
 > better than having distributed something that didn't need it.
 
 ## Phase 10 — Ship v2.0 · M
@@ -573,7 +586,7 @@ shipped. Almost all of this is presentation.
       chatter mixed into it would corrupt the log that verification runs against.
 - [ ] Chat rides the existing state-update channel: a message list on the
       session, no new transport.
-- [ ] Live spectating needs a *third* projection of game state alongside each
+- [ ] Live spectating needs a _third_ projection of game state alongside each
       player's view, since a spectator sees both characters.
 - [ ] Invite-only spectating, and block self-spectating.
 
@@ -605,11 +618,11 @@ question up on the board and throws on anything else, so free questions are
 impossible against the computer today. Phase 06 closes that cell by teaching the
 computer to resolve typed text to a board attribute.
 
-| Mode | Preset questions | Free questions | Verification |
-| --- | --- | --- | --- |
-| PvE | Yes | Phase 06 | Automatic |
-| PvP local (hotseat) | Yes | Yes | Optional |
-| PvP online | Yes | Yes | Via commitment |
+| Mode                | Preset questions | Free questions | Verification   |
+| ------------------- | ---------------- | -------------- | -------------- |
+| PvE                 | Yes              | Phase 06       | Automatic      |
+| PvP local (hotseat) | Yes              | Yes            | Optional       |
+| PvP online          | Yes              | Yes            | Via commitment |
 
 Until then `GameSetup.againstComputer()` forces preset questions, so the mode
 cannot be selected rather than failing partway through a game.
@@ -658,16 +671,17 @@ game needs.
 **Next: not a branch.** Play a game against a second client with the server
 running.
 
-Everything since sign-in was built against tests and never against a live
-server. Two people creating a room, joining, choosing, asking and guessing is
-the first time every layer runs together, and it is where a real bug is most
-likely to be. Finding it now costs an afternoon; finding it after timers,
-reconnect and rate limits are layered on top costs considerably more.
+The chain now runs end to end under test, which caught what that kind of test
+catches. What it cannot catch is the part that needs two people: whether the
+polling feels like a game, whether a three-minute timer is generous or mean in
+practice, whether the room code is readable down a phone. Finding that now costs
+an afternoon; finding it after reconnect and rate limits are layered on top
+costs considerably more.
 
 Three things carried forward and not forgotten:
 
 - Nobody has run the Windows installer. CI proves it builds; the `.msi` has only
   ever been a file.
 - Postgres moved to Phase 10, to sit with the deployment that needs it.
-- The five open Phase 09 items bound abuse and handle disconnection. Two people
+- The four open Phase 09 items bound abuse and handle reconnection. Two people
   on one network can play without them.

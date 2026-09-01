@@ -7,6 +7,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Player-versus-computer games with easy and hard AI modes
 - Local player-versus-player games
 - Online games against a friend, using a six-character code — no matchmaking
+- A three-minute turn timer that forfeits only once the player who owes the move
+  has actually stopped watching, so thinking hard never loses a game
+- Online games recorded against both players' accounts when they finish
 - Accounts, with guest play for anyone who would rather not have one
 - Preset-question and free-question game modes
 - Interactive character boards for tracking eliminated characters
@@ -30,8 +33,8 @@ Java is bundled, so nothing else needs installing.
 
 **macOS (Apple silicon)** — open the `.dmg` and drag the app to Applications. The
 first time you open it, **right-click the app and choose Open**, then confirm.
-Double-clicking shows *"cannot be opened because the developer cannot be
-verified"* instead: the app is not signed with an Apple developer certificate,
+Double-clicking shows _"cannot be opened because the developer cannot be
+verified"_ instead: the app is not signed with an Apple developer certificate,
 which costs $99 a year and this project does not have one. Right-clicking the
 first time is the whole workaround, and macOS stops asking afterwards.
 
@@ -46,11 +49,11 @@ source instead, as below.
 The game keeps its saved game, its queued results, and its settings in one
 place, which is also what to delete to remove every trace of it:
 
-| System | Location |
-| --- | --- |
-| macOS | `~/Library/Application Support/Guess Who` |
-| Windows | `%APPDATA%\Guess Who` |
-| Linux | `~/.local/share/guess-who` |
+| System  | Location                                  |
+| ------- | ----------------------------------------- |
+| macOS   | `~/Library/Application Support/Guess Who` |
+| Windows | `%APPDATA%\Guess Who`                     |
+| Linux   | `~/.local/share/guess-who`                |
 
 ## Technology
 
@@ -93,7 +96,6 @@ place, which is also what to delete to remove every trace of it:
 `game-core` depends on nothing — no Spring, no Swing, no HTTP — and both other
 modules depend only on it. That is what keeps a web server and a database engine
 out of the desktop installer.
-
 
 ## Prerequisites
 
@@ -264,30 +266,30 @@ question histories:
 
 ```json
 [
-  {
-    "id": 1,
-    "createdAt": "2026-08-28T15:30:00",
-    "participants": [
-      {
-        "name": "Player 1",
-        "selectedCharacter": "Olivia",
-        "questionAnswers": [
-          {
-            "question": "Does your character wear glasses?",
-            "answer": true
-          }
+    {
+        "id": 1,
+        "createdAt": "2026-08-28T15:30:00",
+        "participants": [
+            {
+                "name": "Player 1",
+                "selectedCharacter": "Olivia",
+                "questionAnswers": [
+                    {
+                        "question": "Does your character wear glasses?",
+                        "answer": true
+                    }
+                ],
+                "commitment": {
+                    "hash": "9f2c…",
+                    "nonce": "4a1b…"
+                }
+            }
         ],
-        "commitment": {
-          "hash": "9f2c…",
-          "nonce": "4a1b…"
-        }
-      }
-    ],
-    "winner": "Player 1",
-    "mode": "PVP_LOCAL",
-    "difficulty": null,
-    "questionMode": "PRESET"
-  }
+        "winner": "Player 1",
+        "mode": "PVP_LOCAL",
+        "difficulty": null,
+        "questionMode": "PRESET"
+    }
 ]
 ```
 
@@ -325,16 +327,16 @@ name when wins are tied:
 
 ```json
 [
-  {
-    "name": "Player 1",
-    "gamesPlayed": 3,
-    "wins": 2
-  },
-  {
-    "name": "AI",
-    "gamesPlayed": 3,
-    "wins": 1
-  }
+    {
+        "name": "Player 1",
+        "gamesPlayed": 3,
+        "wins": 2
+    },
+    {
+        "name": "AI",
+        "gamesPlayed": 3,
+        "wins": 1
+    }
 ]
 ```
 
@@ -369,35 +371,35 @@ aggregation, normalized database storage, and transactional rollback.
 
 ## Main Classes
 
-| Class | Responsibility |
-| --- | --- |
-| `GuessWhoServerApplication` | Starts the Spring Boot HTTP server. |
-| `StatusController` | Reports whether the server is online through `/api/status`. |
-| `GameResultController` | Accepts completed games and returns saved history through `/api/game-results`. |
-| `LeaderboardController` | Returns standings calculated from saved games through `/api/leaderboard`. |
-| `HttpGameResultClient` | Submits completed games to the configured server without blocking Swing. |
-| `HttpLeaderboardClient` | Retrieves leaderboard standings without blocking Swing. |
-| `GameResultSubmissionService` | Queues results while the server is unreachable and uploads them on the next success. |
-| `LeaderboardPanel` | Displays remote standings and handles loading, empty, error, and retry states. |
-| `GUI` | Builds the Swing interface, handles user interaction, and starts the application. |
-| `Game` | Coordinates game modes, turns, questions, guesses, and results. |
-| `GameResult` | Provides an immutable completed-game snapshot for external consumers. |
-| `Board` | Loads the character/question databases and builds the answer matrix. |
-| `GameResources` | Loads packaged CSV files and images and treats background music as optional. |
-| `Player` | Stores behavior and state shared by human and computer players. |
-| `ComputerPlayer` | Selects questions and narrows possible characters for the AI. |
-| `User` | Stores a human player's username and birthday. |
-| `Character` | Represents a character and their visual attributes. |
-| `Question` | Represents a yes-or-no character question. |
-| `JdbcGameResultRepository` | Stores and reconstructs game results from relational tables. |
-| `JdbcLeaderboardRepository` | Aggregates games played and wins from relational tables. |
-| `FilePendingGameResultStore` | Queues results locally while the server is unreachable, so they can be uploaded later. |
-| `RoomService` | Opens and joins online rooms, and applies every move through the rules. |
-| `RoomProjection` | Turns a stored game into what one player is allowed to see of it. |
-| `RoomState` | That projection. It has no field that could hold the opponent's character. |
-| `SessionService` | Issues and resolves bearer tokens, storing only their hashes. |
-| `OnlineGameController` | Holds the room, the poll and the last state an online game was in. |
-| `RoomPoller` | Asks the server what has happened, and delivers it on the Swing thread. |
+| Class                         | Responsibility                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `GuessWhoServerApplication`   | Starts the Spring Boot HTTP server.                                                    |
+| `StatusController`            | Reports whether the server is online through `/api/status`.                            |
+| `GameResultController`        | Accepts completed games and returns saved history through `/api/game-results`.         |
+| `LeaderboardController`       | Returns standings calculated from saved games through `/api/leaderboard`.              |
+| `HttpGameResultClient`        | Submits completed games to the configured server without blocking Swing.               |
+| `HttpLeaderboardClient`       | Retrieves leaderboard standings without blocking Swing.                                |
+| `GameResultSubmissionService` | Queues results while the server is unreachable and uploads them on the next success.   |
+| `LeaderboardPanel`            | Displays remote standings and handles loading, empty, error, and retry states.         |
+| `GUI`                         | Builds the Swing interface, handles user interaction, and starts the application.      |
+| `Game`                        | Coordinates game modes, turns, questions, guesses, and results.                        |
+| `GameResult`                  | Provides an immutable completed-game snapshot for external consumers.                  |
+| `Board`                       | Loads the character/question databases and builds the answer matrix.                   |
+| `GameResources`               | Loads packaged CSV files and images and treats background music as optional.           |
+| `Player`                      | Stores behavior and state shared by human and computer players.                        |
+| `ComputerPlayer`              | Selects questions and narrows possible characters for the AI.                          |
+| `User`                        | Stores a human player's username and birthday.                                         |
+| `Character`                   | Represents a character and their visual attributes.                                    |
+| `Question`                    | Represents a yes-or-no character question.                                             |
+| `JdbcGameResultRepository`    | Stores and reconstructs game results from relational tables.                           |
+| `JdbcLeaderboardRepository`   | Aggregates games played and wins from relational tables.                               |
+| `FilePendingGameResultStore`  | Queues results locally while the server is unreachable, so they can be uploaded later. |
+| `RoomService`                 | Opens and joins online rooms, and applies every move through the rules.                |
+| `RoomProjection`              | Turns a stored game into what one player is allowed to see of it.                      |
+| `RoomState`                   | That projection. It has no field that could hold the opponent's character.             |
+| `SessionService`              | Issues and resolves bearer tokens, storing only their hashes.                          |
+| `OnlineGameController`        | Holds the room, the poll and the last state an online game was in.                     |
+| `RoomPoller`                  | Asks the server what has happened, and delivers it on the Swing thread.                |
 
 ## Current Limitations
 
@@ -407,8 +409,13 @@ aggregation, normalized database storage, and transactional rollback.
 - Online play needs the server running and both players signed in. It is not
   deployed anywhere, so today that means one machine on your network running
   the server. See [docs/ROADMAP.md](docs/ROADMAP.md).
-- An online game has no turn timer yet, and a player who disappears leaves the
-  game until it expires rather than forfeiting.
+- Online play has not been tried by two people on two machines. Every layer has
+  tests and the whole chain runs end to end against a real server in
+  `LiveOnlineGameTest`, but nobody has yet sat down at two computers and played
+  a game with a friend.
+- An online game cannot be reconnected to yet. Closing the window and reopening
+  it does not put you back in the game; the room stays open until it expires,
+  and the turn timer will forfeit it in the meantime.
 - Neither installer is code-signed, so both platforms warn the first time. See
   [Install](#install) for the one extra step each needs.
 

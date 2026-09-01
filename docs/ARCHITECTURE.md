@@ -7,7 +7,7 @@ not.
 Two kinds of note appear throughout:
 
 - **Still missing.** Something named here that has not been written. What is
-  left is narrow: a *reconnecting* state for your own connection, a screen for
+  left is narrow: a _reconnecting_ state for your own connection, a screen for
   an expired game, API versioning, and rate limits. `docs/ROADMAP.md` has them
   in Phase 09.
 - **What was actually built differs.** Somewhere the design was tried and
@@ -241,23 +241,23 @@ who just lost to agree that they lost is not one worth having.
 
 The same session produces **different payloads per viewer**:
 
-| Field | Player A sees | Player B sees | Spectator (Phase 12) |
-| --- | --- | --- | --- |
-| Own character | yes | yes | — |
-| Opponent's character | **no** | **no** | both |
-| Own question history | yes | yes | yes |
-| Opponent's questions + answers given | yes | yes | yes |
-| Whose turn, turn number, timer | yes | yes | yes |
-| Commitment hashes | yes | yes | yes |
+| Field                                | Player A sees | Player B sees | Spectator (Phase 12) |
+| ------------------------------------ | ------------- | ------------- | -------------------- |
+| Own character                        | yes           | yes           | —                    |
+| Opponent's character                 | **no**        | **no**        | both                 |
+| Own question history                 | yes           | yes           | yes                  |
+| Opponent's questions + answers given | yes           | yes           | yes                  |
+| Whose turn, turn number, timer       | yes           | yes           | yes                  |
+| Commitment hashes                    | yes           | yes           | yes                  |
 
-A spectator view is a *third* projection, not a player view with a flag. Building
+A spectator view is a _third_ projection, not a player view with a flag. Building
 it as "player view plus extra" is how the opponent's character leaks.
 
 As built, the rule is enforced by the shape of the type rather than by care:
 `RoomState` has no field that could hold the opponent's character, so there is
 nowhere for one to be put. What it carries instead is `opponentHasChosen` — a
-boolean, because a client that knows *whether* they have chosen can show a tick,
-and one that knows *what* has already won.
+boolean, because a client that knows _whether_ they have chosen can show a tick,
+and one that knows _what_ has already won.
 
 The test asserts the character appears nowhere in the serialised response, not
 that a named field is absent, so a field added later that leaks it fails the
@@ -308,7 +308,7 @@ anything — which is the distinction worth drawing: somebody deliberating still
 has a client watching for them, and somebody who quit does not. Fifteen seconds
 of silence counts as gone, which is several missed polls.
 
-The waiting player is told, and told tentatively — *"seems to have left"* —
+The waiting player is told, and told tentatively — _"seems to have left"_ —
 because a phone that went through a tunnel looks exactly like one that was put
 away.
 
@@ -322,7 +322,7 @@ Checked when a player reads the game rather than only on a schedule, because the
 person waiting is the one polling. Version-checked like any other write, so two
 simultaneous polls cannot forfeit the same game twice.
 
-**Still missing:** a *reconnecting* state for your own connection, and a screen
+**Still missing:** a _reconnecting_ state for your own connection, and a screen
 for a game that expired rather than finished. Both are about what you are told
 when the fault is at your end, which nothing currently distinguishes from the
 server simply being slow.
@@ -348,7 +348,7 @@ Built in Phase 04. Each player names their character before playing, and
 character, so a choice is final because `Game.selectCharacter()` refuses a second
 call. Nothing local depends on the hash.
 
-Its value is verification *without disclosure*, which Phase 09 needs. An online
+Its value is verification _without disclosure_, which Phase 09 needs. An online
 opponent's own client answers questions about their character, so the server can
 record a whole game without ever learning either character and still check both
 at the end. It cannot leak what it never held.
@@ -363,10 +363,10 @@ A player may keep their character to themselves and name it once the game is
 over. The answer review runs either way, but proves different things, and the
 interface says which:
 
-| | commitment recorded | the review shows |
-| --- | --- | --- |
-| Named before playing | yes | the character was fixed before any question |
-| Named at the end | no | the answers were consistent with the character named |
+|                      | commitment recorded | the review shows                                     |
+| -------------------- | ------------------- | ---------------------------------------------------- |
+| Named before playing | yes                 | the character was fixed before any question          |
+| Named at the end     | no                  | the answers were consistent with the character named |
 
 A promise is only recorded while the game is in progress, because one made after
 the answers are known proves nothing and would be indistinguishable from a real
@@ -377,25 +377,41 @@ character at the end** — the signal a verifier needs, with no extra field.
 
 ## Data model
 
-Target shape. Bold rows are additions to what exists today.
+As built, at `V11`. Every table here exists.
 
-| Table | Purpose |
-| --- | --- |
-| **`accounts`** | id, username, password hash, created_at |
-| `game_results` | id, winner, created_at, **mode**, **difficulty**, **question_mode** |
-| `game_result_participants` | id, game_result_id, play_order, **account_id** (nullable for guests), name, selected_character, commitment_hash, commitment_nonce |
-| `game_result_question_answers` | id, participant_id, question_order, question, answer |
-| **`game_sessions`** | code, state, version, created_at, last_activity |
-| **`game_session_players`** | session_id, account_id, commitment_hash, last_seen |
-| **`game_session_moves`** | session_id, idempotency_key, applied_at |
+| Table                          | Columns                                                                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accounts`                     | id, username, username_folded, password_hash, created_at                                                                                      |
+| `account_sessions`             | id, account_id, token_hash, created_at, expires_at                                                                                            |
+| `game_results`                 | id, winner, created_at, mode, difficulty, question_mode                                                                                       |
+| `game_result_participants`     | id, game_result_id, play_order, account_id (nullable for guests), name, selected_character, commitment_hash, commitment_nonce                 |
+| `game_result_question_answers` | id, participant_id, question_order, question, answer                                                                                          |
+| `game_rooms`                   | id, code, host_account_id, guest_account_id, status, game_state, version, host_last_seen, guest_last_seen, created_at, updated_at, expires_at |
+| `room_move_keys`               | id, room_code, move_key, applied_at                                                                                                           |
 
-Schema changes go through **Flyway** migrations, adopted in Phase 01. Bold rows
-are still to come; everything else exists. Phase 01
-replaces it before any other schema work.
+Schema changes go through **Flyway** migrations, adopted in Phase 01.
 
 Participants keep a denormalized `name` alongside `account_id` so historical
 results stay readable after a rename, and so guest games record something
 meaningful.
+
+> **One room table, not three.** The design called for `game_sessions`,
+> `game_session_players` and `game_session_moves`. What got built is
+> `game_rooms` and `room_move_keys`, because the players table had nothing to
+> hold: a room has exactly two sides, so `host_*` and `guest_*` columns say the
+> same thing as two rows and a join, and they let the conditional updates that
+> decide joining and moving stay single statements against one row. The move
+> keys did need their own table — there are many per room and they are claimed
+> by a unique constraint.
+>
+> `game_state` is the whole `GameSnapshot` as JSON rather than columns. The
+> server never queries inside a game; what it decides with — who may act,
+> whether the room is open, when it dies — is what became a column.
+
+> **Both `last_seen` columns are on the room, not the account.** Presence is
+> per-game: the same person can have a room open in one window and nothing in
+> another, and an account-level "last seen" would say they were present in a
+> game they had closed.
 
 ---
 
