@@ -82,11 +82,15 @@ public interface RoomRepository {
      * That is the distinction worth drawing — not whether somebody is moving,
      * but whether their game is still open in front of them.</p>
      *
+     * <p>Takes the account rather than a host-or-guest flag so that working out
+     * which side of the room somebody is on costs no extra read, and so that an
+     * account that is in no room simply changes nothing.</p>
+     *
      * @param code      the room's code
-     * @param isHost    whether the player is the host
+     * @param accountId the player heard from
      * @param seenAt    when they were heard from
      */
-    void markSeen(String code, boolean isHost, Instant seenAt);
+    void markSeenBy(String code, long accountId, Instant seenAt);
 
     /**
      * Records that a move has been applied, if it has not been already.

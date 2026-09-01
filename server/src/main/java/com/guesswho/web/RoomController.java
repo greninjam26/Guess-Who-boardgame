@@ -140,24 +140,21 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        //Before the key check and before the rules get a say. A request that is
+        //about to be refused still proves its sender is sitting there, and a
+        //player retrying a move they are not allowed to make yet must not look
+        //to the forfeit rule like somebody who has walked away.
+        rooms.markPresent(code, player.id());
         String key = requireMoveKey(moveKey);
         if (choice == null || choice.character() == null || choice.character().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Choose a character");
         }
-        try {
-            return rooms.chooseCharacter(code, player, choice.character(), key);
-        }
-        catch (RoomService.NoSuchRoomException unknown) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game with that code");
-        }
-        catch (RoomService.RoomNotJoinableException notReady) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, notReady.getMessage());
-        }
-        catch (IllegalStateException | IllegalArgumentException refused) {
-            //Choosing twice, or naming somebody who is not on the board.
-            throw new ResponseStatusException(HttpStatus.CONFLICT, refused.getMessage());
-        }
+        //Through the same handler as every other move, not a catch chain of its
+        //own. Choosing is a move, it goes through RoomService.move like one, and
+        //it can therefore lose the same race any other move can — a duplicated
+        //chain that forgot RoomMovedOnException turned that race into a 500.
+        return played(() -> rooms.chooseCharacter(code, player, choice.character(), key));
     }
 
     /**
@@ -176,6 +173,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        //Before the key check and before the rules get a say. A request that is
+        //about to be refused still proves its sender is sitting there, and a
+        //player retrying a move they are not allowed to make yet must not look
+        //to the forfeit rule like somebody who has walked away.
+        rooms.markPresent(code, player.id());
         String key = requireMoveKey(moveKey);
         if (asked == null || asked.question() == null || asked.question().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ask a question");
@@ -199,6 +201,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        //Before the key check and before the rules get a say. A request that is
+        //about to be refused still proves its sender is sitting there, and a
+        //player retrying a move they are not allowed to make yet must not look
+        //to the forfeit rule like somebody who has walked away.
+        rooms.markPresent(code, player.id());
         String key = requireMoveKey(moveKey);
         if (given == null || given.answer() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer yes or no");
@@ -222,6 +229,11 @@ public class RoomController {
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
+        //Before the key check and before the rules get a say. A request that is
+        //about to be refused still proves its sender is sitting there, and a
+        //player retrying a move they are not allowed to make yet must not look
+        //to the forfeit rule like somebody who has walked away.
+        rooms.markPresent(code, player.id());
         String key = requireMoveKey(moveKey);
         if (guess == null || guess.character() == null || guess.character().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name a character");
@@ -233,9 +245,10 @@ public class RoomController {
      * Runs a move and turns the rules' refusals into answers a client can act on.
      *
      * <p>409 for every refusal the rules make: asking out of turn, answering
-     * your own question, guessing before the opponent has chosen. Each is a
-     * request that was well formed and arrived at the wrong moment, which is
-     * what a conflict is.</p>
+     * your own question, choosing a character twice or naming one that is not
+     * on the board, guessing before the opponent has chosen. Each is a request
+     * that was well formed and arrived at the wrong moment, which is what a
+     * conflict is.</p>
      */
     private RoomState played(java.util.function.Supplier<RoomState> move) {
         try {

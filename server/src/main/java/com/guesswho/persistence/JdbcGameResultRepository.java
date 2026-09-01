@@ -74,12 +74,22 @@ public class JdbcGameResultRepository
     @Override
     @Transactional
     public void save(GameResult gameResult, Long accountId) {
+        //Only the first participant belongs to the account: the second is
+        //whoever else was sitting there, and the computer belongs to nobody.
+        saveOwnedBy(gameResult, java.util.Collections.singletonList(accountId));
+    }
+
+    @Override
+    @Transactional
+    public void saveOwnedBy(GameResult gameResult, List<Long> accountIdsInPlayOrder) {
         long gameResultId = insertGameResult(gameResult);
         for (int playOrder = 0; playOrder < gameResult.participants().size(); playOrder++) {
             GameResult.Participant participant = gameResult.participants().get(playOrder);
-            //Only the first participant belongs to the account: the second is
-            //whoever else was sitting there, and the computer belongs to nobody.
-            Long owner = playOrder == 0 ? accountId : null;
+            //Beyond the end of the list is unattributed rather than an error, so
+            //that naming one account stays as easy as naming both.
+            Long owner = playOrder < accountIdsInPlayOrder.size()
+                    ? accountIdsInPlayOrder.get(playOrder)
+                    : null;
             long participantId = insertParticipant(gameResultId, playOrder, participant, owner);
             insertQuestionAnswers(participantId, participant.questionAnswers());
         }

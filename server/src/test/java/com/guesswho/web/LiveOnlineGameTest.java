@@ -14,6 +14,7 @@ import com.guesswho.client.OnlineOutcome;
 import com.guesswho.room.RoomState;
 import com.guesswho.room.RoomStatus;
 import java.net.URI;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,10 @@ class LiveOnlineGameTest {
     void twoSignedInPlayers() {
         jdbcTemplate.update("DELETE FROM room_move_keys");
         jdbcTemplate.update("DELETE FROM game_rooms");
+        //Finished games are recorded now, so they outlive the room and have to
+        //be cleared as well or one test counts another's results. Participants
+        //and their answers cascade from here.
+        jdbcTemplate.update("DELETE FROM game_results");
         jdbcTemplate.update("DELETE FROM account_sessions");
         jdbcTemplate.update("DELETE FROM accounts");
 
@@ -183,16 +188,51 @@ class LiveOnlineGameTest {
     }
 
     @Test
-    void anOpponentWhoHasNeverBeenHeardFromIsNotPresent() {
-        //Somebody who created a room and closed the app has not arrived, and
-        //saying otherwise would have the other player wait for nobody.
+    void aHostWhoOpenedARoomAndWalkedAwayGoesAbsent() {
+        //Opening a room counts as arriving — it is a request like any other, and
+        //a host who has just created a code is plainly at their machine. What
+        //makes them absent is the silence afterwards, not the fact that they
+        //have yet to poll.
         String code = games.createRoom(hostToken).join().value().code();
         games.joinRoom(code, guestToken).join();
+        assertTrue(games.state(code, guestToken).join().value().opponentPresent(),
+                "Somebody who opened this room moments ago is here");
 
-        //Only the host has made a request since joining.
-        RoomState seenByGuest = games.state(code, guestToken).join().value();
+        jdbcTemplate.update(
+                "UPDATE game_rooms SET host_last_seen = ? WHERE code = ?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)), code);
 
-        assertFalse(seenByGuest.opponentPresent());
+        assertFalse(games.state(code, guestToken).join().value().opponentPresent(),
+                "A host who opened a room and closed the app is not waiting there");
+    }
+
+    @Test
+    void aRejectedMoveStillProvesThePlayerIsThere() {
+        //Presence has to survive the rules refusing the move. Somebody pressing
+        //a button they are not allowed to press yet is unmistakably sitting
+        //there, and recording presence only for moves that succeed would let
+        //them be forfeited while actively trying to play.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String waiter = fromHost.yourTurn() ? guestToken : hostToken;
+        boolean waiterIsHost = !fromHost.yourTurn();
+
+        jdbcTemplate.update("""
+                UPDATE game_rooms SET host_last_seen = ?, guest_last_seen = ?
+                WHERE code = ?
+                """,
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)),
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)), code);
+
+        //Out of turn, so the rules turn it down and the transaction rolls back.
+        assertEquals(OnlineOutcome.Kind.REFUSED,
+                games.ask(code, "Does your character wear glasses?", waiter).join().kind());
+
+        java.sql.Timestamp lastSeen = jdbcTemplate.queryForObject(
+                "SELECT " + (waiterIsHost ? "host_last_seen" : "guest_last_seen")
+                        + " FROM game_rooms WHERE code = ?", java.sql.Timestamp.class, code);
+        assertTrue(lastSeen.toInstant().isAfter(java.time.Instant.now().minusSeconds(30)),
+                "A refused move rolled the player's presence back with it");
     }
 
     @Test
@@ -238,11 +278,48 @@ class LiveOnlineGameTest {
         String stayed = fromHost.yourTurn() ? guestToken : hostToken;
         String stayedName = fromHost.yourTurn() ? "guest" : "host";
 
-        runTheTurnOut(code);
+        everybodyWalksAway(code);
 
         RoomState after = games.state(code, stayed).join().value();
         assertEquals(RoomStatus.FINISHED, after.status());
         assertEquals(stayedName, after.winner());
+    }
+
+    @Test
+    void leavesTheGameAloneWhileTheSlowPlayerIsStillWatching() {
+        //A turn running out is not on its own a reason to end somebody's game.
+        //Presence is recorded precisely so that thinking for a long time and
+        //closing the laptop stop looking the same, and a player staring at the
+        //board must not lose it to a clock they can see running.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String thinking = fromHost.yourTurn() ? hostToken : guestToken;
+
+        everybodyWalksAway(code);
+
+        //Their own poll is proof they are there, even though the stored
+        //timestamp is older than the presence window.
+        RoomState after = games.state(code, thinking).join().value();
+        assertEquals(RoomStatus.IN_PROGRESS, after.status());
+    }
+
+    @Test
+    void doesNotEndAGameThatHasAlreadyExpired() {
+        //Between a room expiring and the sweep reaching it the row is still
+        //there. Forfeiting in that window settles a game the server has given
+        //up on, and the write carries a deadline that revives the room.
+        String code = playingGame();
+        everybodyWalksAway(code);
+        jdbcTemplate.update("UPDATE game_rooms SET expires_at = ? WHERE code = ?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(1)), code);
+
+        OnlineOutcome<RoomState> outcome = games.state(code, hostToken).join();
+
+        assertFalse(outcome.isOk(), "An expired room answered as though it were live");
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_rooms WHERE code = ? AND status = ?",
+                Integer.class, code, RoomStatus.FINISHED.name()),
+                "An expired game was forfeited rather than left to the sweep");
     }
 
     @Test
@@ -256,7 +333,7 @@ class LiveOnlineGameTest {
         String askerName = fromHost.yourTurn() ? "host" : "guest";
         games.ask(code, "Does your character wear glasses?", asker).join();
 
-        runTheTurnOut(code);
+        everybodyWalksAway(code);
 
         //The asker did their part; the answerer did not.
         assertEquals(askerName, games.state(code, asker).join().value().winner());
@@ -275,22 +352,65 @@ class LiveOnlineGameTest {
         //Nobody owes a move in a room with one player in it, and it has its own
         //shorter expiry for exactly this.
         String code = games.createRoom(hostToken).join().value().code();
-        runTheTurnOut(code);
+        everybodyWalksAway(code);
 
         assertEquals(RoomStatus.WAITING,
                 games.state(code, hostToken).join().value().status());
     }
 
     @Test
-    void forfeitsOnlyOnce() {
+    void forfeitsOnlyOnceWhenTwoPollsArriveTogether() throws Exception {
+        //Genuinely at the same time. Two polls one after the other prove
+        //nothing: the second finds a finished game and returns early without
+        //ever reaching the optimistic update the version check exists for.
         String code = playingGame();
-        runTheTurnOut(code);
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String waiting = fromHost.yourTurn() ? guestToken : hostToken;
+        everybodyWalksAway(code);
+        long before = version(code);
 
-        String firstWinner = games.state(code, hostToken).join().value().winner();
-        String secondWinner = games.state(code, guestToken).join().value().winner();
+        int polls = 8;
+        java.util.concurrent.CountDownLatch ready =
+                new java.util.concurrent.CountDownLatch(polls);
+        java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(polls);
+        try {
+            List<java.util.concurrent.Future<OnlineOutcome<RoomState>>> polled =
+                    new java.util.ArrayList<>();
+            for (int poll = 0; poll < polls; poll++) {
+                polled.add(pool.submit(() -> {
+                    ready.countDown();
+                    go.await();
+                    return games.state(code, waiting).join();
+                }));
+            }
+            assertTrue(ready.await(10, java.util.concurrent.TimeUnit.SECONDS),
+                    "Pollers never got going");
+            go.countDown();
 
-        assertEquals(firstWinner, secondWinner,
-                "Two players polling at the same moment must not forfeit twice");
+            for (java.util.concurrent.Future<OnlineOutcome<RoomState>> poll : polled) {
+                OnlineOutcome<RoomState> outcome = poll.get(20,
+                        java.util.concurrent.TimeUnit.SECONDS);
+                assertTrue(outcome.isOk(), "A simultaneous poll failed outright");
+            }
+        }
+        finally {
+            pool.shutdownNow();
+        }
+
+        //One forfeit, not eight. The version counts every write that landed, so
+        //a second one getting through shows up here — where comparing the two
+        //reported winners would not, since every poll returns the same winner
+        //whether it forfeited the game or merely read the result.
+        assertEquals(before + 1, version(code),
+                "Simultaneous polls forfeited the same game more than once");
+    }
+
+    /** How many writes have landed on a room. */
+    private long version(String code) {
+        return jdbcTemplate.queryForObject(
+                "SELECT version FROM game_rooms WHERE code = ?", Long.class, code);
     }
 
     /** A joined game with both characters chosen. */
@@ -302,11 +422,85 @@ class LiveOnlineGameTest {
         return code;
     }
 
-    /** Puts the last move far enough in the past that the turn has run out. */
-    private void runTheTurnOut(String code) {
-        jdbcTemplate.update("UPDATE game_rooms SET updated_at = ? WHERE code = ?",
-                java.sql.Timestamp.from(java.time.Instant.now()
-                        .minus(RoomService.TURN_LIMIT).minusSeconds(60)), code);
+    @Test
+    void recordsAFinishedOnlineGameAgainstBothPlayersAccounts() {
+        //Without this the whole online feature is invisible to the leaderboard
+        //the accounts exist for: two people play a real game and neither record
+        //changes.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String mover = fromHost.yourTurn() ? hostToken : guestToken;
+        String theirOpponentsCharacter = mover.equals(hostToken) ? "Sam" : "Olivia";
+
+        games.guess(code, theirOpponentsCharacter, mover).join();
+
+        assertEquals("PVP_ONLINE", jdbcTemplate.queryForObject(
+                "SELECT mode FROM game_results", String.class),
+                "An online game filed under the wrong mode is on the wrong board");
+        //Both sides are signed in and on their own machines, so the game belongs
+        //to both records rather than to whichever client reported it.
+        assertEquals(2, jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM game_result_participants
+                WHERE account_id IS NOT NULL
+                """, Integer.class),
+                "An online result left a player unattributed");
+    }
+
+    @Test
+    void recordsAForfeitedGameToo() {
+        //The forfeit exists to give the player who stayed a result. A room
+        //quietly marked finished is not one.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String stayed = fromHost.yourTurn() ? guestToken : hostToken;
+        String stayedName = fromHost.yourTurn() ? "guest" : "host";
+        everybodyWalksAway(code);
+
+        games.state(code, stayed).join();
+
+        assertEquals(stayedName, jdbcTemplate.queryForObject(
+                "SELECT winner FROM game_results", String.class),
+                "A forfeited game left no record for the player who stayed");
+    }
+
+    @Test
+    void recordsAFinishedGameOnlyOnceHoweverOftenItIsRead() {
+        //Both players poll a finished game, and either could be the one to
+        //notice. Recording on "the game is over" rather than on "this call is
+        //what ended it" would file the same game again on every poll.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String stayed = fromHost.yourTurn() ? guestToken : hostToken;
+        everybodyWalksAway(code);
+
+        for (int poll = 0; poll < 5; poll++) {
+            games.state(code, stayed).join();
+            games.state(code, hostToken).join();
+            games.state(code, guestToken).join();
+        }
+
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM game_results", Integer.class),
+                "One game produced more than one result");
+    }
+
+    /**
+     * Runs the turn out and empties both chairs.
+     *
+     * <p>Ageing the last move alone is no longer enough to forfeit anything, and
+     * that is the point: a turn running out matters only once the player who
+     * owes it has also stopped being heard from. Both sightings are aged so that
+     * whichever player the test then polls as is the only one who counts as
+     * present, by virtue of the poll itself.</p>
+     */
+    private void everybodyWalksAway(String code) {
+        java.sql.Timestamp longAgo = java.sql.Timestamp.from(java.time.Instant.now()
+                .minus(RoomService.TURN_LIMIT).minusSeconds(60));
+        jdbcTemplate.update("""
+                UPDATE game_rooms
+                SET updated_at = ?, host_last_seen = ?, guest_last_seen = ?
+                WHERE code = ?
+                """, longAgo, longAgo, longAgo, code);
     }
 
     private static String signUpAndIn(AccountClient accounts, String username, String password) {
