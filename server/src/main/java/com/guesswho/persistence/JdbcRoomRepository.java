@@ -147,13 +147,23 @@ public class JdbcRoomRepository implements RoomRepository {
 
     @Override
     @Transactional
-    public void markSeen(String code, boolean isHost, Instant seenAt) {
+    public void markSeenBy(String code, long accountId, Instant seenAt) {
+        //One statement rather than a read and then a write. Which side of the
+        //room somebody is on is something the row already knows, and asking it
+        //first would cost a query to learn what the WHERE clause can decide.
+        //
         //Deliberately not touching version or updated_at: being present is not
         //a change to the game, and counting it as one would make every poll
         //look like a move to anything watching for them.
-        jdbcTemplate.update(
-                "UPDATE game_rooms SET " + (isHost ? "host_last_seen" : "guest_last_seen")
-                        + " = ? WHERE code = ?", Timestamp.from(seenAt), code);
+        Timestamp at = Timestamp.from(seenAt);
+        jdbcTemplate.update("""
+                UPDATE game_rooms
+                SET host_last_seen =
+                        CASE WHEN host_account_id = ? THEN ? ELSE host_last_seen END,
+                    guest_last_seen =
+                        CASE WHEN guest_account_id = ? THEN ? ELSE guest_last_seen END
+                WHERE code = ? AND (host_account_id = ? OR guest_account_id = ?)
+                """, accountId, at, accountId, at, code, accountId, accountId);
     }
 
     private static RowMapper<StoredRoom> rowMapper() {

@@ -43,8 +43,12 @@ class IdempotentMovesTest {
                 .header("Authorization", "Bearer " + host)));
         mockMvc.perform(post("/api/rooms/" + code + "/players")
                 .header("Authorization", "Bearer " + guest));
-        choose(host, "Olivia");
-        choose(guest, "Sam");
+        //Checked, not fired and forgotten. These used to send no move key, and
+        //once one became compulsory they answered 400 and neither player ever
+        //chose — while every test in the class carried on passing against a
+        //game state that cannot occur in play.
+        choose(host, "Olivia", "host-chooses").andExpect(status().isOk());
+        choose(guest, "Sam", "guest-chooses").andExpect(status().isOk());
         boolean hostFirst = body(state(host)).contains("\"yourTurn\":true");
         asker = hostFirst ? host : guest;
         answerer = hostFirst ? guest : host;
@@ -308,9 +312,16 @@ class IdempotentMovesTest {
         return actions.andReturn().getResponse().getContentAsString();
     }
 
-    private ResultActions choose(String token, String character) throws Exception {
+    /**
+     * Chooses a character as one of the two players, carrying a move key.
+     *
+     * <p>The key is not optional — the endpoint answers 400 without one — so it
+     * is a parameter rather than something a caller can leave off.</p>
+     */
+    private ResultActions choose(String token, String character, String key) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/character")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, key)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"character\": \"%s\"}".formatted(character)));
     }

@@ -29,4 +29,22 @@ public interface GameResultRepository {
      * @param accountId  the signed-in account, or null when a guest submitted it
      */
     void save(GameResult gameResult, Long accountId);
+
+    /**
+     * Stores a completed game in which more than one participant has an account.
+     *
+     * <p>An online game is the case the single-account method cannot express:
+     * both players are signed in, on their own machines, and the result belongs
+     * to both records rather than to whichever client happened to report it. The
+     * server is the one holding that game, so it is the only place that knows
+     * both accounts without being told them by a client — and a client that
+     * could name the second account could put its losses on somebody else.</p>
+     *
+     * @param gameResult             the completed game
+     * @param accountIdsInPlayOrder  the account for each participant, matched by
+     *                               position; a null entry, or a list shorter
+     *                               than the participants, leaves the rest
+     *                               unattributed
+     */
+    void saveOwnedBy(GameResult gameResult, java.util.List<Long> accountIdsInPlayOrder);
 }

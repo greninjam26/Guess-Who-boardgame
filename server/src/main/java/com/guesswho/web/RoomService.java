@@ -2,9 +2,12 @@ package com.guesswho.web;
 
 import com.guesswho.account.Account;
 import com.guesswho.game.Game;
+import com.guesswho.game.GameMode;
+import com.guesswho.game.GameResult;
 import com.guesswho.game.GameSnapshot;
 import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.QuestionMode;
+import com.guesswho.persistence.GameResultRepository;
 import com.guesswho.persistence.RoomRepository;
 import com.guesswho.room.Room;
 import com.guesswho.room.RoomCode;
@@ -13,6 +16,8 @@ import com.guesswho.room.RoomStatus;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
@@ -26,6 +31,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Service
 public class RoomService {
+    private static final Logger LOG = LoggerFactory.getLogger(RoomService.class);
+
     /** Long enough to read a code down a phone, short enough to be cheap to abandon. */
     static final Duration UNJOINED_LIFETIME = Duration.ofMinutes(10);
     /** A game nobody has moved in. Long enough for somebody to make a cup of tea. */
@@ -40,6 +47,11 @@ public class RoomService {
      * pays: passing the turn instead would only move the stall along, and the
      * game would still need the sweep to end it. A forfeit gives the player who
      * stayed a result and a place on the leaderboard.</p>
+     *
+     * <p>Running out is necessary but not sufficient. The player who owes the
+     * move has to have stopped being heard from as well, or a long think ends
+     * the game of somebody sitting right there watching it — which is the exact
+     * distinction presence is recorded to make.</p>
      */
     static final Duration TURN_LIMIT = Duration.ofMinutes(3);
 
@@ -51,12 +63,15 @@ public class RoomService {
     private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private final RoomRepository rooms;
+    private final GameResultRepository results;
 
     /**
-     * @param rooms where rooms are kept
+     * @param rooms   where rooms are kept
+     * @param results where finished games are recorded
      */
-    public RoomService(RoomRepository rooms) {
+    public RoomService(RoomRepository rooms, GameResultRepository results) {
         this.rooms = rooms;
+        this.results = results;
     }
 
     /**
@@ -72,10 +87,17 @@ public class RoomService {
             //many exist at once, and it is the total that fills a database.
             throw new TooManyRoomsException(MAX_OPEN_ROOMS);
         }
-        Instant expiry = Instant.now().plus(UNJOINED_LIFETIME);
+        Instant now = Instant.now();
+        Instant expiry = now.plus(UNJOINED_LIFETIME);
         for (int attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
             try {
-                return toRoom(rooms.create(RoomCode.next(), host.id(), expiry));
+                RoomRepository.StoredRoom created =
+                        rooms.create(RoomCode.next(), host.id(), expiry);
+                //Creating a room is being heard from. Without this the host is
+                //absent until their first poll, and a guest who joins quickly
+                //is told nobody is there.
+                rooms.markSeenBy(created.code(), host.id(), now);
+                return toRoom(created);
             }
             catch (RoomRepository.CodeTakenException clash) {
                 //Two rooms cannot share a code. With 148 million of them this
@@ -102,7 +124,9 @@ public class RoomService {
             //there is nothing to look up.
             throw new NoSuchRoomException();
         }
+        Instant now = Instant.now();
         RoomRepository.StoredRoom room = rooms.findByCode(tidied)
+                .filter(stored -> isLive(stored, now))
                 .orElseThrow(NoSuchRoomException::new);
         if (room.hostAccountId() == guest.id()) {
             throw new RoomNotJoinableException("You cannot join your own room");
@@ -113,13 +137,15 @@ public class RoomService {
 
         Game game = startGame(room.hostName(), guest.username());
         boolean joined = rooms.join(tidied, guest.id(), serialise(game.snapshot()),
-                Instant.now().plus(IDLE_LIFETIME));
+                now.plus(IDLE_LIFETIME));
         if (!joined) {
             //Somebody else got there between the read and the write. The
             //conditional update is what decides, so this is a real answer
             //rather than a race that both callers won.
             throw new RoomNotJoinableException("Somebody else joined that game first");
         }
+        //Joining is being heard from, for the same reason creating is.
+        rooms.markSeenBy(tidied, guest.id(), now);
         return rooms.findByCode(tidied).map(RoomService::toRoom)
                 .orElseThrow(NoSuchRoomException::new);
     }
@@ -136,10 +162,55 @@ public class RoomService {
         if (tidied == null) {
             return Optional.empty();
         }
+        Instant now = Instant.now();
         //Somebody who is not in the room is told the same thing as somebody
         //whose code was wrong. Distinguishing them turns the endpoint into a
         //way to find out which codes are live.
-        return rooms.findByCode(tidied).filter(room -> room.includes(accountId));
+        return rooms.findByCode(tidied)
+                .filter(room -> room.includes(accountId))
+                .filter(room -> isLive(room, now));
+    }
+
+    /**
+     * Whether a room is still within its lifetime.
+     *
+     * <p>The sweep runs every five minutes, so between a room expiring and the
+     * sweep reaching it there is a window in which the row is still there. It
+     * must not be playable in that window: a game that has expired is over, and
+     * answering out of it would let a poll forfeit and re-date a room the
+     * server had already given up on.</p>
+     */
+    private static boolean isLive(RoomRepository.StoredRoom room, Instant now) {
+        return room.expiresAt().isAfter(now);
+    }
+
+    /**
+     * Notes that a player has just been heard from.
+     *
+     * <p>Called for every request one of the two players makes about a room,
+     * before anything that could refuse it. Making a move is the strongest
+     * evidence somebody is at their machine, and it has to count even when the
+     * rules turn the move down: a player pressing a button they are not allowed
+     * to press yet is unmistakably still there, and recording presence only for
+     * moves that succeed would let them be forfeited while actively trying to
+     * play.</p>
+     *
+     * <p>Outside the move's transaction rather than inside it, and deliberately
+     * so. A rejected move rolls its transaction back, which would take the
+     * player's presence with it — and a nested transaction of its own deadlocks
+     * against the very row the move is about to write.</p>
+     *
+     * @param code      the room's code
+     * @param accountId who has been heard from
+     */
+    public void markPresent(String code, long accountId) {
+        String tidied = RoomCode.normalise(code);
+        if (tidied == null) {
+            return;
+        }
+        //An account that is in no such room changes nothing: the statement is
+        //scoped to the two players, so this needs no check of its own.
+        rooms.markSeenBy(tidied, accountId, Instant.now());
     }
 
     /**
@@ -246,6 +317,9 @@ public class RoomService {
             //worked out from a game that no longer exists.
             throw new RoomMovedOnException();
         }
+        if (status == RoomStatus.FINISHED) {
+            recordResult(game, room);
+        }
         return state(room.code(), account.id());
     }
 
@@ -258,68 +332,144 @@ public class RoomService {
      * @throws NoSuchRoomException if the code opens nothing of theirs
      */
     public RoomState state(String code, long accountId) {
+        Instant now = Instant.now();
         RoomRepository.StoredRoom room = forPlayer(code, accountId)
                 .orElseThrow(NoSuchRoomException::new);
         //Reading counts as being present. A player waiting on their opponent
         //makes no moves at all, and treating only moves as presence would have
         //them vanish while they sat watching the board.
-        rooms.markSeen(room.code(), room.hostAccountId() == accountId, Instant.now());
+        rooms.markSeenBy(room.code(), accountId, now);
         //Checked here rather than only on a schedule: the player who is waiting
         //is the one polling, so this is where they find out, within a couple of
         //seconds rather than whenever a sweep next runs.
-        RoomRepository.StoredRoom current = forfeitIfAbandoned(room).orElse(room);
+        RoomRepository.StoredRoom current = forfeitIfAbandoned(room, accountId, now)
+                .orElse(room);
         //Projected from the row already read, so this player's own poll does
         //not make them look freshly present to themselves.
-        return RoomProjection.forPlayer(current, accountId);
+        return RoomProjection.forPlayer(current, accountId, now);
     }
 
     /**
      * Ends a game whose turn ran out, in favour of whoever is still there.
      *
-     * @param room the room as it stands
+     * <p>A turn running out is not on its own a reason to take somebody's game
+     * away. The player who owes the move has to have gone as well, or a slow
+     * decision becomes a loss — and the whole point of recording presence is to
+     * tell somebody thinking from somebody whose laptop is shut.</p>
+     *
+     * @param room    the room as it stands
+     * @param askedBy the account whose request this is
+     * @param now     the moment to judge against
      * @return the room after forfeiting, or empty when nothing was forfeited
      */
     private Optional<RoomRepository.StoredRoom> forfeitIfAbandoned(
-            RoomRepository.StoredRoom room) {
+            RoomRepository.StoredRoom room, long askedBy, Instant now) {
         if (room.status() != RoomStatus.IN_PROGRESS || room.gameState() == null) {
             return Optional.empty();
         }
-        if (room.updatedAt().isAfter(Instant.now().minus(TURN_LIMIT))) {
+        if (!isLive(room, now)) {
+            //Already past its expiry and waiting for the sweep. Forfeiting here
+            //would settle a game the server has given up on, and the write
+            //would carry a fresh deadline that brings the room back to life.
+            return Optional.empty();
+        }
+        if (room.updatedAt().isAfter(now.minus(TURN_LIMIT))) {
             return Optional.empty();
         }
         Game game = restore(room.gameState());
-        String owes = whoOwesAMove(game);
+        String owes = game.getPlayerOwingAMove().orElse(null);
         if (owes == null) {
             return Optional.empty();
         }
-        String stayed = owes.equals(room.hostName()) ? room.guestName() : room.hostName();
+        if (!game.hasSelectedCharacter(room.hostName())
+                || !game.hasSelectedCharacter(room.guestName())) {
+            //There is no game to win until both players are holding somebody.
+            //A room abandoned during choosing has nothing to record — a result
+            //needs both characters, and the room's own expiry already covers
+            //the case of two people who never got started.
+            return Optional.empty();
+        }
+        boolean owedByHost = owes.equals(room.hostName());
+        if (isStillThere(room, owedByHost, askedBy, now)) {
+            //Watching the board and taking their time. The room's own expiry is
+            //what bounds a game two people leave running.
+            return Optional.empty();
+        }
+        String stayed = owedByHost ? room.guestName() : room.hostName();
         game.finish(stayed);
         //Version-checked like any other write: two players polling at the same
         //moment would otherwise both forfeit the same game.
+        //
+        //Carrying the room's existing expiry rather than a fresh one: a game
+        //that has just been forfeited needs no more time than it already had.
         boolean landed = rooms.updateGame(room.code(), serialise(game.snapshot()),
-                RoomStatus.FINISHED, nextDeadline(room), room.version());
-        return landed ? rooms.findByCode(room.code()) : Optional.empty();
+                RoomStatus.FINISHED, room.expiresAt(), room.version());
+        if (!landed) {
+            return Optional.empty();
+        }
+        recordResult(game, room);
+        return rooms.findByCode(room.code());
     }
 
     /**
-     * Whose move the game is waiting on.
+     * Writes a finished online game to the record both players share.
      *
-     * <p>Not always whose turn it is: a question that has been asked is owed an
-     * answer by the other player, and it is they who are holding the game up.</p>
+     * <p>Called only where the version-checked write landed, which is what makes
+     * it happen exactly once. Both players poll a finished game and either could
+     * be the one to notice, so anything gated on "the game is over" rather than
+     * "this call is what ended it" would record the same game twice.</p>
+     *
+     * <p>A failure here loses the record, not the game. The players have their
+     * result either way, and refusing to end a game because the leaderboard was
+     * briefly unwritable would be the worse trade.</p>
      */
-    private static String whoOwesAMove(Game game) {
-        return game.getPendingPlayerQuestion()
-                .map(pending -> pending.asker().equals(game.getFirstPlayer().getUsername())
-                        ? game.getSecondPlayer().getUsername()
-                        : game.getFirstPlayer().getUsername())
-                .orElseGet(() -> {
-                    try {
-                        return game.getCurrentPlayerName();
-                    }
-                    catch (IllegalStateException notInProgress) {
-                        return null;
-                    }
-                });
+    private void recordResult(Game game, RoomRepository.StoredRoom room) {
+        try {
+            GameResult played = game.getGameResult();
+            //Rebuilt with the mode the server knows and the game does not. A
+            //Game cannot tell an online opponent from somebody sharing the
+            //keyboard — both are two humans — so left alone it files every
+            //online game as hotseat, on a board that is meant to be the
+            //competitive one.
+            GameResult online = new GameResult(played.participants(), played.winner(),
+                    GameMode.PVP_ONLINE, played.difficulty(), played.questionMode());
+            //Play order is host then guest, because that is the order the game
+            //was started in when the room was joined.
+            //asList rather than List.of: the guest's account is a Long, and
+            //List.of throws on a null rather than storing an unattributed row.
+            results.saveOwnedBy(online,
+                    java.util.Arrays.asList(room.hostAccountId(), room.guestAccountId()));
+        }
+        catch (RuntimeException unrecorded) {
+            LOG.warn("Could not record the result of online game {}", room.code(),
+                    unrecorded);
+        }
+    }
+
+    /**
+     * Whether the player who owes the move is still around to make it.
+     *
+     * @param room        the room as it stands
+     * @param owedByHost  whether it is the host who owes the move
+     * @param askedBy     the account whose request this is
+     * @param now         the moment to judge against
+     * @return true when they should be given longer
+     */
+    private static boolean isStillThere(
+            RoomRepository.StoredRoom room, boolean owedByHost, long askedBy, Instant now) {
+        //Boxed on both arms deliberately: a long on one and a Long on the other
+        //makes the ternary unbox, and a room with no guest would throw here
+        //rather than answering.
+        Long theirs = owedByHost ? Long.valueOf(room.hostAccountId()) : room.guestAccountId();
+        if (theirs != null && theirs == askedBy) {
+            //Whoever is asking is here by definition — their request is
+            //arriving as this runs. The stored timestamp is deliberately the
+            //one from before this request, so without this a player who came
+            //back after a break would forfeit on their own first poll.
+            return true;
+        }
+        return Presence.isPresent(
+                owedByHost ? room.hostLastSeen() : room.guestLastSeen(), now);
     }
 
     /**

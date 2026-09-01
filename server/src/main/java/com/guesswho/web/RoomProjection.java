@@ -24,18 +24,24 @@ final class RoomProjection {
      *
      * @param room      the stored room, including the whole game
      * @param accountId the player asking
+     * @param now       the moment to judge presence against
      * @return what that player may see
      */
-    static RoomState forPlayer(RoomRepository.StoredRoom room, long accountId) {
+    static RoomState forPlayer(
+            RoomRepository.StoredRoom room, long accountId, java.time.Instant now) {
         boolean asking = room.hostAccountId() == accountId;
         String you = asking ? room.hostName() : room.guestName();
         String opponent = asking ? room.guestName() : room.hostName();
 
         if (room.gameState() == null) {
             //Nobody has joined, so there is no game to say anything about.
-            return new RoomState(room.code(), room.status(), you, opponent,
-                    null, false, false, false, null, null, null,
-                    List.of(), List.of(), null, room.expiresAt());
+            return RoomState.builder()
+                    .code(room.code())
+                    .status(room.status())
+                    .you(you)
+                    .opponent(opponent)
+                    .expiresAt(room.expiresAt())
+                    .build();
         }
 
         GameSnapshot game = RoomService.deserialise(room.gameState());
@@ -44,45 +50,31 @@ final class RoomProjection {
         GameSnapshot.PlayerState yours = asking ? game.firstPlayer() : game.secondPlayer();
         GameSnapshot.PlayerState theirs = asking ? game.secondPlayer() : game.firstPlayer();
 
-        return new RoomState(
-                room.code(),
-                room.status(),
-                you,
-                opponent,
-                yours.selectedCharacter(),
+        return RoomState.builder()
+                .code(room.code())
+                .status(room.status())
+                .you(you)
+                .opponent(opponent)
+                .yourCharacter(yours.selectedCharacter())
                 //Whether, never which. A client that knows the opponent has
                 //chosen can show a tick; one that knows what they chose has
                 //won.
-                theirs.selectedCharacter() != null,
-                isPresent(asking ? room.guestLastSeen() : room.hostLastSeen()),
-                yours.isTurn(),
-                currentPlayer(game, room),
+                .opponentHasChosen(theirs.selectedCharacter() != null)
+                .opponentPresent(Presence.isPresent(
+                        asking ? room.guestLastSeen() : room.hostLastSeen(), now))
+                .yourTurn(yours.isTurn())
+                .currentPlayer(currentPlayer(game, room))
                 //Split in two so each player is told the same fact in the terms
                 //that matter to them: one owes an answer, the other is waiting
                 //on one.
-                waitingOn(game, you) ? game.pendingQuestionText() : null,
-                asking(game, you) ? game.pendingQuestionText() : null,
-                questions(yours),
-                questions(theirs),
-                game.winner(),
-                room.expiresAt());
-    }
-
-    /**
-     * How long since a player was heard from before they count as gone.
-     *
-     * <p>Clients poll every two seconds, so anything past a few missed polls
-     * means their game is not open any more. Long enough not to flicker on a
-     * slow network; short enough that the person waiting finds out while they
-     * still care.</p>
-     */
-    private static final java.time.Duration PRESENT_WITHIN = java.time.Duration.ofSeconds(15);
-
-    private static boolean isPresent(java.time.Instant lastSeen) {
-        //Never heard from counts as absent: a player who has not managed a
-        //single request has not arrived.
-        return lastSeen != null
-                && lastSeen.isAfter(java.time.Instant.now().minus(PRESENT_WITHIN));
+                .questionAwaitingYourAnswer(
+                        waitingOn(game, you) ? game.pendingQuestionText() : null)
+                .yourUnansweredQuestion(asking(game, you) ? game.pendingQuestionText() : null)
+                .yourQuestions(questions(yours))
+                .opponentQuestions(questions(theirs))
+                .winner(game.winner())
+                .expiresAt(room.expiresAt())
+                .build();
     }
 
     /** True when this player is the one who owes an answer. */
