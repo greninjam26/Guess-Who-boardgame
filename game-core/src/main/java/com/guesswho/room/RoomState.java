@@ -24,6 +24,10 @@ import java.util.List;
  * @param opponentHasChosen whether they have chosen — never which
  * @param yourTurn          whether it is your move
  * @param currentPlayer     whose move it is, by name
+ * @param questionAwaitingYourAnswer what your opponent asked and is waiting on,
+ *                          else null
+ * @param yourUnansweredQuestion what you asked and have not been answered yet,
+ *                          else null
  * @param yourQuestions     what you asked, and what you were told
  * @param opponentQuestions what they asked you, and what you answered
  * @param winner            who won, once somebody has
@@ -38,6 +42,8 @@ public record RoomState(
         boolean opponentHasChosen,
         boolean yourTurn,
         String currentPlayer,
+        String questionAwaitingYourAnswer,
+        String yourUnansweredQuestion,
         List<AskedQuestion> yourQuestions,
         List<AskedQuestion> opponentQuestions,
         String winner,

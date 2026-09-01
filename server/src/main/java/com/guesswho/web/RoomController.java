@@ -145,6 +145,108 @@ public class RoomController {
     }
 
     /**
+     * Asks the opponent a question.
+     *
+     * @param code          the room's code
+     * @param asked         the question
+     * @param authorization the bearer token of whoever is asking
+     * @return their view of the game afterwards
+     */
+    @PostMapping("/{code}/questions")
+    public RoomState ask(
+            @PathVariable String code,
+            @RequestBody QuestionAsked asked,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization) {
+        Account player = requireSignedIn(authorization);
+        if (asked == null || asked.question() == null || asked.question().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ask a question");
+        }
+        return played(() -> rooms.ask(code, player, asked.question()));
+    }
+
+    /**
+     * Answers the question the opponent asked.
+     *
+     * @param code          the room's code
+     * @param given         the answer
+     * @param authorization the bearer token of whoever is answering
+     * @return their view of the game afterwards
+     */
+    @PostMapping("/{code}/answers")
+    public RoomState answer(
+            @PathVariable String code,
+            @RequestBody AnswerGiven given,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization) {
+        Account player = requireSignedIn(authorization);
+        if (given == null || given.answer() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer yes or no");
+        }
+        return played(() -> rooms.answer(code, player, given.answer()));
+    }
+
+    /**
+     * Guesses the opponent's character, which ends the game either way.
+     *
+     * @param code          the room's code
+     * @param guess         who they think it is
+     * @param authorization the bearer token of whoever is guessing
+     * @return their view of the game afterwards
+     */
+    @PostMapping("/{code}/guesses")
+    public RoomState guess(
+            @PathVariable String code,
+            @RequestBody CharacterChoice guess,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization) {
+        Account player = requireSignedIn(authorization);
+        if (guess == null || guess.character() == null || guess.character().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name a character");
+        }
+        return played(() -> rooms.guess(code, player, guess.character()));
+    }
+
+    /**
+     * Runs a move and turns the rules' refusals into answers a client can act on.
+     *
+     * <p>409 for every refusal the rules make: asking out of turn, answering
+     * your own question, guessing before the opponent has chosen. Each is a
+     * request that was well formed and arrived at the wrong moment, which is
+     * what a conflict is.</p>
+     */
+    private RoomState played(java.util.function.Supplier<RoomState> move) {
+        try {
+            return move.get();
+        }
+        catch (RoomService.NoSuchRoomException unknown) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game with that code");
+        }
+        catch (RoomService.RoomNotJoinableException notReady) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, notReady.getMessage());
+        }
+        catch (IllegalStateException | IllegalArgumentException refused) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, refused.getMessage());
+        }
+    }
+
+    /**
+     * A question one player asked.
+     *
+     * @param question the question text
+     */
+    public record QuestionAsked(String question) {
+    }
+
+    /**
+     * An answer to the question that was asked.
+     *
+     * @param answer yes or no
+     */
+    public record AnswerGiven(Boolean answer) {
+    }
+
+    /**
      * The character a player is holding.
      *
      * @param character the character's name

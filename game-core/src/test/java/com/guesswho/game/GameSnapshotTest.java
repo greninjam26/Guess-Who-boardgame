@@ -148,14 +148,14 @@ class GameSnapshotTest {
     @Test
     void refusesASnapshotWithNoOpponent() {
         assertThrows(IllegalArgumentException.class, () -> new GameSnapshot(
-                GameStatus.IN_PROGRESS, null, QuestionMode.PRESET, null, null,
+                GameStatus.IN_PROGRESS, null, QuestionMode.PRESET, null, null, null, null,
                 player("sam"), null, null));
     }
 
     @Test
     void refusesASnapshotWithTwoKindsOfOpponent() {
         assertThrows(IllegalArgumentException.class, () -> new GameSnapshot(
-                GameStatus.IN_PROGRESS, null, QuestionMode.PRESET, null, null,
+                GameStatus.IN_PROGRESS, null, QuestionMode.PRESET, null, null, null, null,
                 player("sam"), player("alex"),
                 new GameSnapshot.ComputerState(player(null), List.of())));
     }

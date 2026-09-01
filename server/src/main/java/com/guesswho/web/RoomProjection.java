@@ -34,7 +34,7 @@ final class RoomProjection {
         if (room.gameState() == null) {
             //Nobody has joined, so there is no game to say anything about.
             return new RoomState(room.code(), room.status(), you, opponent,
-                    null, false, false, null, List.of(), List.of(), null,
+                    null, false, false, null, null, null, List.of(), List.of(), null,
                     room.expiresAt());
         }
 
@@ -56,10 +56,27 @@ final class RoomProjection {
                 theirs.selectedCharacter() != null,
                 yours.isTurn(),
                 currentPlayer(game, room),
+                //Split in two so each player is told the same fact in the terms
+                //that matter to them: one owes an answer, the other is waiting
+                //on one.
+                waitingOn(game, you) ? game.pendingQuestionText() : null,
+                asking(game, you) ? game.pendingQuestionText() : null,
                 questions(yours),
                 questions(theirs),
                 game.winner(),
                 room.expiresAt());
+    }
+
+    /** True when this player is the one who owes an answer. */
+    private static boolean waitingOn(GameSnapshot game, String you) {
+        return game.pendingQuestionAsker() != null
+                && !game.pendingQuestionAsker().equals(you);
+    }
+
+    /** True when this player is the one waiting to be answered. */
+    private static boolean asking(GameSnapshot game, String you) {
+        return game.pendingQuestionAsker() != null
+                && game.pendingQuestionAsker().equals(you);
     }
 
     private static String currentPlayer(GameSnapshot game, RoomRepository.StoredRoom room) {
