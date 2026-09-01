@@ -54,4 +54,15 @@ public class GameResultPersistenceConfiguration {
     public SessionRepository sessionRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcSessionRepository(jdbcTemplate);
     }
+
+    /**
+     * Creates the repository holding online rooms.
+     *
+     * @param jdbcTemplate configured database operations
+     * @return configured room repository
+     */
+    @Bean
+    public RoomRepository roomRepository(JdbcTemplate jdbcTemplate) {
+        return new JdbcRoomRepository(jdbcTemplate);
+    }
 }
