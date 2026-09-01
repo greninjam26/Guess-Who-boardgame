@@ -145,6 +145,8 @@ class RoomStateTest {
     void refusesAnEmptyChoice() throws Exception {
         mockMvc.perform(post("/api/rooms/" + code + "/character")
                         .header("Authorization", "Bearer " + hostToken)
+                        .header(RoomController.MOVE_KEY_HEADER,
+                                java.util.UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -177,6 +179,7 @@ class RoomStateTest {
     private ResultActions choose(String token, String character) throws Exception {
         return mockMvc.perform(post("/api/rooms/" + code + "/character")
                 .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, java.util.UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"character\": \"%s\"}".formatted(character)));
     }
