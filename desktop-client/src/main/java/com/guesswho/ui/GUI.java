@@ -2,6 +2,7 @@ package com.guesswho.ui;
 
 import com.guesswho.client.GameResultSubmissionService;
 import com.guesswho.client.HttpAccountClient;
+import com.guesswho.client.HttpOnlineGameClient;
 import com.guesswho.client.HttpGameResultClient;
 import com.guesswho.client.HttpLeaderboardClient;
 import com.formdev.flatlaf.FlatLightLaf;
@@ -44,6 +45,10 @@ public class GUI {
     private final AccountClient accountClient = new HttpAccountClient();
     private PlayerIdentity identity;
     private SignInScreen signInScreen;
+    //online play, which has its own controller and its own screens
+    private OnlineGameController onlineController;
+    private OnlineRoomScreen onlineRoomScreen;
+    private OnlineGameScreens onlineScreens;
     //keeps the game in progress, so a closed window is not a lost game
     private final SavedGameStore savedGames = new SavedGameStore();
     //retrieves server-backed leaderboard standings without blocking Swing
@@ -89,7 +94,8 @@ public class GUI {
         GameSetup setup = new GameSetup();
         identity = new PlayerIdentity(accountClient, new TokenStore());
         controller = new GameController(new Game(), setup);
-        setupScreens = new SetupScreens(setup, this::showInputError, this::startGame);
+        setupScreens = new SetupScreens(setup, this::showInputError, this::startGame,
+                this::beginOnlineGame);
         signInScreen = new SignInScreen(accountClient, identity, this::beginSetup);
         endingScreens = new EndingScreens(controller, images,
                 trustworthy -> {
@@ -147,6 +153,19 @@ public class GUI {
                 refreshFrame();
             }
         });
+        onlineController = new OnlineGameController(
+                new HttpOnlineGameClient(),
+                new RoomPoller(new HttpOnlineGameClient()),
+                () -> identity.token().orElse(null));
+        onlineRoomScreen = new OnlineRoomScreen(
+                onlineController, this::showOnlineGame, this::leaveOnlinePlay);
+        try {
+            onlineScreens = new OnlineGameScreens(onlineController, images,
+                    new com.guesswho.game.Board(), false, this::leaveOnlinePlay);
+        }
+        catch (Exception unloadable) {
+            throw new IllegalStateException("The board could not be loaded", unloadable);
+        }
         computerTurns.onTurnChange(this::saveGame);
         playerTurns.onTurnChange(this::saveGame);
         //this panel is used to display the ending massages
@@ -305,6 +324,65 @@ public class GUI {
     private void beginSetup() {
         frame.remove(signInScreen.panel());
         identity.username().ifPresent(controller.setup()::firstUsername);
+        frame.add(setupScreens.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    // --- online play ----------------------------------------------------
+
+    /**
+     * Leaves the setup screens for the online ones.
+     *
+     * <p>Signing in is required: an online game has to know who is on each
+     * side, so a guest is sent back to sign in rather than into a room they
+     * could not be attributed in.</p>
+     */
+    private void beginOnlineGame() {
+        if (!identity.isSignedIn()) {
+            showInputError("Sign in to play online. You can play the rest as a guest.");
+            return;
+        }
+        frame.remove(setupScreens.panel());
+        onlineRoomScreen.begin();
+        frame.add(onlineRoomScreen.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    /** Hands over from the room screen to the board, once there is a game. */
+    private void showOnlineGame(com.guesswho.room.RoomState state) {
+        frame.remove(onlineRoomScreen.panel());
+        //From here the board is what the server talks to, not the room screen.
+        onlineController.showOn(new OnlineGameController.View() {
+            @Override
+            public void roomOpened(com.guesswho.room.Room room) {
+            }
+
+            @Override
+            public void stateChanged(com.guesswho.room.RoomState updated) {
+                onlineScreens.show(updated);
+            }
+
+            @Override
+            public void problem(String message) {
+                showInputError(message);
+            }
+
+            @Override
+            public void signedOut() {
+                showInputError("You have been signed out. Sign in again to play online.");
+                leaveOnlinePlay();
+            }
+        });
+        onlineScreens.show(state);
+        frame.add(onlineScreens.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    /** Back to the setup screens, with nothing left polling. */
+    private void leaveOnlinePlay() {
+        onlineController.leave();
+        frame.remove(onlineRoomScreen.panel());
+        frame.remove(onlineScreens.panel());
         frame.add(setupScreens.panel(), BorderLayout.CENTER);
         refreshFrame();
     }

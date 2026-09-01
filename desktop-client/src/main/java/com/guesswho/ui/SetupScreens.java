@@ -43,6 +43,7 @@ class SetupScreens {
 
     private final GameSetup setup;
     private final Completion completion;
+    private final Runnable onlineChosen;
     private final Consumer<String> errorReporter;
 
     private final CardLayout cards = new CardLayout();
@@ -68,9 +69,26 @@ class SetupScreens {
      * @param completion notified once setup is finished
      */
     SetupScreens(GameSetup setup, Consumer<String> errorReporter, Completion completion) {
+        this(setup, errorReporter, completion, () -> {
+        });
+    }
+
+    /**
+     * Builds the setup screens, with online play offered as a mode.
+     *
+     * @param setup collects the player's answers
+     * @param errorReporter shows a message when an answer cannot be accepted
+     * @param completion notified once setup is finished
+     * @param onlineChosen notified when they choose to play online instead,
+     *        which skips the rest of setup: names, birthdays and who starts are
+     *        all the server's business in an online game
+     */
+    SetupScreens(GameSetup setup, Consumer<String> errorReporter, Completion completion,
+            Runnable onlineChosen) {
         this.setup = setup;
         this.errorReporter = errorReporter;
         this.completion = completion;
+        this.onlineChosen = onlineChosen;
 
         root.add(welcomeCard(), WELCOME);
         root.add(modeCard(), MODE);
@@ -120,6 +138,12 @@ class SetupScreens {
                 () -> setup.againstPlayer(QuestionMode.PRESET)));
         panel.add(modeButton("player vs player ask questions",
                 () -> setup.againstPlayer(QuestionMode.FREE_FORM)));
+
+        //Not a modeButton: online play does not ask for names, birthdays or who
+        //starts, because the server settles all three.
+        JButton online = new JButton("play online against a friend");
+        online.addActionListener(event -> onlineChosen.run());
+        panel.add(online);
         return panel;
     }
 
