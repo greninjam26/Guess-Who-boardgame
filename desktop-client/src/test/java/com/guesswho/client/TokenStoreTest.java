@@ -108,6 +108,14 @@ class TokenStoreTest {
     void keepsTheTokenReadableOnlyByItsOwner() throws Exception {
         //A token is a password by another name. Preferences on macOS are
         //world-readable, which is why this is a file and why it is locked down.
+        //
+        //The OS check is not quite the right question: permissions belong to
+        //the filesystem, and a temporary directory on one without them throws
+        //here on any operating system.
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                java.nio.file.FileSystems.getDefault()
+                        .supportedFileAttributeViews().contains("posix"),
+                "Needs a filesystem that has POSIX permissions to check them");
         store.save("a-token");
 
         Set<PosixFilePermission> permissions =

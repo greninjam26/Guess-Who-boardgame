@@ -53,8 +53,19 @@ public final class ApplicationDirectory {
             }
         }
         //Where these files went before any of this existed. It may not be
-        //writable either, but the stores all treat a failed write as a
-        //disappointment rather than a crash, so this cannot make things worse.
+        //writable either, and what happens then is not uniform, so it is worth
+        //being exact rather than reassuring: SavedGameStore and TokenStore
+        //swallow a failed write, losing a resumable game or a remembered login
+        //and nothing else. FilePendingGameResultStore does not — it throws
+        //UncheckedIOException, deliberately, because a queue that silently
+        //dropped results is the bug the write-only CSV had. That throw happens
+        //inside GameResultSubmissionService's future, so it reaches the player
+        //as "the game result could not be stored" rather than as a crash.
+        //
+        //Which is the point: reaching here is survivable, not harmless. Every
+        //candidate above it has already been created and written to, so this
+        //returns only when the machine has no writable directory of its own to
+        //offer.
         return Path.of("");
     }
 
