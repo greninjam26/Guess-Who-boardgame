@@ -161,9 +161,21 @@ class OnlineGameScreensTest {
     private static RoomState state(RoomStatus status, String yourCharacter,
             List<RoomState.AskedQuestion> yours, List<RoomState.AskedQuestion> theirs,
             String winner) {
-        return new RoomState("BCDFGH", status, "host", "guest", yourCharacter,
-                true, true, true, "host", null, null, yours, theirs, winner,
-                Instant.now().plusSeconds(600));
+        return RoomState.builder()
+                .code("BCDFGH")
+                .status(status)
+                .you("host")
+                .opponent("guest")
+                .yourCharacter(yourCharacter)
+                .opponentHasChosen(true)
+                .opponentPresent(true)
+                .yourTurn(true)
+                .currentPlayer("host")
+                .yourQuestions(yours)
+                .opponentQuestions(theirs)
+                .winner(winner)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
     }
 
     /** A poller that does nothing, so no background thread runs during a test. */

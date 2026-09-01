@@ -166,9 +166,18 @@ class RoomPollerTest {
     }
 
     private static RoomState state() {
-        return new RoomState("BCDFGH", RoomStatus.IN_PROGRESS, "host", "guest",
-                "Olivia", true, true, true, "host", null, null, List.of(), List.of(), null,
-                Instant.now().plusSeconds(600));
+        return RoomState.builder()
+                .code("BCDFGH")
+                .status(RoomStatus.IN_PROGRESS)
+                .you("host")
+                .opponent("guest")
+                .yourCharacter("Olivia")
+                .opponentHasChosen(true)
+                .opponentPresent(true)
+                .yourTurn(true)
+                .currentPlayer("host")
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
     }
 
     private OnlineGameClient alwaysReturning(OnlineOutcome<RoomState> outcome) {

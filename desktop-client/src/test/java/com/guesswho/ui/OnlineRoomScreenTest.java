@@ -201,9 +201,16 @@ class OnlineRoomScreenTest {
     }
 
     private static RoomState roomState(RoomStatus status) {
-        return new RoomState("BCDFGH", status, "host", "guest", null, false, true, true,
-                "host", null, null, List.of(), List.of(), null,
-                Instant.now().plusSeconds(600));
+        return RoomState.builder()
+                .code("BCDFGH")
+                .status(status)
+                .you("host")
+                .opponent("guest")
+                .opponentPresent(true)
+                .yourTurn(true)
+                .currentPlayer("host")
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
     }
 
     /** A poller that does nothing, so no background thread runs during a test. */

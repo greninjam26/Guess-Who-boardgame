@@ -260,15 +260,26 @@ class OnlineTurnPanelTest {
     }
 
     private static RoomState waiting() {
-        return new RoomState("BCDFGH", RoomStatus.WAITING, "host", null,
-                null, false, false, false, null, null, null, List.of(), List.of(), null,
-                Instant.now().plusSeconds(600));
+        return RoomState.builder()
+                .code("BCDFGH")
+                .status(RoomStatus.WAITING)
+                .you("host")
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
     }
 
     private static RoomState finished(String winner) {
-        return new RoomState("BCDFGH", RoomStatus.FINISHED, "host", "guest",
-                "Olivia", true, true, false, null, null, null, List.of(), List.of(), winner,
-                Instant.now().plusSeconds(600));
+        return RoomState.builder()
+                .code("BCDFGH")
+                .status(RoomStatus.FINISHED)
+                .you("host")
+                .opponent("guest")
+                .yourCharacter("Olivia")
+                .opponentHasChosen(true)
+                .opponentPresent(true)
+                .winner(winner)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
     }
 
     private static Playing playing() {
@@ -315,11 +326,20 @@ class OnlineTurnPanelTest {
         }
 
         RoomState state() {
-            return new RoomState("BCDFGH", RoomStatus.IN_PROGRESS, "host", "guest",
-                    yourCharacter, opponentHasChosen, opponentPresent, yourTurn,
-                    yourTurn ? "host" : "guest",
-                    questionAwaitingYourAnswer, yourUnansweredQuestion,
-                    List.of(), List.of(), null, Instant.now().plusSeconds(600));
+            return RoomState.builder()
+                    .code("BCDFGH")
+                    .status(RoomStatus.IN_PROGRESS)
+                    .you("host")
+                    .opponent("guest")
+                    .yourCharacter(yourCharacter)
+                    .opponentHasChosen(opponentHasChosen)
+                    .opponentPresent(opponentPresent)
+                    .yourTurn(yourTurn)
+                    .currentPlayer(yourTurn ? "host" : "guest")
+                    .questionAwaitingYourAnswer(questionAwaitingYourAnswer)
+                    .yourUnansweredQuestion(yourUnansweredQuestion)
+                    .expiresAt(Instant.now().plusSeconds(600))
+                    .build();
         }
     }
 }
