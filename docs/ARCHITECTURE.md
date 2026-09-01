@@ -181,21 +181,40 @@ the web layer.
 
 ## Online game sessions
 
-Target of Phase 09 — the most consequential part of the design.
+Built in Phase 09. The endpoint names below differ slightly from what was
+planned — each move posts to a plural resource — and two things turned out
+differently from the sketch, both recorded under the headings that follow.
 
 ### Lifecycle
 
 ```text
-  POST /api/rooms                 → creates session, returns 6-char code
-  POST /api/rooms/{code}/join     → second player joins, game starts
-  GET  /api/rooms/{code}/state    → polled every 1–2s by both clients
-  POST /api/rooms/{code}/ask      ┐
-  POST /api/rooms/{code}/answer   ├ intents, each carrying an idempotency key
-  POST /api/rooms/{code}/guess    ┘
+  POST /api/rooms                    → opens a room, returns a 6-char code
+  POST /api/rooms/{code}/players     → second player joins, game starts
+  GET  /api/rooms/{code}/state       → polled every 2s by both clients
+  POST /api/rooms/{code}/character   → the character you will be guessed at
+  POST /api/rooms/{code}/questions   ┐
+  POST /api/rooms/{code}/answers     ├ moves, each carrying an idempotency key
+  POST /api/rooms/{code}/guesses     ┘
 ```
 
 Room codes only. No public matchmaking — that decision is what keeps chat free of
 moderation obligations later.
+
+The code alphabet leaves out everything misheard reading one screen and typing
+into another: no `O` against `0`, no `I` or `1` against `L`, and no vowels, so
+no real words appear in something people read aloud. 23 characters and six
+places is about 148 million codes.
+
+**Asking and answering had to become two moves.** Local play records a question
+and its answer in one call, because the opponent answers out loud and the asker
+types both halves. Two people on two machines cannot, so `Game` now holds a
+question waiting for an answer, and the turn does not pass until it is
+answered — otherwise one player could ask five questions while the other was
+deciding how to answer the first.
+
+**A guess is settled by the server.** Local play asks the opponent to confirm;
+two people who cannot see each other have no such check, and asking the player
+who just lost to agree that they lost is not one worth having.
 
 ### State projection — the critical rule
 
@@ -212,6 +231,17 @@ The same session produces **different payloads per viewer**:
 
 A spectator view is a *third* projection, not a player view with a flag. Building
 it as "player view plus extra" is how the opponent's character leaks.
+
+As built, the rule is enforced by the shape of the type rather than by care:
+`RoomState` has no field that could hold the opponent's character, so there is
+nowhere for one to be put. What it carries instead is `opponentHasChosen` — a
+boolean, because a client that knows *whether* they have chosen can show a tick,
+and one that knows *what* has already won.
+
+The test asserts the character appears nowhere in the serialised response, not
+that a named field is absent, so a field added later that leaks it fails the
+same way. That was checked by deliberately adding one: it failed, printing the
+whole offending payload, and was reverted.
 
 ### Durability
 

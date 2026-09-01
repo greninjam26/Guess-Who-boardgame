@@ -34,7 +34,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  07 ✔   shipped
                                    06  needs 00 only — slot in anywhere
 
-v2.0    08 ✔  →  09  Online PvP  →  10  Ship (and Postgres)
+v2.0    08 ✔  →  09 ▸  Online PvP — playable  →  10  Ship (and Postgres)
 
 post    11  Stats and replay  →  12  Chat and spectating
         13  External session storage — only if measured
@@ -459,37 +459,56 @@ account owns the record and player two is just a name.
       digits, underscores and hyphens: a name that cannot be typed back
       reliably is a name that can impersonate another.
 
-## Phase 09 — Online PvP · XL
+## Phase 09 — Online PvP · XL — playable
 
 **Blocks:** 12 **Needs:** 04, 08
 
 The headline feature. The server holds the authoritative `Game`; clients stay
 thin and never decide anything.
 
-- [ ] A `GameSession` registry mapping room codes to games and connected players.
-      Six-character codes, no public matchmaking.
-- [ ] Endpoints wrapping the moves that already exist: ask, answer, guess, plus
-      `GET /api/rooms/{code}/state` for polling.
-- [ ] **Server-side state filtering.** Never send the opponent's character to a
-      client. Push full state to both players and anyone can read it off the wire
-      — and the entire verification story collapses with it.
-- [ ] Idempotency keys on every move. A request times out, the client retries,
-      and the question gets recorded twice. This is the bug you will hit first.
-- [ ] Persist session state **in Postgres**, on the single instance you already
-      run. Not for scale — in-memory sessions die on every restart, so deploying
-      while two friends are mid-game destroys their game. Redis is a Phase 13
-      upgrade, not a starting point.
+Two people can now play a game: create a room, share the code, join, choose,
+ask, answer, guess. What remains is what a deployment needs rather than what a
+game needs — timers, reconnect, rate limits and versioning.
+
+> **Untested as a whole.** Every layer has tests and the chain has never run
+> end to end against a live server. That is the next thing to do, not the next
+> thing to build.
+
+- [x] **Rooms, not a registry.** Six-character codes from an alphabet without
+      the characters people mishear reading one screen and typing into another.
+      Kept in the database rather than in memory: sessions held in memory die
+      on restart, so deploying while two people are mid-game would destroy it.
+- [x] **Endpoints for ask, answer, guess and character choice**, plus
+      `GET /api/rooms/{code}/state`. Asking and answering had to become two
+      moves: local play records both at once because the opponent answers out
+      loud, which two people on two machines cannot do. A guess is settled by
+      the server against the real character — asking the player who just lost
+      to confirm it is not a check worth having.
+- [x] **Server-side state filtering.** `RoomState` has no field that could
+      hold the opponent's character, so the guarantee is in the shape of the
+      type rather than in everyone remembering. The test asserts the character
+      appears nowhere in the response body, and was checked by deliberately
+      adding a field that leaked it — it failed, and was reverted.
+- [x] **Idempotency keys on every move.** Claimed inside the move's
+      transaction, so a move the rules refuse releases its key instead of
+      consuming it — otherwise one out-of-turn attempt would silently disable
+      that key for ever. The client retries a failed move with the same key,
+      which is the whole reason the keys exist.
+- [x] **Session state persisted**, as a `GameSnapshot` in the rooms table —
+      the same shape a saved local game uses. The engine is Phase 10's
+      business: the migrations are portable, so which database holds it is
+      configuration rather than a rewrite.
 - [ ] Turn timers, forfeit, and opponent-left handling, so an abandoned game
       doesn't hang forever.
-- [ ] Expire sessions on three clocks: an unjoined room after ~10 minutes, an
-      idle game after ~30, and any game after 24 hours regardless. The cheapest
-      abuse is creating a room and never joining it — one request holding a row
-      and a code forever — so that case gets the shortest life.
-- [ ] Cap concurrent open rooms per account at a small number. A rate limit
-      bounds how *fast* rooms appear; only a cap bounds how many exist at once.
-- [ ] A scheduled sweep that deletes expired sessions. Expiring lazily on read
-      never reaches the rows that actually accumulate, which are the unread
-      ones.
+- [x] **Three clocks.** Ten minutes unjoined, thirty idle, twenty-four hours
+      absolute. The unjoined room dies soonest because creating one and walking
+      away is the cheapest abuse there is, and the ceiling is measured from when
+      the room opened so playing cannot extend it.
+- [x] **Five open rooms per account.** A rate limit bounds how fast rooms
+      appear; only a cap bounds how many exist at once.
+- [x] **A scheduled sweep**, every five minutes. Expiring lazily on read never
+      reaches the rows that accumulate, which are exactly the abandoned ones
+      nobody will read again. Failure is logged and the next run tries again.
 - [ ] Reconnect: both the plumbing and the screen states — reconnecting, opponent
       reconnecting, game expired.
 - [ ] API versioning with a clear rejection message for stale clients. Installers
@@ -625,16 +644,24 @@ cannot be selected rather than failing partway through a game.
 
 ---
 
-Phases 00 and 01 are done. Of what remains, 02 and 04 get more expensive the
-longer they wait — 02 because every feature added first has to be dismantled,
-04 because it changes an API that Phase 09 will freeze. Everything after 05 can
-be reordered as interest dictates.
+Everything through Phase 08 is done, and Phase 09 is playable. v1.0 shipped as
+installers anyone can download; two people can now open a room and play each
+other. What remains in Phase 09 is what a deployment needs rather than what a
+game needs.
 
-**Next branch:** Phase 08, accounts. v1.0 is out: a desktop game somebody can
-download and play without building anything, which is what the first seven
-phases were for.
+**Next: not a branch.** Play a game against a second client with the server
+running.
 
-One thing v1.0 shipped without: nobody has run the Windows installer. CI proves
-it builds and the macOS app was launched from its own `.dmg`, but the `.msi`
-has only ever been a file. Worth doing before it is anybody's first
-impression.
+Everything since sign-in was built against tests and never against a live
+server. Two people creating a room, joining, choosing, asking and guessing is
+the first time every layer runs together, and it is where a real bug is most
+likely to be. Finding it now costs an afternoon; finding it after timers,
+reconnect and rate limits are layered on top costs considerably more.
+
+Three things carried forward and not forgotten:
+
+- Nobody has run the Windows installer. CI proves it builds; the `.msi` has only
+  ever been a file.
+- Postgres moved to Phase 10, to sit with the deployment that needs it.
+- The five open Phase 09 items bound abuse and handle disconnection. Two people
+  on one network can play without them.
