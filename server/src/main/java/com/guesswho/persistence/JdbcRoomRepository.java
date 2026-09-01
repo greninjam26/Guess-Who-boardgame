@@ -101,7 +101,35 @@ public class JdbcRoomRepository implements RoomRepository {
 
     @Override
     @Transactional
+    public boolean claimMove(String code, String moveKey) {
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO room_move_keys (room_code, move_key) VALUES (?, ?)",
+                    code, moveKey);
+            return true;
+        }
+        catch (DuplicateKeyException alreadyApplied) {
+            //The retry of a move that already happened. Not an error: the
+            //client is asking for the same thing twice and getting it once.
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteMoveKeys(String code) {
+        jdbcTemplate.update("DELETE FROM room_move_keys WHERE room_code = ?", code);
+    }
+
+    @Override
+    @Transactional
     public int deleteExpired(Instant now) {
+        //The keys go with the room. They have no foreign key to cascade from,
+        //because they outlive individual moves and are only ever read by code.
+        jdbcTemplate.update("""
+                DELETE FROM room_move_keys WHERE room_code IN (
+                    SELECT code FROM game_rooms WHERE expires_at <= ?)
+                """, Timestamp.from(now));
         return jdbcTemplate.update(
                 "DELETE FROM game_rooms WHERE expires_at <= ?", Timestamp.from(now));
     }

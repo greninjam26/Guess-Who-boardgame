@@ -67,6 +67,26 @@ public interface RoomRepository {
     int openRoomCount(long hostAccountId);
 
     /**
+     * Records that a move has been applied, if it has not been already.
+     *
+     * <p>The unique constraint decides, not a read beforehand: a retry can
+     * arrive while the first attempt is still in flight, and two reads would
+     * both find the key absent.</p>
+     *
+     * @param code    the room the move belongs to
+     * @param moveKey the client's key for this move
+     * @return true when this call was the first to claim the key
+     */
+    boolean claimMove(String code, String moveKey);
+
+    /**
+     * Forgets the move keys belonging to a room.
+     *
+     * @param code the room's code
+     */
+    void deleteMoveKeys(String code);
+
+    /**
      * Deletes rooms whose time is up.
      *
      * @param now the moment to judge against
