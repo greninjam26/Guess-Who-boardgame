@@ -141,20 +141,18 @@ public class RoomService {
      * @throws NoSuchRoomException if the code opens nothing of theirs
      * @throws IllegalStateException if they have already chosen
      */
+    @Transactional
     public RoomState chooseCharacter(
-            String code, Account account, String character) {
-        RoomRepository.StoredRoom room = forPlayer(code, account.id())
-                .orElseThrow(NoSuchRoomException::new);
-        if (room.gameState() == null) {
-            throw new RoomNotJoinableException("Nobody has joined that game yet");
-        }
-        Game game = restore(room.gameState());
+            String code, Account account, String character, String moveKey) {
+        //Through the same path as every other move, so it carries a key too.
+        //Choosing is a move like any other: the response can be lost on the way
+        //back, and a retry without a key is refused as choosing twice — which
+        //tells a player their choice failed when it did not.
+        //
         //Named by whoever is asking, so a player can only ever choose their
         //own: the username comes from the token, not from the request.
-        game.selectCharacter(account.username(), character);
-        rooms.updateGame(room.code(), serialise(game.snapshot()), room.status(),
-                nextDeadline(room));
-        return state(room.code(), account.id());
+        return move(code, account, moveKey,
+                game -> game.selectCharacter(account.username(), character));
     }
 
     /**

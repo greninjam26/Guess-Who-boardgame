@@ -163,6 +163,51 @@ class IdempotentMovesTest {
                 "Keys left behind by a swept room accumulate for ever");
     }
 
+    @Test
+    void doesNotRefuseARetriedCharacterChoiceAsChoosingTwice() throws Exception {
+        //A response lost on the way back is retried with the same key. Without
+        //the key reaching the server, the retry is refused as a second choice
+        //and the player is told their choice failed when it had not.
+        String code = ownRoom();
+
+        chooseWithKey(code, "Olivia", "choice-key").andExpect(status().isOk());
+        chooseWithKey(code, "Olivia", "choice-key").andExpect(status().isOk());
+    }
+
+    @Test
+    void stillRefusesAGenuineSecondChoice() throws Exception {
+        //A different key is a different move, and choosing twice is not allowed.
+        String code = ownRoom();
+
+        chooseWithKey(code, "Olivia", "first-key").andExpect(status().isOk());
+        chooseWithKey(code, "Sam", "second-key").andExpect(status().isConflict());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions chooseWithKey(
+            String roomCode, String character, String key) throws Exception {
+        return mockMvc.perform(post("/api/rooms/" + roomCode + "/character")
+                .header("Authorization", "Bearer " + asker)
+                .header(RoomController.MOVE_KEY_HEADER, key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"character\": \"%s\"}".formatted(character)));
+    }
+
+    /**
+     * A newly joined room in which nobody has chosen yet.
+     *
+     * <p>The room the other tests use already has both characters chosen, and
+     * choosing is the thing under test here.</p>
+     */
+    private String ownRoom() throws Exception {
+        String fresh = codeFrom(mockMvc.perform(post("/api/rooms")
+                .header("Authorization", "Bearer " + asker)));
+        String opponent = signUpAndIn("opponent" + System.nanoTime(), "a-good-password");
+        mockMvc.perform(post("/api/rooms/" + fresh + "/players")
+                .header("Authorization", "Bearer " + opponent))
+                .andExpect(status().isCreated());
+        return fresh;
+    }
+
     // --- helpers -------------------------------------------------------
 
     @Autowired

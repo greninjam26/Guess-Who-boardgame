@@ -202,8 +202,8 @@ moderation obligations later.
 
 The code alphabet leaves out everything misheard reading one screen and typing
 into another: no `O` against `0`, no `I` or `1` against `L`, and no vowels, so
-no real words appear in something people read aloud. 23 characters and six
-places is about 148 million codes.
+no real words appear in something people read aloud. 27 characters and six
+places is about 387 million codes.
 
 **Asking and answering had to become two moves.** Local play records a question
 and its answer in one call, because the opponent answers out loud and the asker
