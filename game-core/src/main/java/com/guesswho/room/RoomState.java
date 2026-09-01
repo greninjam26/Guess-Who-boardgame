@@ -22,6 +22,9 @@ import java.util.List;
  * @param opponent          the other player's name, or null if nobody has joined
  * @param yourCharacter     the character you are holding, or null before you choose
  * @param opponentHasChosen whether they have chosen — never which
+ * @param opponentPresent   whether they have been heard from recently. False
+ *                          means their game is probably closed; a player who is
+ *                          merely thinking still has a client polling for them
  * @param yourTurn          whether it is your move
  * @param currentPlayer     whose move it is, by name
  * @param questionAwaitingYourAnswer what your opponent asked and is waiting on,
@@ -40,6 +43,7 @@ public record RoomState(
         String opponent,
         String yourCharacter,
         boolean opponentHasChosen,
+        boolean opponentPresent,
         boolean yourTurn,
         String currentPlayer,
         String questionAwaitingYourAnswer,

@@ -201,7 +201,7 @@ class OnlineGameControllerTest {
     }
 
     private static RoomState roomState(RoomStatus status) {
-        return new RoomState("BCDFGH", status, "host", "guest", "Olivia", true, true,
+        return new RoomState("BCDFGH", status, "host", "guest", "Olivia", true, true, true,
                 "host", null, null, List.of(), List.of(),
                 status == RoomStatus.FINISHED ? "host" : null,
                 Instant.now().plusSeconds(600));

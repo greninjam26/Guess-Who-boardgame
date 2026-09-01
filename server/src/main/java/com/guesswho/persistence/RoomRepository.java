@@ -75,6 +75,20 @@ public interface RoomRepository {
     int openRoomCount(long hostAccountId);
 
     /**
+     * Notes that a player has just been heard from.
+     *
+     * <p>Called on every request they make, polling included: a client that is
+     * open and watching keeps its player present without them doing anything.
+     * That is the distinction worth drawing — not whether somebody is moving,
+     * but whether their game is still open in front of them.</p>
+     *
+     * @param code      the room's code
+     * @param isHost    whether the player is the host
+     * @param seenAt    when they were heard from
+     */
+    void markSeen(String code, boolean isHost, Instant seenAt);
+
+    /**
      * Records that a move has been applied, if it has not been already.
      *
      * <p>The unique constraint decides, not a read beforehand: a retry can
@@ -113,6 +127,8 @@ public interface RoomRepository {
      * @param guestName      their username, or null
      * @param gameState      the serialised game, or null while waiting
      * @param version        how many times it has changed
+     * @param hostLastSeen   when the host was last heard from, or null
+     * @param guestLastSeen  when the guest was last heard from, or null
      * @param createdAt      when the room was opened, which fixes its ceiling
      * @param expiresAt      when it is given up on
      */
@@ -125,6 +141,8 @@ public interface RoomRepository {
             String guestName,
             String gameState,
             long version,
+            Instant hostLastSeen,
+            Instant guestLastSeen,
             Instant createdAt,
             Instant expiresAt) {
 

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class JdbcRoomRepository implements RoomRepository {
     private static final String SELECT_SQL = """
             SELECT room.code, room.status, room.game_state, room.version,
+                   room.host_last_seen, room.guest_last_seen,
                    room.created_at, room.expires_at,
                    room.host_account_id, host.username AS host_name,
                    room.guest_account_id, guest.username AS guest_name
@@ -139,6 +140,22 @@ public class JdbcRoomRepository implements RoomRepository {
                 "DELETE FROM game_rooms WHERE expires_at <= ?", Timestamp.from(now));
     }
 
+    /** Null until that player has been heard from at all. */
+    private static Instant instantOrNull(Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toInstant();
+    }
+
+    @Override
+    @Transactional
+    public void markSeen(String code, boolean isHost, Instant seenAt) {
+        //Deliberately not touching version or updated_at: being present is not
+        //a change to the game, and counting it as one would make every poll
+        //look like a move to anything watching for them.
+        jdbcTemplate.update(
+                "UPDATE game_rooms SET " + (isHost ? "host_last_seen" : "guest_last_seen")
+                        + " = ? WHERE code = ?", Timestamp.from(seenAt), code);
+    }
+
     private static RowMapper<StoredRoom> rowMapper() {
         return (resultSet, rowNumber) -> {
             //Checked immediately: wasNull reports on the last column read, so
@@ -154,6 +171,8 @@ public class JdbcRoomRepository implements RoomRepository {
                     resultSet.getString("guest_name"),
                     resultSet.getString("game_state"),
                     resultSet.getLong("version"),
+                    instantOrNull(resultSet.getTimestamp("host_last_seen")),
+                    instantOrNull(resultSet.getTimestamp("guest_last_seen")),
                     resultSet.getTimestamp("created_at").toInstant(),
                     resultSet.getTimestamp("expires_at").toInstant());
         };

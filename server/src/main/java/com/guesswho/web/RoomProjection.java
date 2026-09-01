@@ -34,8 +34,8 @@ final class RoomProjection {
         if (room.gameState() == null) {
             //Nobody has joined, so there is no game to say anything about.
             return new RoomState(room.code(), room.status(), you, opponent,
-                    null, false, false, null, null, null, List.of(), List.of(), null,
-                    room.expiresAt());
+                    null, false, false, false, null, null, null,
+                    List.of(), List.of(), null, room.expiresAt());
         }
 
         GameSnapshot game = RoomService.deserialise(room.gameState());
@@ -54,6 +54,7 @@ final class RoomProjection {
                 //chosen can show a tick; one that knows what they chose has
                 //won.
                 theirs.selectedCharacter() != null,
+                isPresent(asking ? room.guestLastSeen() : room.hostLastSeen()),
                 yours.isTurn(),
                 currentPlayer(game, room),
                 //Split in two so each player is told the same fact in the terms
@@ -65,6 +66,23 @@ final class RoomProjection {
                 questions(theirs),
                 game.winner(),
                 room.expiresAt());
+    }
+
+    /**
+     * How long since a player was heard from before they count as gone.
+     *
+     * <p>Clients poll every two seconds, so anything past a few missed polls
+     * means their game is not open any more. Long enough not to flicker on a
+     * slow network; short enough that the person waiting finds out while they
+     * still care.</p>
+     */
+    private static final java.time.Duration PRESENT_WITHIN = java.time.Duration.ofSeconds(15);
+
+    private static boolean isPresent(java.time.Instant lastSeen) {
+        //Never heard from counts as absent: a player who has not managed a
+        //single request has not arrived.
+        return lastSeen != null
+                && lastSeen.isAfter(java.time.Instant.now().minus(PRESENT_WITHIN));
     }
 
     /** True when this player is the one who owes an answer. */

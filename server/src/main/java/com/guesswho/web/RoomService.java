@@ -247,9 +247,15 @@ public class RoomService {
      * @throws NoSuchRoomException if the code opens nothing of theirs
      */
     public RoomState state(String code, long accountId) {
-        return forPlayer(code, accountId)
-                .map(room -> RoomProjection.forPlayer(room, accountId))
+        RoomRepository.StoredRoom room = forPlayer(code, accountId)
                 .orElseThrow(NoSuchRoomException::new);
+        //Reading counts as being present. A player waiting on their opponent
+        //makes no moves at all, and treating only moves as presence would have
+        //them vanish while they sat watching the board.
+        rooms.markSeen(room.code(), room.hostAccountId() == accountId, Instant.now());
+        //Projected from the row already read, so this player's own poll does
+        //not make them look freshly present to themselves.
+        return RoomProjection.forPlayer(room, accountId);
     }
 
     /**

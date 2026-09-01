@@ -19,7 +19,7 @@ class HttpOnlineGameClientTest {
     private static final URI SERVER = URI.create("http://localhost:8080");
     private static final String STATE = """
             {"code":"BCDFGH","status":"IN_PROGRESS","you":"host","opponent":"guest",
-             "yourCharacter":"Olivia","opponentHasChosen":true,"yourTurn":true,
+             "yourCharacter":"Olivia","opponentHasChosen":true,"opponentPresent":true,"yourTurn":true,
              "currentPlayer":"host","questionAwaitingYourAnswer":null,
              "yourUnansweredQuestion":null,"yourQuestions":[],"opponentQuestions":[],
              "winner":null,"expiresAt":"2026-09-01T12:00:00Z"}
