@@ -498,8 +498,14 @@ game needs — timers, reconnect, rate limits and versioning.
       the same shape a saved local game uses. The engine is Phase 10's
       business: the migrations are portable, so which database holds it is
       configuration rather than a rewrite.
-- [ ] Turn timers, forfeit, and opponent-left handling, so an abandoned game
-      doesn't hang forever.
+- [x] **Turn timers, forfeit, and opponent-left handling.** Presence is measured
+      by requests, polling included, so a client that is open keeps its player
+      present without them doing anything — which separates somebody thinking
+      from somebody who closed their laptop. A turn that runs out forfeits to
+      whoever stayed, blaming whoever owed the move rather than whose turn it
+      is: an unanswered question is held up by the answerer, and getting that
+      backwards would forfeit the game of the player who did their part.
+
 - [x] **Three clocks.** Ten minutes unjoined, thirty idle, twenty-four hours
       absolute. The unjoined room dies soonest because creating one and walking
       away is the cheapest abuse there is, and the ceiling is measured from when
