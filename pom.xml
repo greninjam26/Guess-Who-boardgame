@@ -25,6 +25,11 @@
     </modules>
 
     <properties>
+        <!-- Flyway warns on every start that a newer H2 has not been verified
+             with it. Pinning to the version it has checked removes a warning
+             that would otherwise be permanent noise on a deployed server, and
+             nothing here uses anything H2 added since. -->
+        <h2.version>2.3.232</h2.version>
         <java.version>17</java.version>
         <junit-jupiter.version>6.1.3</junit-jupiter.version>
     </properties>
