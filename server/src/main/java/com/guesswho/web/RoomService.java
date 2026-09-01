@@ -153,7 +153,7 @@ public class RoomService {
         //own: the username comes from the token, not from the request.
         game.selectCharacter(account.username(), character);
         rooms.updateGame(room.code(), serialise(game.snapshot()), room.status(),
-                Instant.now().plus(IDLE_LIFETIME));
+                nextDeadline(room));
         return state(room.code(), account.id());
     }
 
@@ -230,7 +230,7 @@ public class RoomService {
                 ? RoomStatus.FINISHED
                 : room.status();
         rooms.updateGame(room.code(), serialise(game.snapshot()), status,
-                Instant.now().plus(IDLE_LIFETIME));
+                nextDeadline(room));
         return state(room.code(), account.id());
     }
 
@@ -246,6 +246,19 @@ public class RoomService {
         return forPlayer(code, accountId)
                 .map(room -> RoomProjection.forPlayer(room, accountId))
                 .orElseThrow(NoSuchRoomException::new);
+    }
+
+    /**
+     * The deadline a room should carry after activity, never past its ceiling.
+     *
+     * <p>Pushing the deadline out on every move means a game two people keep
+     * poking at never expires at all. The ceiling is measured from when the
+     * room was opened, so it cannot be extended by playing.</p>
+     */
+    private static Instant nextDeadline(RoomRepository.StoredRoom room) {
+        Instant idle = Instant.now().plus(IDLE_LIFETIME);
+        Instant ceiling = room.createdAt().plus(MAXIMUM_LIFETIME);
+        return idle.isBefore(ceiling) ? idle : ceiling;
     }
 
     private static Game restore(String gameState) {
