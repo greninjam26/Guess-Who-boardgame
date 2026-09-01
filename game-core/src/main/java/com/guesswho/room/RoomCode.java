@@ -10,7 +10,7 @@ import java.security.SecureRandom;
  * against {@code L}, and no vowels, which keeps real words from appearing in a
  * code people will read aloud.</p>
  *
- * <p>That leaves 23 characters and 23^6 codes — around 148 million. Guessing at
+ * <p>That leaves 27 characters and 27^6 codes — around 387 million. Guessing at
  * one is not a way into somebody's game, and the codes are short enough to say
  * over the phone.</p>
  */

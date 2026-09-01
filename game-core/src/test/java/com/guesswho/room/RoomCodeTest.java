@@ -36,7 +36,28 @@ class RoomCodeTest {
             seen.add(RoomCode.next());
         }
 
-        assertEquals(2000, seen.size(), "Two rooms answering to one code loses a game");
+        //Not 2000 exactly. Two thousand draws from 23^6 collide about one run
+        //in seventy-five by pure chance, and an earlier version of this test
+        //asserted perfection and failed on it. What is worth catching is a
+        //generator that repeats systematically — one using a fraction of its
+        //alphabet would come nowhere near this.
+        assertTrue(seen.size() >= 1995,
+                "Codes are repeating far more than chance explains: " + seen.size()
+                        + " unique out of 2000");
+    }
+
+    @Test
+    void usesTheWholeAlphabet() {
+        //The property the uniqueness test is really reaching for: a generator
+        //stuck on a few characters is the way codes start colliding.
+        Set<Character> used = new HashSet<>();
+        for (int attempt = 0; attempt < 2000; attempt++) {
+            for (char character : RoomCode.next().toCharArray()) {
+                used.add(character);
+            }
+        }
+
+        assertEquals(27, used.size(), "Some characters are never produced: " + used);
     }
 
     @Test

@@ -132,14 +132,15 @@ public class RoomController {
             @PathVariable String code,
             @RequestBody CharacterChoice choice,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization) {
+            String authorization,
+            @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
         Account player = requireSignedIn(authorization);
         if (choice == null || choice.character() == null || choice.character().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Choose a character");
         }
         try {
-            return rooms.chooseCharacter(code, player, choice.character());
+            return rooms.chooseCharacter(code, player, choice.character(), moveKey);
         }
         catch (RoomService.NoSuchRoomException unknown) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game with that code");
