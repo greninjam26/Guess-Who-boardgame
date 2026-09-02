@@ -11,6 +11,7 @@ import com.guesswho.client.HttpAccountClient;
 import com.guesswho.client.HttpOnlineGameClient;
 import com.guesswho.client.OnlineGameClient;
 import com.guesswho.client.OnlineOutcome;
+import com.guesswho.room.GameReveal;
 import com.guesswho.room.RoomState;
 import com.guesswho.room.RoomStatus;
 import java.net.URI;
@@ -524,6 +525,150 @@ class LiveOnlineGameTest {
         assertEquals(1, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM game_results", Integer.class),
                 "One game produced more than one result");
+    }
+
+    @Test
+    void revealsBothCharactersOnlyOnceTheGameIsOver() {
+        //The rule the whole online design rests on, checked at the one moment it
+        //is allowed to stop applying. Before the end, asking is refused; after
+        //it, both characters are finally sayable.
+        String code = playingGame();
+
+        assertFalse(games.reveal(code, hostToken).join().isOk(),
+                "A game still being played must not reveal anybody");
+
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String mover = fromHost.yourTurn() ? hostToken : guestToken;
+        games.guess(code, mover.equals(hostToken) ? "Sam" : "Olivia", mover).join();
+
+        GameReveal reveal = games.reveal(code, hostToken).join().value();
+        assertEquals("Olivia", reveal.you().character());
+        assertEquals("Sam", reveal.opponent().character());
+    }
+
+    @Test
+    void showsThatBothPlayersKeptThePromiseTheyMade() {
+        //What the commitment was for. Online is the only mode where it means
+        //anything: each player's own client answered about a character the
+        //server never saw, so the promise made in advance is the only thing
+        //making those answers checkable.
+        String code = finishedGame();
+
+        GameReveal reveal = games.reveal(code, hostToken).join().value();
+
+        assertTrue(reveal.you().promised(), "Choosing during a game records a promise");
+        assertTrue(reveal.you().keptTheirPromise());
+        assertTrue(reveal.opponent().promised());
+        assertTrue(reveal.opponent().keptTheirPromise());
+    }
+
+    @Test
+    void findsNothingWrongWithAnHonestlyPlayedGame() {
+        //The answers were given by the server against the real character, so a
+        //game played through the rules has nothing to correct. A review that
+        //flagged one would be accusing an honest player.
+        String code = finishedGame();
+
+        GameReveal reveal = games.reveal(code, hostToken).join().value();
+
+        assertEquals(List.of(), reveal.you().wrongAnswers());
+        assertEquals(List.of(), reveal.opponent().wrongAnswers());
+        assertTrue(reveal.you().isTrustworthy());
+        assertTrue(reveal.opponent().isTrustworthy());
+    }
+
+    @Test
+    void showsEachPlayerTheSameEndingFromTheirOwnSide() {
+        //you and opponent swap, and nothing else does. Two players reading
+        //different facts about the same finished game would be worse than not
+        //revealing it at all.
+        String code = finishedGame();
+
+        GameReveal forHost = games.reveal(code, hostToken).join().value();
+        GameReveal forGuest = games.reveal(code, guestToken).join().value();
+
+        assertEquals(forHost.you().character(), forGuest.opponent().character());
+        assertEquals(forHost.opponent().character(), forGuest.you().character());
+        assertEquals(forHost.winner(), forGuest.winner());
+    }
+
+    @Test
+    void refusesToRevealAGameToSomebodyWhoWasNotInIt() {
+        String code = finishedGame();
+        String stranger = signUpAndIn(
+                new HttpAccountClient(URI.create("http://localhost:" + port)),
+                "onlooker", "a-good-password");
+
+        assertEquals(OnlineOutcome.Kind.NOT_FOUND,
+                games.reveal(code, stranger).join().kind());
+    }
+
+    /**
+     * A game played straight to a correct guess.
+     *
+     * <p>No questions asked, deliberately. The server does not check an answer
+     * against the character — the answering client supplies it, which is the
+     * whole reason the commitment exists — so a helper that answered a fixed
+     * value would be telling a lie, and every test using it would be reviewing
+     * a dishonest game.</p>
+     */
+    private String finishedGame() {
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String guesser = fromHost.yourTurn() ? hostToken : guestToken;
+        games.guess(code, guesser.equals(hostToken) ? "Sam" : "Olivia", guesser).join();
+        return code;
+    }
+
+    /**
+     * What the board says the answer to a question about somebody should be.
+     *
+     * <p>Read from the same data the server reviews against, so a test can lie
+     * on purpose rather than by accident.</p>
+     */
+    private static boolean truthfulAnswer(String character, String question) {
+        try {
+            com.guesswho.game.Board board = new com.guesswho.game.Board();
+            int who = board.getCharacters().stream()
+                    .filter(each -> each.getName().equals(character))
+                    .findFirst().orElseThrow().getCharacterIndex();
+            return board.getAnswers()[who][board.findQuestion(question).getQuestionIndex()];
+        }
+        catch (Exception unloadable) {
+            throw new IllegalStateException("The board could not be loaded", unloadable);
+        }
+    }
+
+    @Test
+    void catchesAPlayerWhoAnsweredAboutSomebodyElse() {
+        //The reason any of this exists. The server never sees the opponent's
+        //character, so it cannot check an answer as it arrives — the answering
+        //client is trusted at the time and checked at the end, against a
+        //character that was promised before play started.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String asker = fromHost.yourTurn() ? hostToken : guestToken;
+        String answerer = fromHost.yourTurn() ? guestToken : hostToken;
+        //Whoever is answering is holding the other player's character.
+        String answerersCharacter = answerer.equals(hostToken) ? "Olivia" : "Sam";
+        String question = "Does your character wear glasses?";
+
+        games.ask(code, question, asker).join();
+        //Deliberately the opposite of the truth.
+        games.answer(code, !truthfulAnswer(answerersCharacter, question), answerer).join();
+
+        RoomState next = games.state(code, hostToken).join().value();
+        String guesser = next.yourTurn() ? hostToken : guestToken;
+        games.guess(code, guesser.equals(hostToken) ? "Sam" : "Olivia", guesser).join();
+
+        GameReveal seenByAsker = games.reveal(code, asker).join().value();
+        assertEquals(1, seenByAsker.opponent().wrongAnswers().size(),
+                "A lie about your own character should not survive the review");
+        assertFalse(seenByAsker.opponent().isTrustworthy());
+        //And the promise was still kept: they committed to that character and
+        //played as somebody else, which the commitment alone cannot catch.
+        assertTrue(seenByAsker.opponent().keptTheirPromise(),
+                "The commitment fixes who they claimed to be, not how they answered");
     }
 
     /**

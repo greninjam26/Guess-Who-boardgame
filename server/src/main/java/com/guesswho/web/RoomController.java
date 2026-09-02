@@ -132,6 +132,36 @@ public class RoomController {
     }
 
     /**
+     * Reveals a finished game to one of the two people who played it.
+     *
+     * <p>Its own endpoint, returning its own type. The state endpoint is built
+     * so that nothing on it can carry the opponent's character; this is where
+     * that becomes sayable, and only once the game is over.</p>
+     *
+     * @param code          the room's code
+     * @param authorization the bearer token of whoever is asking
+     * @return both characters, both promises, and how the answers held up
+     */
+    @GetMapping("/{code}/reveal")
+    public com.guesswho.room.GameReveal reveal(
+            @PathVariable String code,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization) {
+        Account player = requireSignedIn(authorization);
+        try {
+            return rooms.reveal(code, player.id());
+        }
+        catch (RoomService.NoSuchRoomException unknown) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game with that code");
+        }
+        catch (RoomService.GameNotOverException notOver) {
+            //409, like every other well-formed request that arrived at the wrong
+            //moment.
+            throw new ResponseStatusException(HttpStatus.CONFLICT, notOver.getMessage());
+        }
+    }
+
+    /**
      * Chooses the character the caller will be guessed at.
      *
      * @param code          the room's code

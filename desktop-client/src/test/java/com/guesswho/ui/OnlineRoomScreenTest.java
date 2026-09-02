@@ -231,6 +231,12 @@ class OnlineRoomScreenTest {
     private OnlineGameClient clientThatRecordsJoins() {
         return new OnlineGameClient() {
             @Override
+            public CompletableFuture<OnlineOutcome<com.guesswho.room.GameReveal>> reveal(
+                    String code, String token) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public CompletableFuture<OnlineOutcome<Room>> createRoom(String token) {
                 return CompletableFuture.completedFuture(OnlineOutcome.ok(room(null)));
             }
