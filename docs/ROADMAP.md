@@ -509,8 +509,10 @@ and API versioning.
       is: an unanswered question is held up by the answerer, and getting that
       backwards would forfeit the game of the player who did their part.
       Running out is necessary but not sufficient — the player who owes the
-      move must also have stopped being heard from, or a long think ends the
-      game of somebody sitting there watching it. A room already past its
+      move must also have gone quiet for six presence windows, not one, so a
+      single dropped connection cannot end a game somebody is sitting in front
+      of. The fifteen-second window still decides what their opponent is told;
+      only the forfeit waits. A room already past its
       expiry is left to the sweep rather than forfeited, since settling it
       would also carry a deadline that brings the room back to life.
 - [x] **Finished online games recorded**, against both accounts rather than

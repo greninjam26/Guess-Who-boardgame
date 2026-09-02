@@ -173,8 +173,13 @@ class UnrecordableResultTest {
     }
 
     private void everybodyWalksAway(String code) {
+        //Past both clocks explicitly: the turn limit for the move, and the
+        //forfeit silence for the sighting. Relying on one to exceed the other
+        //would leave these tests passing for a reason that could change.
         java.sql.Timestamp longAgo = java.sql.Timestamp.from(java.time.Instant.now()
-                .minus(RoomService.TURN_LIMIT).minusSeconds(60));
+                .minus(RoomService.TURN_LIMIT)
+                .minus(Presence.SILENT_BEFORE_FORFEIT)
+                .minusSeconds(60));
         jdbcTemplate.update("""
                 UPDATE game_rooms
                 SET updated_at = ?, host_last_seen = ?, guest_last_seen = ?

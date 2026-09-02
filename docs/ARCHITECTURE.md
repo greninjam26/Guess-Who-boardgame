@@ -312,6 +312,23 @@ The waiting player is told, and told tentatively — _"seems to have left"_ —
 because a phone that went through a tunnel looks exactly like one that was put
 away.
 
+> **Two thresholds, not one.** Fifteen seconds decides what the opponent is
+> *told*. Ending a game needs ninety — six of those windows, written as a
+> multiple so the relationship survives anyone changing the number. Saying
+> somebody seems to have gone is a hint: it costs nothing when it is wrong and
+> it corrects itself on the next poll. Taking their game away is irreversible
+> and happens to the player who is not looking, so it demands far more evidence
+> than a hint does.
+>
+> Between the two, a player shows as absent and keeps their game — which is
+> exactly where a bad minute of wifi puts somebody sitting right in front of
+> the board. Sharing one threshold would have meant choosing between a slow
+> hint and a forfeit that a single lapse could trigger.
+>
+> A room with no sighting at all — one opened before presence was recorded —
+> is left to expire rather than forfeited. Ending a game on the strength of a
+> column that did not exist when it started is not evidence of anything.
+
 A turn that runs out forfeits to whoever stayed. Passing the turn instead would
 only move the stall along and still leave the sweep to end the game; a forfeit
 gives the player who stayed a result. It blames whoever **owed the move**, which

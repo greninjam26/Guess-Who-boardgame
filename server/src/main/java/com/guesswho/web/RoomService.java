@@ -422,6 +422,13 @@ public class RoomService {
     /**
      * Whether the player who owes the move is still around to make it.
      *
+     * <p>Judged against {@link Presence#SILENT_BEFORE_FORFEIT} rather than the
+     * window that decides what the opponent is shown. Being missing enough to
+     * be reported as gone is not being missing enough to lose a game over: the
+     * first is a hint that costs nothing when it is wrong, and this is the one
+     * that ends somebody's afternoon. A player between the two thresholds shows
+     * as absent to their opponent and keeps their game.</p>
+     *
      * @param room        the room as it stands
      * @param owedByHost  whether it is the host who owes the move
      * @param askedBy     the account whose request this is
@@ -441,7 +448,7 @@ public class RoomService {
             //back after a break would forfeit on their own first poll.
             return true;
         }
-        return Presence.isPresent(
+        return !Presence.hasAbandoned(
                 owedByHost ? room.hostLastSeen() : room.guestLastSeen(), now);
     }
 

@@ -8,7 +8,8 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Local player-versus-player games
 - Online games against a friend, using a six-character code — no matchmaking
 - A three-minute turn timer that forfeits only once the player who owes the move
-  has actually stopped watching, so thinking hard never loses a game
+  has gone quiet for a minute and a half, so neither thinking hard nor a dropped
+  connection loses a game somebody is still playing
 - Online games recorded against both players' accounts when they finish
 - Accounts, with guest play for anyone who would rather not have one
 - Preset-question and free-question game modes
