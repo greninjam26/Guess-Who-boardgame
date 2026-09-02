@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -23,6 +24,92 @@ class CharacterBoardTest {
         AtomicReference<CharacterImages> reference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> reference.set(new CharacterImages()));
         images = reference.get();
+    }
+
+    @Test
+    void fadesTheCharactersAlreadyRuledOutOnASelectingBoard() throws Exception {
+        //The bug this exists for: pressing Guess swapped the tracking board for
+        //a clean one, so a game's worth of eliminating vanished at the moment it
+        //decided the guess.
+        CharacterBoard board = selecting();
+
+        SwingUtilities.invokeAndWait(() -> board.showRuledOut(
+                flags(3, 9, 20)));
+
+        assertSame(images.ruledOut(3), cards(board).get(3).getIcon());
+        assertSame(images.ruledOut(9), cards(board).get(9).getIcon());
+        assertSame(images.portrait(4), cards(board).get(4).getIcon(),
+                "A character nobody ruled out should be shown normally");
+    }
+
+    @Test
+    void keepsARuledOutCharacterPickable() throws Exception {
+        //Faded, not disabled. A player who eliminated somebody by mistake has to
+        //be able to guess them anyway — the tracking board lets a flip be undone
+        //for the same reason, and this is the one place the mistake would stick.
+        List<Integer> chosen = new ArrayList<>();
+        AtomicReference<CharacterBoard> reference = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() ->
+                reference.set(CharacterBoard.selecting(images, chosen::add)));
+        CharacterBoard board = reference.get();
+        SwingUtilities.invokeAndWait(() -> board.showRuledOut(flags(6)));
+
+        click(board, 6);
+
+        assertEquals(List.of(6), chosen);
+    }
+
+    @Test
+    void showsRuledOutCharactersDifferentlyFromEliminatedOnes() throws Exception {
+        //The eliminated card hides the face, which is right on a tracking board
+        //and wrong here: you cannot pick a character you can no longer see.
+        CharacterBoard board = selecting();
+
+        SwingUtilities.invokeAndWait(() -> board.showRuledOut(flags(1)));
+
+        assertNotSame(images.eliminated(), cards(board).get(1).getIcon());
+    }
+
+    @Test
+    void putsEveryPortraitBackWhenTheBoardIsReset() throws Exception {
+        CharacterBoard board = selecting();
+        SwingUtilities.invokeAndWait(() -> board.showRuledOut(flags(0, 5)));
+
+        SwingUtilities.invokeAndWait(board::reset);
+
+        assertSame(images.portrait(0), cards(board).get(0).getIcon());
+        assertSame(images.portrait(5), cards(board).get(5).getIcon());
+    }
+
+    @Test
+    void refusesToFadeATrackingBoard() throws Exception {
+        //A tracking board renders its own flips as face-down cards. Fading it
+        //too would overwrite those with faded portraits, turning a player's
+        //eliminations back into visible faces on the board they use to track
+        //them.
+        CharacterBoard board = tracking();
+
+        assertThrows(IllegalStateException.class, () -> board.showRuledOut(flags(2)));
+    }
+
+    /** One flag per board position, true for the positions named. */
+    private static List<Boolean> flags(int... ruledOut) {
+        List<Boolean> flags = new ArrayList<>();
+        for (int index = 0; index < CharacterBoard.CHARACTER_COUNT; index++) {
+            flags.add(false);
+        }
+        for (int index : ruledOut) {
+            flags.set(index, true);
+        }
+        return flags;
+    }
+
+    private static CharacterBoard selecting() throws Exception {
+        AtomicReference<CharacterBoard> reference = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() ->
+                reference.set(CharacterBoard.selecting(images, index -> {
+                })));
+        return reference.get();
     }
 
     @Test

@@ -44,6 +44,8 @@ class CharacterBoard extends JPanel {
     private final CharacterImages images;
     private final List<JButton> cards = new ArrayList<>();
     private final boolean[] faceDown = new boolean[CHARACTER_COUNT];
+    /** True on a board whose cards a player turns over for themselves. */
+    private boolean tracksFlips;
     private Runnable onFlip = () -> {
     };
 
@@ -85,6 +87,7 @@ class CharacterBoard extends JPanel {
         CharacterBoard board = new CharacterBoard(images, index -> {
         });
         board.onFlip = onFlip;
+        board.tracksFlips = true;
         board.makeCardsFlip();
         return board;
     }
@@ -132,8 +135,46 @@ class CharacterBoard extends JPanel {
      * Turns every card face up again, for a new game on the same board.
      */
     void reset() {
+        //Restores every portrait, which clears any fading a selecting board was
+        //showing as well as turning a tracking board's cards back over.
         for (int index = 0; index < CHARACTER_COUNT; index++) {
             setFaceDown(index, false);
+        }
+    }
+
+    /**
+     * Fades the characters a player has already ruled out.
+     *
+     * <p>For a selecting board, which is otherwise twenty-four faces with
+     * nothing to say which of them the player spent the whole game
+     * eliminating. Their own working notes are on the tracking board they were
+     * just looking at, and dropping that at the moment of guessing asks them to
+     * remember it instead.</p>
+     *
+     * <p>Faded, not removed, and still clickable. A player who ruled somebody
+     * out by mistake has to be able to pick them anyway — the tracking board
+     * lets a flip be undone for the same reason, and a guess board that refused
+     * would be the one place the mistake became final.</p>
+     *
+     * <p>Refused on a tracking board, and not as a matter of taste. Fading is a
+     * reading of the flips, and a board that both records them and renders that
+     * reading would overwrite its own face-down cards with faded portraits the
+     * next time anything asked it to redraw. The two jobs stay on the two kinds
+     * of board.</p>
+     *
+     * @param flipped one flag per board position; shorter or empty leaves the
+     *                rest showing normally
+     * @throws IllegalStateException if called on a tracking board
+     */
+    void showRuledOut(List<Boolean> flipped) {
+        if (tracksFlips) {
+            throw new IllegalStateException(
+                    "A tracking board shows its own flips; fading is for a board being picked from");
+        }
+        for (int index = 0; index < CHARACTER_COUNT; index++) {
+            boolean out = index < flipped.size() && Boolean.TRUE.equals(flipped.get(index));
+            cards.get(index).setIcon(
+                    out ? images.ruledOut(index) : images.portrait(index));
         }
     }
 
