@@ -304,6 +304,38 @@ class LiveOnlineGameTest {
     }
 
     @Test
+    void aBriefNetworkLapseDoesNotCostTheGame() {
+        //The case a person would actually hit: wifi drops for half a minute on a
+        //turn that has already run long, and the opponent polls during the gap.
+        //Their client has stopped answering, so they are shown as gone — but
+        //they are sitting right there, and one bad half-minute must not end it.
+        String code = playingGame();
+        RoomState fromHost = games.state(code, hostToken).join().value();
+        String waiting = fromHost.yourTurn() ? guestToken : hostToken;
+        boolean thinkerIsHost = fromHost.yourTurn();
+
+        //The turn has run out, and the player who owes the move dropped off
+        //thirty seconds ago — past the display window, well short of the
+        //forfeit one.
+        java.sql.Timestamp longAgo = java.sql.Timestamp.from(java.time.Instant.now()
+                .minus(RoomService.TURN_LIMIT).minusSeconds(60));
+        jdbcTemplate.update("UPDATE game_rooms SET updated_at = ? WHERE code = ?",
+                longAgo, code);
+        jdbcTemplate.update(
+                "UPDATE game_rooms SET " + (thinkerIsHost ? "host_last_seen" : "guest_last_seen")
+                        + " = ? WHERE code = ?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(30)), code);
+
+        RoomState seenByWaiter = games.state(code, waiting).join().value();
+
+        assertEquals(RoomStatus.IN_PROGRESS, seenByWaiter.status(),
+                "A thirty-second lapse forfeited a game the player was still in");
+        assertFalse(seenByWaiter.opponentPresent(),
+                "They should still be reported as gone — the hint is honest, it just "
+                        + "is not grounds to end the game");
+    }
+
+    @Test
     void doesNotEndAGameThatHasAlreadyExpired() {
         //Between a room expiring and the sweep reaching it the row is still
         //there. Forfeiting in that window settles a game the server has given
@@ -504,8 +536,13 @@ class LiveOnlineGameTest {
      * present, by virtue of the poll itself.</p>
      */
     private void everybodyWalksAway(String code) {
+        //Past both clocks explicitly: the turn limit for the move, and the
+        //forfeit silence for the sighting. Relying on one to exceed the other
+        //would leave these tests passing for a reason that could change.
         java.sql.Timestamp longAgo = java.sql.Timestamp.from(java.time.Instant.now()
-                .minus(RoomService.TURN_LIMIT).minusSeconds(60));
+                .minus(RoomService.TURN_LIMIT)
+                .minus(Presence.SILENT_BEFORE_FORFEIT)
+                .minusSeconds(60));
         jdbcTemplate.update("""
                 UPDATE game_rooms
                 SET updated_at = ?, host_last_seen = ?, guest_last_seen = ?

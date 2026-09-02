@@ -39,6 +39,52 @@ class PresenceTest {
     }
 
     @Test
+    void oneLapseShowsThemGoneWithoutForfeitingTheirGame() {
+        //The whole reason there are two thresholds. A player whose connection
+        //drops for half a minute is reported as gone — which is honest, their
+        //client has stopped answering — and keeps the game they are sitting in
+        //front of.
+        Instant lapsed = NOW.minusSeconds(30);
+
+        assertFalse(Presence.isPresent(lapsed, NOW), "Their client has stopped answering");
+        assertFalse(Presence.hasAbandoned(lapsed, NOW),
+                "One bad half-minute must not end a game somebody is playing");
+    }
+
+    @Test
+    void forfeitNeedsSeveralWindowsOfSilenceRatherThanOne() {
+        //Written as a multiple in Presence, so this checks the relationship
+        //rather than the number: whatever the display window becomes, the
+        //forfeit threshold has to stay several of them away from it.
+        assertFalse(Presence.hasAbandoned(NOW.minus(Presence.PRESENT_WITHIN), NOW),
+                "Silence just past the display window is not grounds to forfeit");
+        assertTrue(Presence.SILENT_BEFORE_FORFEIT.compareTo(
+                        Presence.PRESENT_WITHIN.multipliedBy(2)) > 0,
+                "A forfeit threshold this close to the display window is one lapse away");
+    }
+
+    @Test
+    void sustainedSilenceIsAbandonment() {
+        assertTrue(Presence.hasAbandoned(
+                NOW.minus(Presence.SILENT_BEFORE_FORFEIT).minusSeconds(1), NOW));
+    }
+
+    @Test
+    void silenceExactlyAtTheForfeitThresholdCounts() {
+        //The boundary belongs to abandonment, matching how the display window
+        //treats its own edge.
+        assertTrue(Presence.hasAbandoned(NOW.minus(Presence.SILENT_BEFORE_FORFEIT), NOW));
+    }
+
+    @Test
+    void aRoomWithNoSightingIsLeftToExpireRatherThanForfeited() {
+        //Rooms opened before presence was recorded have a null last_seen.
+        //Reading that as abandonment would end a game on the strength of a
+        //column that did not exist when it started.
+        assertFalse(Presence.hasAbandoned(null, NOW));
+    }
+
+    @Test
     void somebodyNeverHeardFromHasNotArrived() {
         //Rooms opened before presence was recorded have no sighting at all, and
         //a null must not read as "here" for want of a timestamp to compare.
