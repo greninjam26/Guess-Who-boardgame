@@ -110,17 +110,37 @@ class IdempotentMovesTest {
     @Test
     void scopesKeysToTheirOwnRoom() throws Exception {
         //Two players in different games choosing the same key is nobody's
-        //problem but their own room's.
+        //problem but their own room's. Both rooms have to actually use the key
+        //for that to mean anything: submitting it in one room and counting the
+        //rows proves only that one move was recorded once.
         String other = signUpAndIn("other", "a-good-password");
         String secondCode = codeFrom(mockMvc.perform(post("/api/rooms")
                 .header("Authorization", "Bearer " + other)));
         String fourth = signUpAndIn("fourth", "a-good-password");
         mockMvc.perform(post("/api/rooms/" + secondCode + "/players")
-                .header("Authorization", "Bearer " + fourth));
+                .header("Authorization", "Bearer " + fourth))
+                .andExpect(status().isCreated());
+        //A move needs a game that has started, so the second room chooses too.
+        chooseIn(secondCode, other, "Olivia", "their-host-choice")
+                .andExpect(status().isOk());
+        chooseIn(secondCode, fourth, "Sam", "their-guest-choice")
+                .andExpect(status().isOk());
 
-        ask("shared-key", "Does your character wear glasses?");
+        //The same key, used for a real move in each room, and accepted in both.
+        mockMvc.perform(askRequest("shared-key", "Does your character wear glasses?"))
+                .andExpect(status().isOk());
+        String theirMover = body(stateOf(secondCode, other)).contains("\"yourTurn\":true")
+                ? other
+                : fourth;
+        mockMvc.perform(post("/api/rooms/" + secondCode + "/questions")
+                        .header("Authorization", "Bearer " + theirMover)
+                        .header(RoomController.MOVE_KEY_HEADER, "shared-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\": \"Does your character wear glasses?\"}"))
+                .andExpect(status().isOk());
 
-        assertEquals(1, jdbcTemplate.queryForObject(
+        //One row per room, which is what scoping means.
+        assertEquals(2, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM room_move_keys WHERE move_key = 'shared-key'",
                 Integer.class));
     }
@@ -304,8 +324,23 @@ class IdempotentMovesTest {
     }
 
     private ResultActions state(String token) throws Exception {
-        return mockMvc.perform(get("/api/rooms/" + code + "/state")
+        return stateOf(code, token);
+    }
+
+    /** The state of a named room, for tests that need more than the usual one. */
+    private ResultActions stateOf(String roomCode, String token) throws Exception {
+        return mockMvc.perform(get("/api/rooms/" + roomCode + "/state")
                 .header("Authorization", "Bearer " + token));
+    }
+
+    /** Chooses a character in a named room. */
+    private ResultActions chooseIn(
+            String roomCode, String token, String character, String key) throws Exception {
+        return mockMvc.perform(post("/api/rooms/" + roomCode + "/character")
+                .header("Authorization", "Bearer " + token)
+                .header(RoomController.MOVE_KEY_HEADER, key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"character\": \"%s\"}".formatted(character)));
     }
 
     private static String body(ResultActions actions) throws Exception {
