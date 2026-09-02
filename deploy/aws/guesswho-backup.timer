@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily Guess Who database backup
+
+[Timer]
+OnCalendar=daily
+# Spread away from the top of the hour. Not for load — this host has none — but
+# so a dump is not competing with whatever else the machine does on a schedule.
+RandomizedDelaySec=30m
+# Catches up after the instance has been stopped. Without it, a machine that was
+# off at the scheduled time simply skips that day's backup and nothing says so.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

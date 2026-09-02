@@ -1,0 +1,48 @@
+[Unit]
+Description=Guess Who server
+# PostgreSQL is on this host, so a restart that races it would fail Flyway and
+# fall into the restart loop below rather than simply waiting.
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=guesswho
+Group=guesswho
+
+# The aws profile is what binds the application to loopback and turns on the
+# forwarded-header strategy. Without it the server binds 0.0.0.0 — reachable
+# past Caddy on 8080 if the security group were ever widened — and every
+# per-address rate limit collapses into one bucket for the whole internet.
+Environment=SPRING_PROFILES_ACTIVE=aws
+
+# 384 MB of heap on a host with 1 GB shared with PostgreSQL and Caddy. Without
+# a cap the JVM sizes itself from total memory and the kernel eventually kills
+# whichever process asks next — usually PostgreSQL, which looks like a database
+# fault rather than a memory one.
+Environment=JAVA_TOOL_OPTIONS=-Xms128m -Xmx384m
+
+# The datasource credentials, written 0600 by bootstrap. Not in this file,
+# because this file is in the repository.
+EnvironmentFile=/etc/guesswho/server.env
+
+ExecStart=/usr/bin/java -jar /opt/guesswho/current/server.jar
+
+Restart=on-failure
+RestartSec=5
+
+# One log file, appended to, which the CloudWatch Agent tails.
+StandardOutput=append:/var/log/guesswho/server.log
+StandardError=append:/var/log/guesswho/server.log
+
+# This process is reachable from the internet through Caddy, so it gets as
+# little of the host as it can run with.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/guesswho
+
+[Install]
+WantedBy=multi-user.target

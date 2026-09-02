@@ -1,0 +1,32 @@
+# Rendered by bootstrap.sh from the stack's PublicHostname output.
+
+{$PUBLIC_HOSTNAME} {
+    encode zstd gzip
+
+    # The forwarding boundary.
+    #
+    # Spring Boot is configured to trust X-Forwarded-For, because it binds to
+    # loopback and only Caddy can reach it. That trust is only safe if Caddy is
+    # also the only thing that can *write* the header — and by default it is
+    # not. Caddy appends to an existing X-Forwarded-For, so a caller sending
+    # "X-Forwarded-For: 203.0.113.9" produces "203.0.113.9, <their real
+    # address>", and Spring's FRAMEWORK strategy reads the left-most entry: the
+    # forged one.
+    #
+    # That would let any caller name themselves whatever they liked, which
+    # defeats both address-keyed rate limits — registering and signing in, the
+    # two unauthenticated endpoints, one of which costs a BCrypt hash per
+    # attempt. Replacing rather than appending is what closes it.
+    #
+    # Forwarded is stripped for the same reason: it is the RFC 7239 way of
+    # saying the same thing, and leaving it would be closing one door.
+    request_header -Forwarded
+    reverse_proxy 127.0.0.1:8080 {
+        header_up X-Forwarded-For {http.request.remote.host}
+    }
+
+    # This host is the only hop, so there is no legitimate upstream chain to
+    # preserve. A deployment that later sits behind CloudFront or a load
+    # balancer must revisit this: overwriting would then discard a real client
+    # address rather than a forged one.
+}
