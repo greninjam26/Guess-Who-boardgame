@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Where the game keeps the files it writes for itself.
@@ -27,12 +28,42 @@ public final class ApplicationDirectory {
     }
 
     /**
-     * Returns the directory this machine keeps application data in, creating it.
+     * The directory this machine keeps application data in, creating it.
      *
-     * @return an existing directory the game can write to
+     * <p>The working directory is the last candidate and is checked like every
+     * other, so a directory that comes back from here has been created and
+     * confirmed writable — with one stated exception. When nothing at all is
+     * usable there is still a path to return, because each caller resolves a
+     * filename against it, and refusing to start the game over an unwritable
+     * disk would be a worse answer than a game that cannot save. In that one
+     * case the working directory comes back unusable, and writes through it
+     * fail: {@code SavedGameStore} and {@code TokenStore} swallow that, losing
+     * a resumable game or a remembered login; {@code FilePendingGameResultStore}
+     * throws, deliberately, and the player is told the result could not be
+     * stored.</p>
+     *
+     * <p>{@link #writableForThisMachine()} is the form that says so in its
+     * return type rather than in a paragraph. Prefer it anywhere the difference
+     * can actually be acted on.</p>
+     *
+     * @return a writable directory, or the working directory when none exists
      */
     public static Path forThisMachine() {
-        return firstUsable(preferred(), temporary());
+        return writableForThisMachine().orElseGet(() -> Path.of(""));
+    }
+
+    /**
+     * The directory this machine can keep application data in, if there is one.
+     *
+     * @return the first usable directory, or empty when this machine has no
+     *         writable storage to offer
+     */
+    public static Optional<Path> writableForThisMachine() {
+        //The working directory last rather than as an unchecked fallback: it is
+        //a real candidate, it is sometimes the right answer, and the promise
+        //this class makes is only worth anything if everything it returns has
+        //been tried.
+        return firstUsable(preferred(), temporary(), Path.of(""));
     }
 
     /**
@@ -44,29 +75,15 @@ public final class ApplicationDirectory {
      * fine until the first save fails.</p>
      *
      * @param candidates the places to try, best first
-     * @return the first writable one, or the working directory if none are
+     * @return the first writable one, or empty when none of them is
      */
-    static Path firstUsable(Path... candidates) {
+    static Optional<Path> firstUsable(Path... candidates) {
         for (Path candidate : candidates) {
             if (candidate != null && isUsable(candidate)) {
-                return candidate;
+                return Optional.of(candidate);
             }
         }
-        //Where these files went before any of this existed. It may not be
-        //writable either, and what happens then is not uniform, so it is worth
-        //being exact rather than reassuring: SavedGameStore and TokenStore
-        //swallow a failed write, losing a resumable game or a remembered login
-        //and nothing else. FilePendingGameResultStore does not — it throws
-        //UncheckedIOException, deliberately, because a queue that silently
-        //dropped results is the bug the write-only CSV had. That throw happens
-        //inside GameResultSubmissionService's future, so it reaches the player
-        //as "the game result could not be stored" rather than as a crash.
-        //
-        //Which is the point: reaching here is survivable, not harmless. Every
-        //candidate above it has already been created and written to, so this
-        //returns only when the machine has no writable directory of its own to
-        //offer.
-        return Path.of("");
+        return Optional.empty();
     }
 
     private static boolean isUsable(Path directory) {

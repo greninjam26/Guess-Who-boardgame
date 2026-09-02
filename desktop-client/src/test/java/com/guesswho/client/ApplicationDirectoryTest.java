@@ -9,6 +9,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -91,7 +92,8 @@ class ApplicationDirectoryTest {
         Path unwritable = anUnwritableDirectory("unwritable");
         Path writable = directory.resolve("writable");
 
-        assertEquals(writable, ApplicationDirectory.firstUsable(unwritable, writable));
+        assertEquals(Optional.of(writable),
+                ApplicationDirectory.firstUsable(unwritable, writable));
     }
 
     @Test
@@ -99,7 +101,7 @@ class ApplicationDirectoryTest {
         Path first = directory.resolve("first");
         Path second = directory.resolve("second");
 
-        assertEquals(first, ApplicationDirectory.firstUsable(first, second));
+        assertEquals(Optional.of(first), ApplicationDirectory.firstUsable(first, second));
     }
 
     @Test
@@ -109,7 +111,7 @@ class ApplicationDirectoryTest {
         Files.writeString(file, "not a directory");
         Path writable = directory.resolve("writable");
 
-        assertEquals(writable, ApplicationDirectory.firstUsable(file, writable));
+        assertEquals(Optional.of(writable), ApplicationDirectory.firstUsable(file, writable));
     }
 
     @Test
@@ -117,14 +119,33 @@ class ApplicationDirectoryTest {
         //A property or variable can be refused outright, leaving nothing to try.
         Path writable = directory.resolve("writable");
 
-        assertEquals(writable, ApplicationDirectory.firstUsable(null, writable));
+        assertEquals(Optional.of(writable), ApplicationDirectory.firstUsable(null, writable));
     }
 
     @Test
-    void fallsBackToTheWorkingDirectoryWhenNothingElseWorks() throws Exception {
+    void saysSoWhenNoCandidateIsUsable() throws Exception {
+        //Empty rather than a path nobody checked. The caller decides what to do
+        //with "nowhere to write", and it cannot decide anything if it is handed
+        //a directory that looks like an answer.
         Path unwritable = anUnwritableDirectory("also-unwritable");
 
-        assertEquals(Path.of(""), ApplicationDirectory.firstUsable(unwritable));
+        assertEquals(Optional.empty(), ApplicationDirectory.firstUsable(unwritable));
+    }
+
+    @Test
+    void checksTheWorkingDirectoryRatherThanAssumingIt() {
+        //It is the last candidate, not an unchecked fallback, so on a machine
+        //where it works it is a real answer and it has been created and written
+        //to like any other.
+        assertEquals(Optional.of(Path.of("")), ApplicationDirectory.firstUsable(Path.of("")));
+    }
+
+    @Test
+    void offersTheWorkingDirectoryEvenWhenNothingIsWritable() {
+        //The promise forThisMachine still has to keep: every caller resolves a
+        //filename against whatever it returns, so it always returns something.
+        assertEquals(Path.of(""), ApplicationDirectory.firstUsable()
+                .orElseGet(() -> Path.of("")));
     }
 
     /**
@@ -146,6 +167,12 @@ class ApplicationDirectoryTest {
         assumeFalse(Files.isWritable(unwritable),
                 "Still writable after chmod — probably running as root");
         return unwritable;
+    }
+
+    @Test
+    void reportsWhereThisMachineCanWrite() {
+        assertTrue(ApplicationDirectory.writableForThisMachine().isPresent(),
+                "This machine has somewhere writable, so it should say so");
     }
 
     @Test
