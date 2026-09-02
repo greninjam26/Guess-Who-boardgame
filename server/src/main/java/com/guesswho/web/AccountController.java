@@ -32,14 +32,18 @@ public class AccountController {
 
     private final AccountRepository accounts;
     private final PasswordEncoder passwordEncoder;
+    private final RateLimiter limiter;
 
     /**
      * @param accounts        where registered players are kept
      * @param passwordEncoder hashes passwords on the way in
+     * @param limiter         bounds how fast accounts can be created
      */
-    public AccountController(AccountRepository accounts, PasswordEncoder passwordEncoder) {
+    public AccountController(AccountRepository accounts, PasswordEncoder passwordEncoder,
+            RateLimiter limiter) {
         this.accounts = accounts;
         this.passwordEncoder = passwordEncoder;
+        this.limiter = limiter;
     }
 
     /**
@@ -50,7 +54,9 @@ public class AccountController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Account register(@RequestBody Credentials credentials) {
+    public Account register(
+            @RequestBody Credentials credentials, jakarta.servlet.http.HttpServletRequest from) {
+        Callers.require(limiter, "register", from, RateLimits.REGISTER);
         validate(credentials);
         try {
             return accounts.create(credentials.username().trim(),

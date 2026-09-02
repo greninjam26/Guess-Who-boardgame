@@ -14,6 +14,8 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - A dropped connection recovers on its own, and closing the app offers the game
   back on the next launch
 - Accounts, with guest play for anyone who would rather not have one
+- Rate limits on signing in, registering, opening rooms and moving, so a server
+  on the open internet cannot be used to guess passwords
 - Preset-question and free-question game modes
 - Interactive character boards for tracking eliminated characters
 - Character and question data loaded from CSV files
@@ -204,6 +206,16 @@ Alternatively, run the executable JAR after building:
 
 ```bash
 java -jar server/target/server-1.0.0.jar
+```
+
+Rate limits are on by default: signing in and registering are held per address,
+opening rooms and moving per account. Reading the game is deliberately not
+limited, because presence is measured by requests and throttling a poll would
+make a player look absent and eventually forfeit their game. Turn the limits off
+for local experimentation with:
+
+```bash
+java -jar server/target/server-1.0.0.jar --guesswho.rate-limits.enabled=false
 ```
 
 The server listens on port `8080` by default. Verify it from another terminal:
