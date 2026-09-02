@@ -237,6 +237,44 @@ class OnlineGameControllerTest {
     }
 
     /** A poller that records what it was told to do rather than doing it. */
+    @Test
+    void picksAGameBackUpWithoutAskingToJoinItAgain() throws Exception {
+        //Rejoining adds nobody. The server has held the room, the game and both
+        //accounts all along, so asking to join would be refused — the room is
+        //not waiting for anybody, it is being played.
+        controller.rejoin("BCDFGH", view);
+        settle();
+
+        assertTrue(poller.started, "A rejoined game has to start asking again");
+        assertEquals(0, client.joinRequests,
+                "Rejoining must not ask the server to put anybody into the room");
+        assertEquals("BCDFGH", controller.code());
+    }
+
+    @Test
+    void showsWhateverTheGameBecameWhileTheClientWasAway() throws Exception {
+        controller.rejoin("BCDFGH", view);
+        settle();
+
+        poller.listener.updated(roomState(RoomStatus.IN_PROGRESS));
+
+        assertEquals(1, shown.size(), "The first poll is what puts the game back on screen");
+    }
+
+    @Test
+    void endsTheGameWhenTheRoomExpiredWhileTheClientWasAway() throws Exception {
+        //The case rejoining has to handle: the room was swept while the
+        //application was shut, so there is nothing to come back to.
+        controller.rejoin("BCDFGH", view);
+        settle();
+
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.NOT_FOUND, "No game with that code"));
+
+        assertEquals(1, gone.size());
+        assertTrue(poller.stopped);
+    }
+
     /** A controller in a joined room, with the poller running. */
     private void joinedGame() throws Exception {
         controller.joinRoom("bcd fgh", view);
@@ -340,6 +378,8 @@ class OnlineGameControllerTest {
         private OnlineOutcome<RoomState> next = OnlineOutcome.ok(roomState(RoomStatus.IN_PROGRESS));
         private CompletableFuture<OnlineOutcome<Room>> roomReply;
         private boolean fail;
+        //Counted so a test can show that rejoining does not ask to join.
+        private int joinRequests;
 
         private CompletableFuture<OnlineOutcome<Room>> roomOutcome() {
 
@@ -365,6 +405,7 @@ class OnlineGameControllerTest {
 
         @Override
         public CompletableFuture<OnlineOutcome<Room>> joinRoom(String code, String token) {
+            joinRequests++;
             return roomOutcome();
         }
 

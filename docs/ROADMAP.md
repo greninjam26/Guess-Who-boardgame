@@ -537,9 +537,15 @@ and API versioning.
       polling every two seconds had been raising a modal dialog per failed
       attempt. An opponent coming back needed nothing new — presence already
       flips back on their next request.
-- [ ] Reconnect, across a restart: remember which room this client was in, and
-      offer it back on the next launch the way a saved local game is. The server
-      keeps everything needed already.
+- [x] **Reconnect, across a restart.** The room code is remembered in its own
+      file beside the saved game and the token, and the next launch offers to
+      pick the game back up. Its own file rather than a field on `SavedGame`,
+      because a player can have both a half-finished game against the computer
+      and an open room with a friend, and only one of those lives on this
+      machine. Rejoining is not joining — the server has held the room and both
+      accounts all along, so it only starts polling again, and whether the room
+      survived is answered by the first poll rather than by a request on every
+      launch.
 - [ ] API versioning with a clear rejection message for stale clients. Installers
       live on disk and will fall behind the server.
 - [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game

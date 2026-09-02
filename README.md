@@ -11,6 +11,8 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
   has gone quiet for a minute and a half, so neither thinking hard nor a dropped
   connection loses a game somebody is still playing
 - Online games recorded against both players' accounts when they finish
+- A dropped connection recovers on its own, and closing the app offers the game
+  back on the next launch
 - Accounts, with guest play for anyone who would rather not have one
 - Preset-question and free-question game modes
 - Interactive character boards for tracking eliminated characters
@@ -415,11 +417,8 @@ aggregation, normalized database storage, and transactional rollback.
 - Online play has not been tried by two people on two machines. Every layer has
   tests and the whole chain runs end to end against a real server in
   `LiveOnlineGameTest`, but nobody has yet sat down at two computers and played
-  a game with a friend.
-- An online game cannot be rejoined after closing the application. A connection
-  that drops mid-game recovers on its own — the board shows that it is
-  reconnecting and carries on — but quitting and relaunching does not put you
-  back in the room, and the turn timer keeps running while you are away.
+  a game with a friend — and no connection has actually been dropped to watch
+  the reconnecting banner appear or the turn timer decide anything.
 - Neither installer is code-signed, so both platforms warn the first time. See
   [Install](#install) for the one extra step each needs.
 
