@@ -208,6 +208,82 @@ appending rather than replacing, every per-address limit is bypassable by anyone
 who sends a header, and the sign-in endpoint — which costs a BCrypt hash per
 attempt — is effectively unprotected. Record the result in the deployment log.
 
+## Deploying
+
+The workflow is `.github/workflows/deploy-aws.yml`, run manually from the
+Actions tab. It needs four **repository variables** (Settings → Secrets and
+variables → Actions → Variables), all taken from the stack outputs. None is a
+secret — the point of OIDC is that there is no secret to store:
+
+| Variable | Value |
+| --- | --- |
+| `AWS_DEPLOY_ROLE` | the `GitHubDeployRoleArn` output |
+| `AWS_ARTIFACT_BUCKET` | the `ArtifactBucketName` output |
+| `AWS_INSTANCE_ID` | the `InstanceId` output |
+| `AWS_PUBLIC_URL` | `https://your-host.duckdns.org` |
+
+What a run does: builds and runs the full test suite, requests temporary AWS
+credentials through OIDC, uploads `server.jar` and `deploy.sh` under
+`releases/<sha>/` with a checksum, asks SSM to run the script on the instance,
+waits for it, and finishes with the public smoke test.
+
+It refuses to run unless you type `deploy` in the confirmation box, because it
+restarts the public server.
+
+### Rehearsing a rollback
+
+Do this once, before trusting it. Two failures, and the second needs building
+deliberately.
+
+**A corrupt artifact.** Upload something that is not a JAR under a test prefix
+and run `deploy.sh` against it by hand through Session Manager:
+
+```bash
+echo "not a jar" > /tmp/notajar
+aws s3 cp /tmp/notajar s3://the-bucket/releases/rollback-test-1/server.jar --sse AES256
+sudo bash /opt/guesswho/deploy.sh the-bucket rollback-test-1
+```
+
+Expected: `jar tf` rejects it, the message says nothing was changed, and
+`/api/status` is still answering from the release that was already there.
+
+**A JAR that starts and fails its health check.** The tempting version of this —
+adding a bad value to `/etc/guesswho/server.env` — **does not test rollback at
+all.** That file is shared by whatever the symlink points at, so the restored
+previous JAR would fail for the same reason the candidate did; a passing run
+would mean "both are broken" and a failing one would tell you nothing about the
+rollback path. Failure has to belong to the candidate alone.
+
+Build an unhealthy candidate instead — the real JAR, repackaged with its own
+datasource pointing at a closed port, so it starts and reports 503:
+
+```bash
+mkdir -p /tmp/bad && cd /tmp/bad
+cp /opt/guesswho/current/server.jar bad.jar
+printf 'spring.datasource.url=jdbc:postgresql://127.0.0.1:1/nothing\n' > application.properties
+jar uf bad.jar application.properties
+aws s3 cp bad.jar s3://the-bucket/releases/rollback-test-2/server.jar --sse AES256
+sudo bash /opt/guesswho/deploy.sh the-bucket rollback-test-2
+```
+
+Expected: the health retry times out, the symlink goes back to the previous
+release, the service restarts, and the script reports rolling back. Then check
+which JAR is actually running — recording only "health recovered" would also be
+satisfied by a rollback that never happened:
+
+```bash
+readlink -f /opt/guesswho/current/server.jar
+curl -fsS http://127.0.0.1:8080/api/status
+```
+
+Expected: the previous SHA, not `rollback-test-2`. Clean up:
+
+```bash
+aws s3 rm s3://the-bucket/releases/rollback-test-1/ --recursive
+aws s3 rm s3://the-bucket/releases/rollback-test-2/ --recursive
+rm -rf /tmp/bad /tmp/notajar
+```
+
 ## Verifying a backup can be restored
 
 A backup nobody has restored is a hope. Before calling the deployment done, run
