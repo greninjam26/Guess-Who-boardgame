@@ -59,13 +59,27 @@ final class Callers {
     /**
      * The address a request came from.
      *
-     * <p>Deliberately not reading {@code X-Forwarded-For}. Behind nothing, that
-     * header is whatever the caller typed, so trusting it would let anybody
-     * spend somebody else's allowance — or dodge their own by inventing a new
-     * address per request, which turns the limit off. When this is deployed
-     * behind a proxy that sets it, the proxy's own configuration is what should
-     * make it trustworthy, and that is Phase 10's business rather than a guess
-     * made here.</p>
+     * <p>This reads {@code getRemoteAddr()} and nothing else, which is correct
+     * in both deployments — but it means different things in each, and the
+     * difference is configuration rather than code.</p>
+     *
+     * <p>Run directly, {@code getRemoteAddr()} is the caller's own address and
+     * {@code X-Forwarded-For} is whatever they typed, so nothing here reads it.
+     * Behind the deployed proxy, {@code server.forward-headers-strategy=FRAMEWORK}
+     * in {@code application-aws.properties} puts Spring's forwarded-header
+     * filter in front of this, and {@code getRemoteAddr()} becomes the address
+     * the proxy reports. That is the whole change: this method never learns
+     * which world it is in.</p>
+     *
+     * <p>Phase 10 settled the question this used to defer, and the answer has
+     * two halves that are only safe together. Spring may trust the header
+     * because the application binds to loopback and only Caddy can reach it —
+     * <em>and</em> because the Caddyfile strips {@code Forwarded} and
+     * <em>replaces</em> {@code X-Forwarded-For} rather than appending to it.
+     * Caddy appends by default, and the framework reads the left-most entry, so
+     * an appending proxy would let any caller name themselves whatever they
+     * liked and dodge the limit entirely. {@code ForwardedAddressTest} covers
+     * the framework half; a curl against real Caddy covers the other.</p>
      */
     private static String addressOf(HttpServletRequest from) {
         String address = from == null ? null : from.getRemoteAddr();
