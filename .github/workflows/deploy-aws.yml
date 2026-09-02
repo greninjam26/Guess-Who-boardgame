@@ -1,0 +1,140 @@
+name: Deploy to AWS
+
+# Manual only, deliberately. Deploying on every push to main before anybody has
+# watched a deployment succeed is a way to learn about a bad release from a
+# player. Once this has run cleanly a few times, adding a push trigger is one
+# line — but it should be a decision rather than a default.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type "deploy" to confirm
+        required: true
+        default: ""
+
+permissions:
+  # Exactly these two. contents to check out, id-token to request the OIDC
+  # token that stands in for an AWS key. Anything wider is a wider blast radius
+  # for a workflow that can restart the public server.
+  contents: read
+  id-token: write
+
+concurrency:
+  # Two deployments racing would fight over the same symlink on one host.
+  group: deploy-aws
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: demo
+
+    steps:
+      - name: Refuse an accidental run
+        if: ${{ inputs.confirm != 'deploy' }}
+        run: |
+          echo "Type 'deploy' to confirm. This restarts the public server."
+          exit 1
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # The whole suite, not just a package. A deployment is the worst place to
+      # discover a failing test, and the build is the same one CI runs.
+      - name: Build and test
+        env:
+          POSTGRES_TEST_URL: ""
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Get temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # No stored keys anywhere. The role's trust policy allows only this
+          # repository's main branch, so a pull request from a fork cannot
+          # assume it.
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: us-east-1
+
+      - name: Upload the release and the script that installs it
+        env:
+          BUCKET: ${{ vars.AWS_ARTIFACT_BUCKET }}
+        run: |
+          set -euo pipefail
+          jar="$(ls server/target/server-*.jar | grep -v sources | head -1)"
+          echo "uploading $jar"
+
+          # Keyed by commit, so a release is immutable and a redeploy of the
+          # same SHA fetches the same bytes.
+          aws s3 cp "$jar" "s3://$BUCKET/releases/${GITHUB_SHA}/server.jar" \
+            --sse AES256 --only-show-errors
+
+          # deploy.sh travels with the JAR rather than being inlined into the
+          # SSM command or baked into the AMI: inlining drifts from the version
+          # in this repository, and baking means updating it by rebuilding the
+          # machine.
+          #
+          # The checksum is not ceremony. The instance role can write to this
+          # bucket, so without it anything that compromised the instance could
+          # replace the script the next deployment runs as root.
+          ( cd deploy/aws && sha256sum deploy.sh > deploy.sh.sha256 )
+          aws s3 cp deploy/aws/deploy.sh \
+            "s3://$BUCKET/releases/${GITHUB_SHA}/deploy.sh" \
+            --sse AES256 --only-show-errors
+          aws s3 cp deploy/aws/deploy.sh.sha256 \
+            "s3://$BUCKET/releases/${GITHUB_SHA}/deploy.sh.sha256" \
+            --sse AES256 --only-show-errors
+
+      - name: Install it on the instance
+        env:
+          BUCKET: ${{ vars.AWS_ARTIFACT_BUCKET }}
+          INSTANCE: ${{ vars.AWS_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          # Through SSM. Port 22 is closed, and nothing here holds an SSH key.
+          command_id="$(aws ssm send-command \
+            --instance-ids "$INSTANCE" \
+            --document-name AWS-RunShellScript \
+            --comment "deploy ${GITHUB_SHA}" \
+            --parameters commands="[
+              \"set -euo pipefail\",
+              \"cd /tmp\",
+              \"aws s3 cp s3://$BUCKET/releases/${GITHUB_SHA}/deploy.sh deploy-${GITHUB_SHA}.sh\",
+              \"aws s3 cp s3://$BUCKET/releases/${GITHUB_SHA}/deploy.sh.sha256 deploy-${GITHUB_SHA}.sh.sha256\",
+              \"sed -i s/deploy.sh/deploy-${GITHUB_SHA}.sh/ deploy-${GITHUB_SHA}.sh.sha256\",
+              \"sha256sum -c deploy-${GITHUB_SHA}.sh.sha256\",
+              \"bash deploy-${GITHUB_SHA}.sh $BUCKET ${GITHUB_SHA}\",
+              \"rm -f deploy-${GITHUB_SHA}.sh deploy-${GITHUB_SHA}.sh.sha256\"
+            ]" \
+            --query 'Command.CommandId' --output text)"
+
+          echo "SSM command: $command_id"
+
+          # Waiting is what makes a failed deployment a failed workflow. Without
+          # it, send-command succeeds the moment SSM accepts the request and a
+          # rollback on the host would be reported here as a green deploy.
+          if ! aws ssm wait command-executed \
+                --command-id "$command_id" --instance-id "$INSTANCE"; then
+            echo "::error::the deployment failed on the instance"
+          fi
+
+          aws ssm get-command-invocation \
+            --command-id "$command_id" --instance-id "$INSTANCE" \
+            --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}' \
+            --output text
+
+          status="$(aws ssm get-command-invocation \
+            --command-id "$command_id" --instance-id "$INSTANCE" \
+            --query 'Status' --output text)"
+          [ "$status" = "Success" ] || exit 1
+
+      - name: Check it from outside
+        env:
+          PUBLIC_URL: ${{ vars.AWS_PUBLIC_URL }}
+        run: bash deploy/aws/smoke-test.sh "$PUBLIC_URL"
