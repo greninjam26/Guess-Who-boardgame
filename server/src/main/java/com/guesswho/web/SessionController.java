@@ -25,12 +25,15 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/sessions")
 public class SessionController {
     private final SessionService sessions;
+    private final RateLimiter limiter;
 
     /**
      * @param sessions issues and resolves tokens
+     * @param limiter  bounds how fast passwords can be guessed at
      */
-    public SessionController(SessionService sessions) {
+    public SessionController(SessionService sessions, RateLimiter limiter) {
         this.sessions = sessions;
+        this.limiter = limiter;
     }
 
     /**
@@ -41,7 +44,12 @@ public class SessionController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public LoggedIn logIn(@RequestBody Credentials credentials) {
+    public LoggedIn logIn(
+            @RequestBody Credentials credentials, jakarta.servlet.http.HttpServletRequest from) {
+        //Before the password is checked, because checking it is the expensive
+        //part: BCrypt is slow on purpose, so an unlimited login endpoint burns
+        //the server's CPU as readily as it leaks a password.
+        Callers.require(limiter, "sign-in", from, RateLimits.SIGN_IN);
         if (credentials == null
                 || credentials.username() == null || credentials.password() == null) {
             throw new ResponseStatusException(

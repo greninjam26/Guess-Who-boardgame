@@ -42,14 +42,17 @@ public class RoomController {
 
     private final RoomService rooms;
     private final SessionService sessions;
+    private final RateLimiter limiter;
 
     /**
      * @param rooms    creates and joins rooms
      * @param sessions works out who is asking
+     * @param limiter  bounds how fast one account can open rooms and move
      */
-    public RoomController(RoomService rooms, SessionService sessions) {
+    public RoomController(RoomService rooms, SessionService sessions, RateLimiter limiter) {
         this.rooms = rooms;
         this.sessions = sessions;
+        this.limiter = limiter;
     }
 
     /**
@@ -64,6 +67,10 @@ public class RoomController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization) {
         Account host = requireSignedIn(authorization);
+        //The five-open-rooms cap bounds how many exist; this bounds the churn of
+        //opening and abandoning them, which the cap cannot see because an
+        //abandoned room stops counting the moment it expires.
+        Callers.require(limiter, "open-room", host.id(), RateLimits.OPEN_ROOM);
         try {
             return rooms.create(host);
         }
@@ -240,6 +247,10 @@ public class RoomController {
     private Mover mover(String code, String authorization, String moveKey) {
         Account player = requireSignedIn(authorization);
         rooms.markPresent(code, player.id());
+        //After presence, so a player being throttled still counts as there. A
+        //limit that made somebody look absent would forfeit their game as a side
+        //effect of protecting the server.
+        Callers.require(limiter, "move", player.id(), RateLimits.MOVE);
         return new Mover(player, requireMoveKey(moveKey));
     }
 

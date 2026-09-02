@@ -550,10 +550,26 @@ and API versioning.
       live on disk and will fall behind the server.
 - [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game
       end.
-- [ ] Rate-limit move and room-creation endpoints before this is reachable from
-      outside your network. Rate limiting alone does not bound storage: creation
-      that stays within the limit, sustained, still fills the database. It is the
-      expiry above that bounds the total.
+- [x] **Rate limits**, on signing in and registering per address, and on
+      opening rooms and moving per account. Rate limiting alone does not bound
+      storage: creation that stays within the limit, sustained, still fills the
+      database. It is the expiry above that bounds the total.
+
+> **The endpoint this plan did not name was the one that mattered.** It listed
+> moves and room creation — both already bounded by something else, the rules
+> refusing a move out of turn and the five-open-rooms cap. Signing in is bounded
+> by nothing, takes a password, and costs a BCrypt hash per attempt, so leaving
+> it open was both a way to guess passwords and a way to burn the server's CPU
+> with a few hundred requests. It is now held ten times tighter than playing.
+>
+> Held per address rather than per username, because limiting per username lets
+> anybody lock a player out of their own account by failing to sign in as them.
+>
+> **Reading the game is deliberately not limited**, and it is the busiest
+> endpoint by far. Presence is measured by requests, so a poll answered with 429
+> is a poll that did not mark the player present — throttling it would forfeit
+> games as a side effect of protecting the server. The poll interval is the
+> lever there, not a limit.
 
 > **Deliberately a monolith.** One instance handles tens of thousands of
 > concurrent games at these state sizes and turn rates. The distributed-systems

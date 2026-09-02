@@ -7,8 +7,7 @@ not.
 Two kinds of note appear throughout:
 
 - **Still missing.** Something named here that has not been written. What is
-  left is narrow: API versioning and rate limits. `docs/ROADMAP.md` has them in
-  Phase 09.
+  left is narrow: API versioning. `docs/ROADMAP.md` has it in Phase 09.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
