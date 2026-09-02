@@ -139,13 +139,7 @@ public class RoomController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
-        Account player = requireSignedIn(authorization);
-        //Before the key check and before the rules get a say. A request that is
-        //about to be refused still proves its sender is sitting there, and a
-        //player retrying a move they are not allowed to make yet must not look
-        //to the forfeit rule like somebody who has walked away.
-        rooms.markPresent(code, player.id());
-        String key = requireMoveKey(moveKey);
+        Mover mover = mover(code, authorization, moveKey);
         if (choice == null || choice.character() == null || choice.character().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Choose a character");
@@ -154,7 +148,8 @@ public class RoomController {
         //own. Choosing is a move, it goes through RoomService.move like one, and
         //it can therefore lose the same race any other move can — a duplicated
         //chain that forgot RoomMovedOnException turned that race into a 500.
-        return played(() -> rooms.chooseCharacter(code, player, choice.character(), key));
+        return played(() -> rooms.chooseCharacter(
+                code, mover.player(), choice.character(), mover.key()));
     }
 
     /**
@@ -172,17 +167,11 @@ public class RoomController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
-        Account player = requireSignedIn(authorization);
-        //Before the key check and before the rules get a say. A request that is
-        //about to be refused still proves its sender is sitting there, and a
-        //player retrying a move they are not allowed to make yet must not look
-        //to the forfeit rule like somebody who has walked away.
-        rooms.markPresent(code, player.id());
-        String key = requireMoveKey(moveKey);
+        Mover mover = mover(code, authorization, moveKey);
         if (asked == null || asked.question() == null || asked.question().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ask a question");
         }
-        return played(() -> rooms.ask(code, player, asked.question(), key));
+        return played(() -> rooms.ask(code, mover.player(), asked.question(), mover.key()));
     }
 
     /**
@@ -200,17 +189,11 @@ public class RoomController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
-        Account player = requireSignedIn(authorization);
-        //Before the key check and before the rules get a say. A request that is
-        //about to be refused still proves its sender is sitting there, and a
-        //player retrying a move they are not allowed to make yet must not look
-        //to the forfeit rule like somebody who has walked away.
-        rooms.markPresent(code, player.id());
-        String key = requireMoveKey(moveKey);
+        Mover mover = mover(code, authorization, moveKey);
         if (given == null || given.answer() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Answer yes or no");
         }
-        return played(() -> rooms.answer(code, player, given.answer(), key));
+        return played(() -> rooms.answer(code, mover.player(), given.answer(), mover.key()));
     }
 
     /**
@@ -228,17 +211,36 @@ public class RoomController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization,
             @RequestHeader(value = MOVE_KEY_HEADER, required = false) String moveKey) {
-        Account player = requireSignedIn(authorization);
-        //Before the key check and before the rules get a say. A request that is
-        //about to be refused still proves its sender is sitting there, and a
-        //player retrying a move they are not allowed to make yet must not look
-        //to the forfeit rule like somebody who has walked away.
-        rooms.markPresent(code, player.id());
-        String key = requireMoveKey(moveKey);
+        Mover mover = mover(code, authorization, moveKey);
         if (guess == null || guess.character() == null || guess.character().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name a character");
         }
-        return played(() -> rooms.guess(code, player, guess.character(), key));
+        return played(() -> rooms.guess(code, mover.player(), guess.character(), mover.key()));
+    }
+
+    /**
+     * Who is making a move, and under what key.
+     *
+     * @param player whoever the bearer token belongs to
+     * @param key    their own key for this move
+     */
+    private record Mover(Account player, String key) {
+    }
+
+    /**
+     * The three things every move endpoint does before it does its own work.
+     *
+     * <p>Presence is recorded in the middle of them, before the key check and
+     * before the rules get a say, because a request that is about to be refused
+     * still proves its sender is sitting there — and a player retrying a move
+     * they are not allowed to make yet must not look to the forfeit rule like
+     * somebody who has walked away. Four copies of that ordering were four
+     * chances to get it subtly wrong.</p>
+     */
+    private Mover mover(String code, String authorization, String moveKey) {
+        Account player = requireSignedIn(authorization);
+        rooms.markPresent(code, player.id());
+        return new Mover(player, requireMoveKey(moveKey));
     }
 
     /**
