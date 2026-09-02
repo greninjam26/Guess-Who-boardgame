@@ -36,6 +36,34 @@ class OnlineGameController {
          */
         void problem(String message);
 
+        /**
+         * The server has stopped answering, and the game is waiting for it.
+         *
+         * <p>Reported once when it starts, not once per failed poll. A client
+         * polls every couple of seconds, so anything that interrupts a
+         * connection produces a run of identical failures, and treating each as
+         * news gave the player a modal dialog every two seconds until their
+         * network came back.</p>
+         *
+         * <p>Not an error the player can act on. Their game is still there, the
+         * turn clock allows for a lapse this long, and the honest thing to show
+         * is that the client is still trying.</p>
+         */
+        void connectionLost();
+
+        /** The server is answering again, and the game has caught up. */
+        void connectionRestored();
+
+        /**
+         * The room is gone for good — expired, or swept after being abandoned.
+         *
+         * <p>Terminal, unlike a connection failure: there is nothing left to
+         * poll, and continuing to ask produces the same answer for ever.</p>
+         *
+         * @param message what to tell the player
+         */
+        void gameGone(String message);
+
         /** The session is no longer good and the player has to sign in again. */
         void signedOut();
     }
@@ -47,6 +75,9 @@ class OnlineGameController {
     private View view;
     private String code;
     private RoomState state;
+    //Whether the server is currently failing to answer, so that a run of
+    //identical failures is reported once rather than on every poll.
+    private boolean offline;
 
     /**
      * @param client talks to the server
@@ -143,6 +174,9 @@ class OnlineGameController {
         view = null;
         code = null;
         state = null;
+        //Cleared with everything else, or the next game would start believing
+        //the server was already unreachable and never say when it came back.
+        offline = false;
     }
 
     /**
@@ -189,6 +223,8 @@ class OnlineGameController {
     }
 
     private void apply(RoomState updated) {
+        //Any answer at all means the server is back, whatever it says.
+        markOnline();
         state = updated;
         if (view != null) {
             view.stateChanged(updated);
@@ -209,6 +245,12 @@ class OnlineGameController {
                 return;
             }
             if (failure != null) {
+                //A one-shot request the player just made — opening a room,
+                //joining one, playing a move. Nothing retries it, so this is
+                //told plainly rather than shown as reconnecting: a banner
+                //promising recovery would be a promise nothing here keeps. The
+                //poll path is the one that is still trying, and it reports
+                //through connectionLost instead.
                 told.problem("The server could not be reached.");
                 return;
             }
@@ -225,6 +267,14 @@ class OnlineGameController {
         if (told == null) {
             return;
         }
+        if (outcome.kind() == OnlineOutcome.Kind.UNREACHABLE) {
+            //Not a problem to interrupt anybody with. The game is still there,
+            //the client is still trying, and a dialog every two seconds is the
+            //worst possible way to say so.
+            markOffline();
+            return;
+        }
+        markOnline();
         if (outcome.kind() == OnlineOutcome.Kind.SIGNED_OUT) {
             //Not something to do differently in the game: they have to sign in
             //again, and polling on a dead token would only repeat the message.
@@ -232,7 +282,40 @@ class OnlineGameController {
             told.signedOut();
             return;
         }
+        if (outcome.kind() == OnlineOutcome.Kind.NOT_FOUND && code != null) {
+            //Mid-game this means the room has expired or been swept, which is
+            //not something more polling can recover from. Before a game, the
+            //same answer means a mistyped code, which is why this only applies
+            //once we are in a room.
+            poller.stop();
+            told.gameGone("This game is no longer available. It may have expired.");
+            return;
+        }
         told.problem(outcome.message());
+    }
+
+    /** Notes that the server has stopped answering, telling the view once. */
+    private void markOffline() {
+        if (offline) {
+            return;
+        }
+        offline = true;
+        View told = view;
+        if (told != null) {
+            told.connectionLost();
+        }
+    }
+
+    /** Notes that the server is answering again, telling the view once. */
+    private void markOnline() {
+        if (!offline) {
+            return;
+        }
+        offline = false;
+        View told = view;
+        if (told != null) {
+            told.connectionRestored();
+        }
     }
 
     private static void onInterfaceThread(Runnable work) {

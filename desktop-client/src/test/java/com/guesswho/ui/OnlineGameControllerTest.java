@@ -1,6 +1,7 @@
 package com.guesswho.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.guesswho.client.OnlineGameClient;
@@ -21,6 +22,10 @@ class OnlineGameControllerTest {
     private final List<RoomState> shown = new ArrayList<>();
     private final List<String> problems = new ArrayList<>();
     private final List<String> signedOut = new ArrayList<>();
+    //Recorded as a sequence, because the point of these is that they arrive on
+    //transitions rather than on every poll.
+    private final List<String> connection = new ArrayList<>();
+    private final List<String> gone = new ArrayList<>();
 
     private final OnlineGameController.View view = new OnlineGameController.View() {
         @Override
@@ -36,6 +41,21 @@ class OnlineGameControllerTest {
         @Override
         public void problem(String message) {
             problems.add(message);
+        }
+
+        @Override
+        public void connectionLost() {
+            connection.add("lost");
+        }
+
+        @Override
+        public void connectionRestored() {
+            connection.add("restored");
+        }
+
+        @Override
+        public void gameGone(String message) {
+            gone.add(message);
         }
 
         @Override
@@ -217,6 +237,82 @@ class OnlineGameControllerTest {
     }
 
     /** A poller that records what it was told to do rather than doing it. */
+    /** A controller in a joined room, with the poller running. */
+    private void joinedGame() throws Exception {
+        controller.joinRoom("bcd fgh", view);
+        settle();
+    }
+
+    @Test
+    void reportsARunOfFailedPollsOnceRatherThanEveryTime() throws Exception {
+        //The bug this closes: every failed poll raised a problem, and the frame
+        //turned each into a modal dialog. A client polling every two seconds
+        //gave the player a dialog every two seconds for as long as their
+        //network was down, each one titled "Invalid game setup".
+        joinedGame();
+
+        for (int poll = 0; poll < 5; poll++) {
+            poller.listener.failed(OnlineOutcome.failed(
+                    OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached"));
+        }
+
+        assertEquals(List.of("lost"), connection);
+        assertEquals(List.of(), problems, "A dropped connection is not a problem to interrupt over");
+    }
+
+    @Test
+    void saysWhenTheConnectionComesBack() throws Exception {
+        joinedGame();
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached"));
+
+        poller.listener.updated(roomState(RoomStatus.IN_PROGRESS));
+
+        assertEquals(List.of("lost", "restored"), connection);
+    }
+
+    @Test
+    void keepsPollingThroughALapseSoTheGameCanRecover() throws Exception {
+        //A connection failure is not terminal. Stopping here would mean a client
+        //that never came back on its own, which is the opposite of reconnecting.
+        joinedGame();
+
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached"));
+
+        assertFalse(poller.stopped, "A lapse must not stop the client trying");
+    }
+
+    @Test
+    void treatsARoomThatHasGoneAsTheEndOfTheGame() throws Exception {
+        //Mid-game a missing room means it expired or was swept. More polling
+        //returns the same answer for ever, so this one is terminal.
+        joinedGame();
+
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.NOT_FOUND, "No game with that code"));
+
+        assertEquals(1, gone.size(), "The player should be told the game is gone");
+        assertTrue(poller.stopped, "Nothing is left to poll for");
+    }
+
+    @Test
+    void forgetsAConnectionLapseWhenLeavingTheGame() throws Exception {
+        //Otherwise the next game starts believing the server is already
+        //unreachable, and never reports it coming back.
+        joinedGame();
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached"));
+        controller.leave();
+        connection.clear();
+
+        joinedGame();
+        poller.listener.failed(OnlineOutcome.failed(
+                OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached"));
+
+        assertEquals(List.of("lost"), connection);
+    }
+
     private static final class RecordingPoller extends RoomPoller {
         private boolean started;
         private boolean stopped;

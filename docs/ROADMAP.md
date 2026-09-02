@@ -531,8 +531,15 @@ and API versioning.
 - [x] **A scheduled sweep**, every five minutes. Expiring lazily on read never
       reaches the rows that accumulate, which are exactly the abandoned ones
       nobody will read again. Failure is logged and the next run tries again.
-- [ ] Reconnect: both the plumbing and the screen states — reconnecting, opponent
-      reconnecting, game expired.
+- [x] **Reconnect, the screen states.** A dropped connection is a banner over
+      the board and the client keeps polling; a room that has gone ends the game
+      instead of being retried for ever. Reported on the transition, because
+      polling every two seconds had been raising a modal dialog per failed
+      attempt. An opponent coming back needed nothing new — presence already
+      flips back on their next request.
+- [ ] Reconnect, across a restart: remember which room this client was in, and
+      offer it back on the next launch the way a saved local game is. The server
+      keeps everything needed already.
 - [ ] API versioning with a clear rejection message for stale clients. Installers
       live on disk and will fall behind the server.
 - [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game

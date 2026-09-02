@@ -416,9 +416,10 @@ aggregation, normalized database storage, and transactional rollback.
   tests and the whole chain runs end to end against a real server in
   `LiveOnlineGameTest`, but nobody has yet sat down at two computers and played
   a game with a friend.
-- An online game cannot be reconnected to yet. Closing the window and reopening
-  it does not put you back in the game; the room stays open until it expires,
-  and the turn timer will forfeit it in the meantime.
+- An online game cannot be rejoined after closing the application. A connection
+  that drops mid-game recovers on its own — the board shows that it is
+  reconnecting and carries on — but quitting and relaunching does not put you
+  back in the room, and the turn timer keeps running while you are away.
 - Neither installer is code-signed, so both platforms warn the first time. See
   [Install](#install) for the one extra step each needs.
 
