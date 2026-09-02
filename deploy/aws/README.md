@@ -151,6 +151,90 @@ resource is tagged. It fails on any of them.
 
     Expected: `t3.micro`, and exactly two rules — 80 and 443.
 
+## Bootstrapping the host
+
+Once DuckDNS points at the Elastic IP, open a Session Manager shell on the
+instance (`InstanceId` from the stack outputs) and run bootstrap with the stack's
+values. It is safe to run again if anything fails part-way:
+
+```bash
+sudo PUBLIC_HOSTNAME=your-host.duckdns.org \
+     ARTIFACT_BUCKET=the-bucket-from-the-outputs \
+     AWS_REGION=us-east-1 \
+     bash /opt/guesswho/bootstrap.sh
+```
+
+It ends with its own checks — PostgreSQL and Caddy running, the backup timer
+enabled, `server.env` not world-readable, and neither 5432 nor 8080 listening on
+anything but loopback. It exits nonzero if any of them fail, so a host that
+looks bootstrapped and is not will say so.
+
+The application service is enabled but **not started**: there is no JAR until
+the first deployment, and starting it here would only produce a restart loop.
+
+### Checking the forwarding boundary
+
+Spring trusts `X-Forwarded-For` because only Caddy can reach it. That trust is
+only sound if Caddy overwrites the header rather than appending to it, which is
+not Caddy's default. Once the server is deployed, prove it:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'X-Forwarded-For: 203.0.113.9' \
+  https://your-host.duckdns.org/api/status
+```
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'Forwarded: for=203.0.113.9' \
+  https://your-host.duckdns.org/api/status
+```
+
+Then exhaust the sign-in allowance from one machine while sending a *different*
+forged `X-Forwarded-For` on every request:
+
+```bash
+for i in $(seq 1 30); do
+  curl -s -o /dev/null -w '%{http_code} ' \
+    -H "X-Forwarded-For: 203.0.113.$i" \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"nobody","password":"wrong"}' \
+    https://your-host.duckdns.org/api/sessions
+done; echo
+```
+
+**Expected: the responses turn into `429`.** If they stay `401` forever, Caddy is
+appending rather than replacing, every per-address limit is bypassable by anyone
+who sends a header, and the sign-in endpoint — which costs a BCrypt hash per
+attempt — is effectively unprotected. Record the result in the deployment log.
+
+## Verifying a backup can be restored
+
+A backup nobody has restored is a hope. Before calling the deployment done, run
+one and put it back:
+
+```bash
+sudo systemctl start guesswho-backup.service
+aws s3 ls s3://the-bucket/backups/ --region us-east-1
+```
+
+```bash
+aws s3 cp s3://the-bucket/backups/the-newest.dump.gz /tmp/ --region us-east-1
+gzip -t /tmp/the-newest.dump.gz && gunzip -c /tmp/the-newest.dump.gz > /tmp/restore.dump
+sudo -u postgres createdb guesswho_restore_test
+sudo -u postgres pg_restore --no-owner --no-acl -d guesswho_restore_test /tmp/restore.dump
+```
+
+Compare what matters, then remove only the named temporary database:
+
+```bash
+sudo -u postgres psql -d guesswho_restore_test \
+  -c 'SELECT (SELECT COUNT(*) FROM accounts) AS accounts,
+             (SELECT COUNT(*) FROM game_results) AS results;'
+sudo -u postgres dropdb guesswho_restore_test
+rm -f /tmp/the-newest.dump.gz /tmp/restore.dump
+```
+
 ## Weekly, while it is up
 
 - Check Free Plan credit consumption in Billing and Cost Management.

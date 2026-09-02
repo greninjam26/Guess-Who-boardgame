@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up the Guess Who database to S3
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+EnvironmentFile=/etc/guesswho/backup.env
+ExecStart=/opt/guesswho/backup.sh
