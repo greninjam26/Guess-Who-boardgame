@@ -19,6 +19,21 @@
             <groupId>com.guesswho</groupId>
             <artifactId>game-core</artifactId>
         </dependency>
+        <!-- Compile scope rather than runtime, deliberately. The deployed server
+             needs the driver either way, and PostgresMigrationTest builds a
+             PGSimpleDataSource directly — runtime scope would leave that test
+             uncompilable and the fix would look like an afterthought. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Flyway 10 split each database into its own module. Without this one
+             Flyway starts and then refuses PostgreSQL at the moment it matters,
+             which is on the deployed server rather than here. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
