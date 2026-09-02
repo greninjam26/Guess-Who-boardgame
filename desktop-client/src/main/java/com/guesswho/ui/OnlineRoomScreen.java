@@ -114,6 +114,25 @@ class OnlineRoomScreen implements OnlineGameController.View {
     }
 
     @Override
+    public void connectionLost() {
+        //The host waiting for somebody to join is polling too, so this screen
+        //hits the same run of failures the board does. Said in the same place
+        //as everything else here rather than as a dialog over the code they are
+        //trying to read out.
+        problem("Reconnecting… the server is not answering just now.");
+    }
+
+    @Override
+    public void connectionRestored() {
+        problem("");
+    }
+
+    @Override
+    public void gameGone(String message) {
+        problem(message);
+    }
+
+    @Override
     public void signedOut() {
         problem("You have been signed out. Sign in again to play online.");
     }

@@ -25,6 +25,7 @@ class OnlineGameScreens {
     private static final String CHOOSING = "choosing";
     private static final String PLAYING = "playing";
     private static final String FINISHED = "finished";
+    private static final String GONE = "gone";
 
     private final OnlineGameController controller;
 
@@ -42,6 +43,18 @@ class OnlineGameScreens {
      * player's eliminations rather than as a prompt to pick somebody.</p>
      */
     private final JLabel guessPrompt = GuessPrompt.label();
+    /**
+     * Says the client is still trying, while the server is not answering.
+     *
+     * <p>A banner over the board rather than a dialog. The game is still there
+     * and the turn clock allows for a lapse this long, so there is nothing for
+     * the player to do and nothing to interrupt them for — but saying nothing
+     * at all would leave a board that has quietly stopped updating.</p>
+     */
+    private final JLabel connection = new JLabel("", javax.swing.SwingConstants.CENTER);
+    private final JLabel goneMessage = new JLabel("", javax.swing.SwingConstants.CENTER);
+    /** Holds whichever of the banner and the guess prompt apply right now. */
+    private final JPanel northNotices = new JPanel(new java.awt.GridLayout(0, 1));
     private final OnlineTurnPanel turns;
     private final QuestionHistory history = new QuestionHistory();
 
@@ -96,6 +109,7 @@ class OnlineGameScreens {
         root.add(choosingCard(), CHOOSING);
         root.add(playing, PLAYING);
         root.add(finishedCard(onFinished), FINISHED);
+        root.add(goneCard(onFinished), GONE);
     }
 
     /**
@@ -156,12 +170,19 @@ class OnlineGameScreens {
 
     private void showPlaying() {
         playing.removeAll();
+        northNotices.removeAll();
+        if (!connection.getText().isEmpty()) {
+            northNotices.add(connection);
+        }
         if (guessing) {
             //Carried over from the tracking board this player was just looking
             //at. A guess board that started clean threw away a game's worth of
             //eliminating at the moment it mattered most.
             guessFrom.showRuledOut(yourBoard.faceDownCards());
-            playing.add(guessPrompt, BorderLayout.NORTH);
+            northNotices.add(guessPrompt);
+        }
+        if (northNotices.getComponentCount() > 0) {
+            playing.add(northNotices, BorderLayout.NORTH);
         }
         playing.add(guessing ? guessFrom : yourBoard, BorderLayout.CENTER);
         playing.add(turns.panel(), BorderLayout.SOUTH);
@@ -170,6 +191,46 @@ class OnlineGameScreens {
         cards.show(root, PLAYING);
         playing.revalidate();
         playing.repaint();
+    }
+
+    /**
+     * Shows or clears the reconnecting banner.
+     *
+     * @param trying whether the client is currently unable to reach the server
+     */
+    void showConnectionTrouble(boolean trying) {
+        connection.setText(trying
+                ? "Reconnecting… your game is safe, and this client is still trying."
+                : "");
+        //Only redraws the board, so a banner appearing does not disturb a
+        //player who is part-way through choosing or reading the ending.
+        if (root.isShowing() || playing.getParent() != null) {
+            showPlaying();
+        }
+    }
+
+    /**
+     * Shows that the room has gone for good.
+     *
+     * @param message what to tell the player
+     */
+    void showGone(String message) {
+        goneMessage.setText(message);
+        cards.show(root, GONE);
+    }
+
+    private JPanel goneCard(Runnable onFinished) {
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
+        panel.setBorder(BorderFactory.createEmptyBorder(32, 32, 32, 32));
+        goneMessage.setFont(goneMessage.getFont().deriveFont(Font.BOLD, 16f));
+        panel.add(goneMessage, BorderLayout.NORTH);
+        javax.swing.JButton done = new javax.swing.JButton("Back to the menu");
+        done.addActionListener(event -> {
+            controller.leave();
+            onFinished.run();
+        });
+        panel.add(done, BorderLayout.SOUTH);
+        return panel;
     }
 
     private JPanel choosingCard() {

@@ -7,9 +7,8 @@ not.
 Two kinds of note appear throughout:
 
 - **Still missing.** Something named here that has not been written. What is
-  left is narrow: a _reconnecting_ state for your own connection, a screen for
-  an expired game, API versioning, and rate limits. `docs/ROADMAP.md` has them
-  in Phase 09.
+  left is narrow: rejoining a game after closing the application, API
+  versioning, and rate limits. `docs/ROADMAP.md` has them in Phase 09.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
@@ -339,10 +338,28 @@ Checked when a player reads the game rather than only on a schedule, because the
 person waiting is the one polling. Version-checked like any other write, so two
 simultaneous polls cannot forfeit the same game twice.
 
-**Still missing:** a _reconnecting_ state for your own connection, and a screen
-for a game that expired rather than finished. Both are about what you are told
-when the fault is at your end, which nothing currently distinguishes from the
-server simply being slow.
+A connection that drops is shown as a banner over the board — _"Reconnecting…
+your game is safe, and this client is still trying"_ — and the client keeps
+polling through it. Reported on the transition rather than per attempt: polling
+every two seconds turned one outage into a run of identical failures, and the
+frame was raising each as a modal dialog, so a player whose wifi blinked got a
+dialog every two seconds until it came back, each titled _"Invalid game setup"_.
+
+> **A failed poll and a failed button press are not the same news.** A poll is
+> still trying, so it says reconnecting. Nothing retries a room that failed to
+> open or a move that failed to send, so those still say plainly that the server
+> could not be reached. Showing a reconnecting banner for those would promise a
+> recovery that nothing is working towards.
+
+A room that has gone — expired, or swept after being abandoned — ends the game
+rather than being retried. More polling returns the same answer for ever. The
+same 404 before joining means a mistyped code, which is why it is only terminal
+once the client is in a room.
+
+**Still missing:** rejoining a game after closing the application. The server
+keeps everything needed — the room, the snapshot, both accounts — so this is
+the client remembering which room it was in, in the way a local game is already
+offered back on the next launch.
 
 ---
 

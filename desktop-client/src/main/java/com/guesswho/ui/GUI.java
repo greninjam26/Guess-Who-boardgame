@@ -374,6 +374,23 @@ public class GUI {
             }
 
             @Override
+            public void connectionLost() {
+                //A banner on the board, not a dialog. This used to be a modal
+                //error every two seconds for as long as the network was down.
+                onlineScreens.showConnectionTrouble(true);
+            }
+
+            @Override
+            public void connectionRestored() {
+                onlineScreens.showConnectionTrouble(false);
+            }
+
+            @Override
+            public void gameGone(String message) {
+                onlineScreens.showGone(message);
+            }
+
+            @Override
             public void signedOut() {
                 showInputError("You have been signed out. Sign in again to play online.");
                 leaveOnlinePlay();
