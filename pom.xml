@@ -44,14 +44,50 @@
         </dependencies>
     </dependencyManagement>
 
+    <dependencies>
+        <!-- Nothing here mocks anything, but Spring Boot's test support loads
+             Mockito whenever a @SpringBootTest runs, and Mockito then attaches
+             its own agent to the running JVM. Declaring it explicitly is what
+             gives the surefire configuration below a path to point at; leaving
+             it transitive would mean every module resolving a property that
+             only some of them have. -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <!-- Sets a property per dependency holding its jar's
+                             path, which is how the agent below is located
+                             without hardcoding a version or a repository
+                             layout. -->
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Swing components are constructed in tests, so no display is available. -->
-                    <argLine>-Djava.awt.headless=true</argLine>
+                    <!-- Swing components are constructed in tests, so no display is available.
+
+                         Mockito is loaded as an agent rather than left to attach
+                         itself. Self-attachment already warns on this JDK and is
+                         stated to stop working on a later one, so a suite that
+                         self-attaches today is one that fails to start after an
+                         upgrade — and it prints four lines of warning on every
+                         run in the meantime. -->
+                    <argLine>-javaagent:${org.mockito:mockito-core:jar} -Djava.awt.headless=true</argLine>
                 </configuration>
             </plugin>
         </plugins>
