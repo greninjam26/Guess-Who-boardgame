@@ -175,6 +175,20 @@ The same script runs in CI on tagged releases; see
 [.github/workflows/installers.yml](.github/workflows/installers.yml). Icons come
 from [packaging/](packaging/README.md).
 
+By default an installer connects to `http://localhost:8080`, which is what you
+want when building on your own machine. A release build points it at the
+deployed server instead:
+
+```bash
+GUESSWHO_SERVER_URL=https://your-host.duckdns.org ./packaging/build-installer.sh
+```
+
+The URL is baked in with jpackage, must be `https` and must not end with a
+slash, and both are checked before the build starts rather than after it. A
+tagged release fails outright if the `GUESSWHO_SERVER_URL` repository variable
+is missing — installers that quietly talk to localhost would launch, install and
+look right while every online game failed.
+
 ## Play Online
 
 Online games need the server running and both players signed in — an online

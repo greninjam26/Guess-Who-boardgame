@@ -22,6 +22,45 @@ MAIN_CLASS="com.guesswho.ui.GUI"
 VENDOR="greninjam26"
 DESCRIPTION="The Guess Who board game, for one or two players"
 
+# Where the installed game looks for the server.
+#
+# Unset means localhost, which is what a developer building on their own machine
+# wants and what every run before this produced. Release builds set it, so a
+# downloaded game talks to the deployed server while nothing about running from
+# an IDE or a test changes.
+#
+# Baked in with jpackage rather than read from a file the player could edit:
+# there is nothing here worth configuring, and a game that silently talked to
+# somewhere else because a file was edited would be a worse problem than one
+# that cannot be repointed.
+SERVER_OPTIONS=()
+SERVER_URL="${GUESSWHO_SERVER_URL:-}"
+if [ -n "$SERVER_URL" ]; then
+    case "$SERVER_URL" in
+        https://*) ;;
+        *)
+            # Refused rather than warned about. Accounts are created and signed
+            # into over this connection, so a plain-http installer would send
+            # passwords in clear to everybody between the player and the server
+            # — and it would work, which is what makes it dangerous.
+            echo "GUESSWHO_SERVER_URL must be an https:// URL, got: $SERVER_URL" >&2
+            exit 1
+            ;;
+    esac
+    case "$SERVER_URL" in
+        */)
+            # The client joins paths onto this, so a trailing slash produces
+            # //api/rooms. Some servers forgive that and this one need not.
+            echo "GUESSWHO_SERVER_URL must not end with a slash, got: $SERVER_URL" >&2
+            exit 1
+            ;;
+    esac
+    echo "Installers will connect to $SERVER_URL"
+    SERVER_OPTIONS=(--java-options "-Dguesswho.server.url=$SERVER_URL")
+else
+    echo "GUESSWHO_SERVER_URL is not set; this installer will use localhost."
+fi
+
 VERSION="$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' \
     --non-recursive exec:exec 2>/dev/null | tail -1 | tr -d '[:space:]')"
 if [[ -z "$VERSION" ]]; then
@@ -94,6 +133,7 @@ jpackage \
     --main-class "$MAIN_CLASS" \
     --add-modules "$MODULES" \
     --dest "$OUT" \
+    ${SERVER_OPTIONS[@]+"${SERVER_OPTIONS[@]}"} \
     ${EXTRA[@]+"${EXTRA[@]}"}
 
 echo

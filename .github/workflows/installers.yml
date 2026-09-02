@@ -53,9 +53,31 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install wixtoolset --no-progress -y
 
+      # A tagged release must not ship installers that point at localhost. They
+      # would build, install and launch perfectly, and every online game would
+      # fail on a machine with no server — which looks like the game being
+      # broken rather than the release being misbuilt. A manual run may omit it,
+      # because that is for checking a build rather than giving anybody the game.
+      - name: Require a server endpoint for a release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GUESSWHO_SERVER_URL: ${{ vars.GUESSWHO_SERVER_URL }}
+        shell: bash
+        run: |
+          if [ -z "${GUESSWHO_SERVER_URL}" ]; then
+            echo "::error::GUESSWHO_SERVER_URL is not set, so this release would ship installers that talk to localhost."
+            echo "Set it as a repository variable to the deployed https:// endpoint."
+            exit 1
+          fi
+          echo "Release installers will connect to ${GUESSWHO_SERVER_URL}"
+
       - name: Build installer
         # bash on the Windows runner too, so one script covers both platforms.
         shell: bash
+        env:
+          # Unset on a manual run, which keeps the localhost behaviour a
+          # developer expects. Set on a tag, checked by the step above.
+          GUESSWHO_SERVER_URL: ${{ vars.GUESSWHO_SERVER_URL }}
         run: ./packaging/build-installer.sh
 
       # Kept for manual runs, where there is no release to attach anything to.
