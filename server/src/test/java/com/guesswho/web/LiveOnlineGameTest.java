@@ -393,6 +393,16 @@ class LiveOnlineGameTest {
                 OnlineOutcome<RoomState> outcome = poll.get(20,
                         java.util.concurrent.TimeUnit.SECONDS);
                 assertTrue(outcome.isOk(), "A simultaneous poll failed outright");
+                //Every one of them, not just the one that won the race. A poll
+                //that loses the optimistic update has not learned nothing — it
+                //has learned that somebody else finished the game — and
+                //answering with the in-progress room it read a moment earlier
+                //would tell a player their game was still running after it had
+                //been settled.
+                assertEquals(RoomStatus.FINISHED, outcome.value().status(),
+                        "A poll that lost the forfeit race reported stale state");
+                assertNotNull(outcome.value().winner(),
+                        "A finished game was reported without a winner");
             }
         }
         finally {
