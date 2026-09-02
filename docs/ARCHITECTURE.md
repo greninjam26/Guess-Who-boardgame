@@ -422,9 +422,12 @@ meaningful.
   server + game-core         ──deploy───▶  Railway / Fly / Render + Postgres
 ```
 
-Installers live on user disks and will fall behind the server, so the API carries
-a version and rejects incompatible clients with a message telling the player to
-update — never with undefined behavior.
+> **Still missing.** Installers live on user disks and will fall behind the
+> server, so the API should carry a version and reject incompatible clients with
+> a message telling the player to update rather than behaving undefinedly. It
+> does not yet — there is no version on the wire and no rejection, so an old
+> client meets a newer server and fails in whatever way the mismatch happens to
+> produce. Phase 09 in `docs/ROADMAP.md`.
 
 ---
 
