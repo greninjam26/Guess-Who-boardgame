@@ -62,6 +62,8 @@ public class GUI {
     private CharacterBoard boardPanel1;//first user's board
     private CharacterBoard boardPanel2;//second user's or the AI's board
     private CharacterBoard guessBoardPanel;
+    //The guess board with its prompt above it, since the frame swaps one thing.
+    private JPanel guessScreen;
     //portraits shared by all three boards
     private CharacterImages images;
     //true while the question panel is on screen, so it can be torn down again
@@ -112,9 +114,12 @@ public class GUI {
         boardPanel1 = CharacterBoard.tracking(images, this::saveGame);
         boardPanel2 = CharacterBoard.tracking(images, this::saveGame);
         guessBoardPanel = CharacterBoard.selecting(images, characterIndex -> {
-            frame.remove(guessBoardPanel);
+            frame.remove(guessScreen);
             guessPVP(controller.game().getCurrentPlayerName(), characterIndex);
         });
+        guessScreen = new JPanel(new BorderLayout());
+        guessScreen.add(GuessPrompt.label(), BorderLayout.NORTH);
+        guessScreen.add(guessBoardPanel, BorderLayout.CENTER);
         
 
         history = new QuestionHistory();
@@ -136,10 +141,7 @@ public class GUI {
             public void showBoardForCurrentPlayer() {
                 frame.remove(boardPanel1);
                 frame.remove(boardPanel2);
-                frame.add(controller.game().getCurrentPlayerName()
-                        .equals(controller.setup().firstUsername())
-                                ? boardPanel1
-                                : boardPanel2, BorderLayout.CENTER);
+                frame.add(currentPlayerBoard(), BorderLayout.CENTER);
                 frame.add(playerTurns, BorderLayout.SOUTH);
                 refreshFrame();
             }
@@ -149,7 +151,11 @@ public class GUI {
                 frame.remove(boardPanel1);
                 frame.remove(boardPanel2);
                 frame.remove(playerTurns);
-                frame.add(guessBoardPanel, BorderLayout.CENTER);
+                //Carried over from the board this player was just looking at, so
+                //a game's worth of eliminating is still on screen at the moment
+                //it decides the guess.
+                guessBoardPanel.showRuledOut(currentPlayerBoard().faceDownCards());
+                frame.add(guessScreen, BorderLayout.CENTER);
                 refreshFrame();
             }
         });
@@ -460,6 +466,14 @@ public class GUI {
         else {
             beginComputerPlay();
         }
+    }
+
+    /** The tracking board belonging to whoever's turn it is. */
+    private CharacterBoard currentPlayerBoard() {
+        return controller.game().getCurrentPlayerName()
+                .equals(controller.setup().firstUsername())
+                        ? boardPanel1
+                        : boardPanel2;
     }
 
     private void submitGameResult() {

@@ -34,6 +34,14 @@ class OnlineGameScreens {
     private final CharacterBoard chooseFrom;
     private final CharacterBoard yourBoard;
     private final CharacterBoard guessFrom;
+    /**
+     * Says what a board of twenty-four faces is for at this moment.
+     *
+     * <p>Guessing swaps one board for another that looks almost identical, and
+     * without a word of explanation the swap reads as the game having lost the
+     * player's eliminations rather than as a prompt to pick somebody.</p>
+     */
+    private final JLabel guessPrompt = GuessPrompt.label();
     private final OnlineTurnPanel turns;
     private final QuestionHistory history = new QuestionHistory();
 
@@ -148,6 +156,13 @@ class OnlineGameScreens {
 
     private void showPlaying() {
         playing.removeAll();
+        if (guessing) {
+            //Carried over from the tracking board this player was just looking
+            //at. A guess board that started clean threw away a game's worth of
+            //eliminating at the moment it mattered most.
+            guessFrom.showRuledOut(yourBoard.faceDownCards());
+            playing.add(guessPrompt, BorderLayout.NORTH);
+        }
         playing.add(guessing ? guessFrom : yourBoard, BorderLayout.CENTER);
         playing.add(turns.panel(), BorderLayout.SOUTH);
         playing.add(history.firstPanel(), BorderLayout.EAST);
