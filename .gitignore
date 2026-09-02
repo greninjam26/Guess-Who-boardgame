@@ -12,6 +12,10 @@ guess-who-data.trace.db
 # Copies taken before a migration changes shape, e.g. the V8 CLOB-to-TEXT move.
 guess-who-data-*.mv.db
 
+# Real deployment parameters: an email address and a hostname, filled in from
+# parameters.example.json. Untracked so the example stays the only committed one.
+deploy/aws/parameters.json
+
 # IDE settings
 .idea/
 .vscode/
