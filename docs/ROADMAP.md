@@ -263,8 +263,10 @@ mechanisms, not one. Both are in place.
 > server can record a whole game without ever learning either character, and
 > still check both at the end. It cannot leak what it never held.
 >
-> It does not defend against a modified client that commits to one character and
-> answers as another. Say so in the README at Phase 10.
+> It does not prevent a modified client committing to one character and
+> answering as another — the answering client is the only thing that knows. The
+> reveal at game end makes it detectable instead, by checking every answer
+> against the committed character. Said plainly in the README.
 
 > **A missing commitment is a signal, not an omission.** A promise is only
 > recorded while the game is in progress; naming a character afterwards is a
@@ -548,8 +550,15 @@ and API versioning.
       launch.
 - [ ] API versioning with a clear rejection message for stale clients. Installers
       live on disk and will fall behind the server.
-- [ ] Wire up the Phase 04 commitment reveal so PvP verification runs at game
-      end.
+- [x] **The commitment reveal at game end.** Its own type and its own endpoint,
+      refused until the game is finished. `RoomState` stays shaped so that no
+      field on it can carry the opponent's character; a nullable one for the
+      endgame would put that field on every response of every game and turn a
+      structural guarantee back into something the server has to remember.
+      Two verdicts per player, because they fail independently: whether the
+      revealed character matches the promise made before play, and whether their
+      answers match that character. Committing honestly and then answering as
+      somebody else passes the first and fails the second.
 - [x] **Rate limits**, on signing in and registering per address, and on
       opening rooms and moving per account. Rate limiting alone does not bound
       storage: creation that stays within the limit, sustained, still fills the

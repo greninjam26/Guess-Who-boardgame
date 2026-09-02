@@ -19,7 +19,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Preset-question and free-question game modes
 - Interactive character boards for tracking eliminated characters
 - Character and question data loaded from CSV files
-- Answers checked against the character a player committed to before playing
+- Answers checked against the character a player committed to before playing —
+  and in an online game, both characters revealed at the end with a review of
+  whether the opponent answered as who they promised to be
 - HTTP submission of completed game results
 - Paginated HTTP history of completed games
 - Three leaderboards — vs Computer, vs Player (online), vs Player (same
@@ -320,8 +322,13 @@ who chose to keep their character to themselves and name it at the end. In that
 case the stored answers are only known to be consistent with the character
 named, not fixed in advance.
 
-This does not defend against a modified client that commits to one character and
-answers as though it held another. It closes changing your mind, not lying.
+A modified client can still commit to one character and answer as though it held
+another — the answering client is the only thing that knows, so nothing on the
+wire can prevent it. What happens instead is that the lie shows up: at the end of
+an online game every answer is checked against the character committed to, and
+answers that character contradicts are listed for both players. A cheat can win
+the game; they cannot win it unnoticed. Only the questions actually asked can
+catch anything, so a lie nobody probed leaves no trace.
 
 When no results have been stored, the endpoint returns an empty JSON array.
 

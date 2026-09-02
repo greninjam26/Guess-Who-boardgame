@@ -128,6 +128,12 @@ class OnlineRoomScreen implements OnlineGameController.View {
     }
 
     @Override
+    public void revealed(com.guesswho.room.GameReveal reveal) {
+        //A game only ends on the board, never on the room screen: by the time
+        //there is an ending to reveal, the board has been showing for a while.
+    }
+
+    @Override
     public void gameGone(String message) {
         problem(message);
     }

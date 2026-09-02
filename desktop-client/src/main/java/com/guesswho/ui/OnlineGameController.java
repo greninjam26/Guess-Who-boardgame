@@ -2,6 +2,7 @@ package com.guesswho.ui;
 
 import com.guesswho.client.OnlineGameClient;
 import com.guesswho.client.OnlineOutcome;
+import com.guesswho.room.GameReveal;
 import com.guesswho.room.Room;
 import com.guesswho.room.RoomState;
 import com.guesswho.room.RoomStatus;
@@ -63,6 +64,18 @@ class OnlineGameController {
          * @param message what to tell the player
          */
         void gameGone(String message);
+
+        /**
+         * The game is over and both characters can finally be shown.
+         *
+         * <p>Arrives after {@link #stateChanged} has already reported the game
+         * finished, because it is a second request: the state a player reads
+         * during a game is built so it cannot carry the opponent's character,
+         * so the ending has to be asked for separately.</p>
+         *
+         * @param reveal both characters, both promises, and the answer review
+         */
+        void revealed(GameReveal reveal);
 
         /** The session is no longer good and the player has to sign in again. */
         void signedOut();
@@ -258,7 +271,28 @@ class OnlineGameController {
             //Nothing more will change. Polling a finished game is asking a
             //question whose answer cannot move again.
             poller.stop();
+            askForTheEnding();
         }
+    }
+
+    /**
+     * Asks what both players may now see.
+     *
+     * <p>A second request rather than more of the first. Failing it is not worth
+     * interrupting anybody over: the game is already decided and on screen, and
+     * what is missing is the reveal, so a player who cannot load it sees the
+     * result without the portraits rather than an error over the top of it.</p>
+     */
+    private void askForTheEnding() {
+        String room = code;
+        client.reveal(room, token.get()).whenComplete((outcome, failure) ->
+                onInterfaceThread(() -> {
+                    View told = view;
+                    if (told == null || failure != null || outcome == null || !outcome.isOk()) {
+                        return;
+                    }
+                    told.revealed(outcome.value());
+                }));
     }
 
     private <T> void handle(CompletableFuture<OnlineOutcome<T>> request,
