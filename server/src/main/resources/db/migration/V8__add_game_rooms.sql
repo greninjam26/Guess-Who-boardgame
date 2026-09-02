@@ -15,7 +15,12 @@ CREATE TABLE game_rooms (
     status VARCHAR(20) NOT NULL,
     -- The GameSnapshot, once there is a game. Null while a room is waiting for
     -- somebody to join.
-    game_state CLOB,
+    --
+    -- TEXT rather than CLOB. H2 accepts both; PostgreSQL has no CLOB type at
+    -- all, so the original spelling built the whole rooms table on H2 and
+    -- failed outright on the database this is deployed to. TEXT is what both
+    -- understand, and it is unbounded on PostgreSQL, which a snapshot needs.
+    game_state TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     -- Three clocks live here as one column: whatever the current state's

@@ -439,9 +439,12 @@ account owns the record and player two is just a name.
       world-readable. Resumed before the window is shown, so nobody types into
       a screen that then vanishes.
 - [ ] **Moved to Phase 10.** Postgres matters when something is deployed, and
-      nothing is yet. The migrations turned out to be portable already — no H2
-      syntax anywhere — so switching engines is configuration, not a rewrite,
-      and doing it early would only oblige everyone to run a database.
+      nothing is yet. Switching engines is close to configuration rather than a
+      rewrite, so doing it early would only oblige everyone to run a database.
+      One correction: this said the migrations were portable already, and `V8`
+      later added `game_state CLOB`, which H2 accepts and Postgres does not. It
+      is the only such column across all eleven — checked — and Phase 10 makes
+      it `TEXT`.
 - [x] **Leaderboard keyed on accounts.** Standings group by account where there
       is one and by typed name where there is not. The account comes from the
       bearer token and never from the request body — a body that could name an
@@ -607,7 +610,9 @@ and API versioning.
 
 **Needs:** everything above
 
-- [ ] Deploy the server — Railway, Fly, or Render with managed Postgres.
+- [ ] Deploy the server. **AWS on the free plan**, not Railway/Fly/Render: one
+      `t3.micro` running Postgres, the JAR and Caddy, torn down before the free
+      period ends. Planned in `docs/superpowers/`, which is untracked.
 - [ ] Structured logging and a database-aware health endpoint. `/api/status`
       returns a hardcoded string and says nothing about connectivity.
 - [ ] Error responses that don't leak stack traces to clients.

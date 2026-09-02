@@ -13,6 +13,25 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    # The suite runs on H2, which accepts things PostgreSQL does not. That is
+    # comfortable and misleading once the server is deployed on PostgreSQL, so
+    # CI keeps one around and PostgresMigrationTest runs every migration against
+    # it. Without this the test is gated off and quietly never runs anywhere.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: guesswho_test
+          POSTGRES_USER: guesswho
+          POSTGRES_PASSWORD: guesswho_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U guesswho -d guesswho_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -25,4 +44,19 @@ jobs:
           cache: maven
 
       - name: Build and test with Maven
+        env:
+          POSTGRES_TEST_URL: jdbc:postgresql://localhost:5432/guesswho_test
+          POSTGRES_TEST_USER: guesswho
+          POSTGRES_TEST_PASSWORD: guesswho_test_password
         run: mvn --batch-mode --no-transfer-progress clean verify
+
+      # A gated test that is skipped everywhere is a test that does not exist.
+      # This fails the build if the PostgreSQL check did not actually run, so a
+      # missing service or a renamed variable cannot pass as a green build.
+      - name: Confirm the PostgreSQL migration test actually ran
+        run: |
+          report=server/target/surefire-reports/com.guesswho.persistence.PostgresMigrationTest.txt
+          test -f "$report" || { echo "PostgresMigrationTest did not run at all"; exit 1; }
+          grep -q "Skipped: 0" "$report" || { echo "PostgresMigrationTest was skipped"; cat "$report"; exit 1; }
+          echo "PostgreSQL migrations were verified:"
+          cat "$report"

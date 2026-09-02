@@ -9,6 +9,8 @@ test.csv
 pending-game-results.jsonl
 guess-who-data.mv.db
 guess-who-data.trace.db
+# Copies taken before a migration changes shape, e.g. the V8 CLOB-to-TEXT move.
+guess-who-data-*.mv.db
 
 # IDE settings
 .idea/
