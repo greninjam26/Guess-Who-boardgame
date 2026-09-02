@@ -424,7 +424,7 @@ public class GUI {
             }
 
             @Override
-            public void gameGone(String message) {
+            public void cannotContinue(String message) {
                 //Nothing to come back to, so nothing to offer next launch.
                 activeRoom.clear();
                 onlineScreens.showGone(message);

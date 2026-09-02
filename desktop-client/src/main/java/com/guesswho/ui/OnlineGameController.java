@@ -56,14 +56,17 @@ class OnlineGameController {
         void connectionRestored();
 
         /**
-         * The room is gone for good — expired, or swept after being abandoned.
+         * The game cannot go on, for a reason more polling will not fix.
          *
-         * <p>Terminal, unlike a connection failure: there is nothing left to
-         * poll, and continuing to ask produces the same answer for ever.</p>
+         * <p>Terminal, unlike a connection failure. Two things arrive here: a
+         * room that has expired or been swept, and a client too old for the
+         * server. They are different problems with the same shape — asking
+         * again produces the same answer for ever — so both stop the poller and
+         * put the reason on screen with a way back to the menu.</p>
          *
-         * @param message what to tell the player
+         * @param message what to tell the player, and what to do about it
          */
-        void gameGone(String message);
+        void cannotContinue(String message);
 
         /**
          * The game is over and both characters can finally be shown.
@@ -334,6 +337,14 @@ class OnlineGameController {
             return;
         }
         markOnline();
+        if (outcome.kind() == OnlineOutcome.Kind.OUTDATED) {
+            //No amount of retrying makes an old build new. Stopping is the
+            //honest response: the alternative is a client that polls a server
+            //refusing it, for ever, saying nothing a player can act on.
+            poller.stop();
+            told.cannotContinue(outcome.message());
+            return;
+        }
         if (outcome.kind() == OnlineOutcome.Kind.SIGNED_OUT) {
             //Not something to do differently in the game: they have to sign in
             //again, and polling on a dead token would only repeat the message.
@@ -347,7 +358,7 @@ class OnlineGameController {
             //same answer means a mistyped code, which is why this only applies
             //once we are in a room.
             poller.stop();
-            told.gameGone("This game is no longer available. It may have expired.");
+            told.cannotContinue("This game is no longer available. It may have expired.");
             return;
         }
         told.problem(outcome.message());

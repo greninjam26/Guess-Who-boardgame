@@ -7,7 +7,8 @@ not.
 Two kinds of note appear throughout:
 
 - **Still missing.** Something named here that has not been written. What is
-  left is narrow: API versioning. `docs/ROADMAP.md` has it in Phase 09.
+  left is narrow: nothing in Phase 09. What remains is the deployment itself,
+  in Phase 10.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
@@ -479,12 +480,21 @@ meaningful.
   server + game-core         ──deploy───▶  Railway / Fly / Render + Postgres
 ```
 
-> **Still missing.** Installers live on user disks and will fall behind the
-> server, so the API should carry a version and reject incompatible clients with
-> a message telling the player to update rather than behaving undefinedly. It
-> does not yet — there is no version on the wire and no rejection, so an old
-> client meets a newer server and fails in whatever way the mismatch happens to
-> produce. Phase 09 in `docs/ROADMAP.md`.
+Installers live on user disks and will fall behind the server, so every request
+carries `X-Api-Version` and every response says what the server speaks. A client
+below the minimum the server will answer gets 426 and a sentence telling the
+player to update — never undefined behaviour.
+
+> **A header, not a path.** There is one client and it ships from this
+> repository, so `/api/v1/` would mean rewriting every URL and every call to buy
+> a property nobody outside is relying on.
+
+> **The minimum is zero until something actually breaks.** Builds released
+> before the header existed send none, and turning them away on the first
+> deployed server would lock out precisely the generation that cannot understand
+> the rejection — those clients read an unrecognised status as "could not be
+> reached", which now means a reconnecting banner for ever. The mechanism ships
+> doing nothing, and works properly by the time it is needed.
 
 ---
 

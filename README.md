@@ -14,6 +14,8 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - A dropped connection recovers on its own, and closing the app offers the game
   back on the next launch
 - Accounts, with guest play for anyone who would rather not have one
+- A versioned API, so a game too old for the server is told to update rather
+  than failing in whatever way the mismatch happens to produce
 - Rate limits on signing in, registering, opening rooms and moving, so a server
   on the open internet cannot be used to guess passwords
 - Preset-question and free-question game modes

@@ -62,7 +62,12 @@ public class HttpGameResultClient implements GameResultClient {
         return (endpoint, body, token) -> {
             HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint)
                     .timeout(REQUEST_TIMEOUT)
-                    .header("Content-Type", "application/json");
+                    .header("Content-Type", "application/json")
+                    //Announced on every request, so a server that has moved on
+                    //can say so rather than failing in whatever way the
+                    //mismatch happens to produce.
+                    .header(com.guesswho.api.ApiVersion.HEADER,
+                            String.valueOf(com.guesswho.api.ApiVersion.CURRENT));
             if (token != null && !token.isBlank()) {
                 builder.header("Authorization", "Bearer " + token);
             }

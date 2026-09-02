@@ -28,6 +28,21 @@ class HttpOnlineGameClientTest {
     private final List<HttpOnlineGameClient.Call> sent = new ArrayList<>();
 
     @Test
+    void readsAnUpgradeRequiredAsSomethingRetryingCannotFix() {
+        //426 has to become its own kind. Falling through to the default would
+        //make it UNREACHABLE, which since reconnect means "still trying" — so a
+        //build too old to play would show a reconnecting banner for ever
+        //instead of telling the player to update.
+        OnlineOutcome<RoomState> outcome = clientReturning(426,
+                "{\"detail\":\"This version of Guess Who is too old to play online.\"}")
+                .state("BCDFGH", "a-token").join();
+
+        assertEquals(OnlineOutcome.Kind.OUTDATED, outcome.kind());
+        assertTrue(outcome.message().contains("too old"),
+                "The server's reason is what tells the player what to do");
+    }
+
+    @Test
     void readsTheGameAsThisPlayerSeesIt() {
         OnlineOutcome<RoomState> outcome =
                 clientReturning(200, STATE).state("BCDFGH", "a-token").join();

@@ -91,6 +91,10 @@ public class HttpLeaderboardClient implements LeaderboardClient {
         return endpoint -> {
             HttpRequest request = HttpRequest.newBuilder(endpoint)
                     .timeout(REQUEST_TIMEOUT)
+                    //Announced here too. Every endpoint is versioned uniformly,
+                    //because a rule with exceptions is one a new call forgets.
+                    .header(com.guesswho.api.ApiVersion.HEADER,
+                            String.valueOf(com.guesswho.api.ApiVersion.CURRENT))
                     .GET()
                     .build();
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())

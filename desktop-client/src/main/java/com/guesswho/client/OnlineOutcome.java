@@ -27,7 +27,18 @@ public record OnlineOutcome<T>(OnlineOutcome.Kind kind, T value, String message)
         /** The session is no longer good; the player needs to sign in again. */
         SIGNED_OUT,
         /** The server could not be reached, which is not the player's fault. */
-        UNREACHABLE
+        UNREACHABLE,
+        /**
+         * This build is too old for the server, and no amount of retrying fixes
+         * it.
+         *
+         * <p>Its own kind rather than a refusal, because the remedy is different
+         * from every other failure here: not waiting, not signing in again, but
+         * downloading a new build. Folding it into UNREACHABLE — which is what a
+         * client that does not know this status does — leaves a player watching
+         * a reconnecting banner for ever.</p>
+         */
+        OUTDATED
     }
 
     /**
