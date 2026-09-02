@@ -1,6 +1,7 @@
 package com.guesswho.ui;
 
 import com.guesswho.game.Board;
+import com.guesswho.room.GameReveal;
 import com.guesswho.room.RoomState;
 import com.guesswho.room.RoomStatus;
 import java.awt.BorderLayout;
@@ -61,6 +62,11 @@ class OnlineGameScreens {
 
     private final JLabel choosePrompt = new JLabel("Choose the character your opponent guesses");
     private final JLabel outcome = new JLabel();
+    /** Both characters side by side, once the game is over. */
+    private final JPanel portraits = new JPanel(new java.awt.GridLayout(1, 2, 24, 0));
+    private final JLabel review = new JLabel();
+    private final CharacterImages images;
+    private final Board board;
     private final JPanel playing = new JPanel(new BorderLayout());
 
     private boolean guessing;
@@ -76,6 +82,8 @@ class OnlineGameScreens {
     OnlineGameScreens(OnlineGameController controller, CharacterImages images, Board board,
             boolean freeFormQuestions, Runnable onFinished) {
         this.controller = controller;
+        this.images = images;
+        this.board = board;
 
         //The board reports a position; the server wants a name.
         chooseFrom = CharacterBoard.selecting(images, index ->
@@ -267,12 +275,96 @@ class OnlineGameScreens {
         panel.setBorder(BorderFactory.createEmptyBorder(32, 32, 32, 32));
         outcome.setFont(outcome.getFont().deriveFont(Font.BOLD, 20f));
         panel.add(outcome, BorderLayout.NORTH);
+        panel.add(portraits, BorderLayout.CENTER);
+        JPanel below = new JPanel(new BorderLayout(0, 8));
+        below.add(review, BorderLayout.NORTH);
         javax.swing.JButton done = new javax.swing.JButton("Back to the menu");
         done.addActionListener(event -> {
             controller.leave();
             onFinished.run();
         });
-        panel.add(done, BorderLayout.SOUTH);
+        below.add(done, BorderLayout.SOUTH);
+        panel.add(below, BorderLayout.SOUTH);
         return panel;
+    }
+
+    /**
+     * Puts both characters on the ending, once the server has revealed them.
+     *
+     * <p>Arrives after the outcome is already showing, because it is a second
+     * request — the state a player reads during a game cannot carry the
+     * opponent's character. The result is on screen either way; this fills in
+     * who everybody actually was.</p>
+     *
+     * @param reveal both characters, both promises, and the answer review
+     */
+    void showReveal(GameReveal reveal) {
+        //Rebuilt each time: a second game would otherwise show both endings.
+        portraits.removeAll();
+        portraits.add(revealed(reveal.you()));
+        portraits.add(revealed(reveal.opponent()));
+        review.setText(reviewText(reveal.opponent()));
+        cards.show(root, FINISHED);
+        portraits.revalidate();
+        portraits.repaint();
+    }
+
+    private JPanel revealed(GameReveal.Verified player) {
+        JPanel panel = new JPanel(new BorderLayout(0, 4));
+        JLabel portrait = new JLabel(portraitOf(player.character()));
+        portrait.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        panel.add(portrait, BorderLayout.CENTER);
+        panel.add(new JLabel(
+                        LabelText.escaped(player.name() + " — " + player.character()),
+                        javax.swing.SwingConstants.CENTER),
+                BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private javax.swing.Icon portraitOf(String character) {
+        for (int index = 0; index < board.getCharacters().size(); index++) {
+            if (board.getCharacters().get(index).getName().equals(character)) {
+                return images.portrait(index);
+            }
+        }
+        return images.eliminated();
+    }
+
+    /**
+     * What the opponent's play looked like against the character they revealed.
+     *
+     * <p>About them rather than about you, because yours is the one you already
+     * know: you answered those questions, and the interesting question at the
+     * end of an online game is whether the person on the other machine was
+     * answering about who they said they were.</p>
+     */
+    private static String reviewText(GameReveal.Verified opponent) {
+        if (!opponent.promised()) {
+            return "<html>" + LabelText.escaped(opponent.name())
+                    + " never committed to a character, so nothing here can be checked.</html>";
+        }
+        if (!opponent.keptTheirPromise()) {
+            return "<html><b>" + LabelText.escaped(opponent.name())
+                    + " revealed a different character from the one they committed to"
+                    + " before the game.</b></html>";
+        }
+        if (opponent.wrongAnswers().isEmpty()) {
+            return "<html>Every answer " + LabelText.escaped(opponent.name())
+                    + " gave matches the character they committed to before the game began."
+                    + "<br>Nothing about this game rests on trusting them.</html>";
+        }
+        StringBuilder text = new StringBuilder("<html><b>")
+                .append(LabelText.escaped(opponent.name()))
+                .append(" gave ")
+                .append(opponent.wrongAnswers().size())
+                .append(opponent.wrongAnswers().size() == 1 ? " answer" : " answers")
+                .append(" their character contradicts.</b><br>Should have been:<br>");
+        for (com.guesswho.game.AnswerCorrection wrong : opponent.wrongAnswers()) {
+            text.append(LabelText.escaped(wrong.question()))
+                    .append(" — ")
+                    .append(wrong.expectedAnswer() ? "yes" : "no")
+                    .append("<br>");
+        }
+        return text.append("</html>").toString();
     }
 }

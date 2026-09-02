@@ -419,6 +419,11 @@ public class GUI {
             }
 
             @Override
+            public void revealed(com.guesswho.room.GameReveal reveal) {
+                onlineScreens.showReveal(reveal);
+            }
+
+            @Override
             public void gameGone(String message) {
                 //Nothing to come back to, so nothing to offer next launch.
                 activeRoom.clear();

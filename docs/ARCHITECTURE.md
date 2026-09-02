@@ -402,9 +402,17 @@ opponent's own client answers questions about their character, so the server can
 record a whole game without ever learning either character and still check both
 at the end. It cannot leak what it never held.
 
-It does **not** defend against a modified client that commits to one character
-and answers as though it held another. State that plainly in the README rather
-than overclaiming.
+It does not **prevent** a modified client from committing to one character and
+answering as though it held another — nothing on the wire can, because the
+answering client is the only thing that knows. What it does is make that
+detectable. The reveal at game end checks every answer somebody gave against the
+character they committed to, so answering as Sam while holding Olivia produces a
+list of answers Olivia contradicts.
+
+Detection, not prevention, and worth being exact about: a cheat can still win the
+game. What they cannot do is win it unnoticed. And the review only sees the
+questions that were actually asked — a lie about an attribute nobody asked about
+leaves no trace, because there is nothing to contradict.
 
 ### Choosing when to say
 

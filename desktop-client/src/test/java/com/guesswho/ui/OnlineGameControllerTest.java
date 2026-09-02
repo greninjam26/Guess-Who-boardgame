@@ -26,6 +26,7 @@ class OnlineGameControllerTest {
     //transitions rather than on every poll.
     private final List<String> connection = new ArrayList<>();
     private final List<String> gone = new ArrayList<>();
+    private final List<com.guesswho.room.GameReveal> revealed = new ArrayList<>();
 
     private final OnlineGameController.View view = new OnlineGameController.View() {
         @Override
@@ -56,6 +57,11 @@ class OnlineGameControllerTest {
         @Override
         public void gameGone(String message) {
             gone.add(message);
+        }
+
+        @Override
+        public void revealed(com.guesswho.room.GameReveal reveal) {
+            revealed.add(reveal);
         }
 
         @Override
@@ -275,6 +281,46 @@ class OnlineGameControllerTest {
         assertTrue(poller.stopped);
     }
 
+    @Test
+    void asksForTheEndingOnceTheGameIsOver() throws Exception {
+        //A second request, because the state a player reads during a game is
+        //built so it cannot carry the opponent's character.
+        joinedGame();
+
+        poller.listener.updated(roomState(RoomStatus.FINISHED));
+        settle();
+
+        assertEquals(1, revealed.size(), "The ending should be asked for and shown");
+        assertEquals("Sam", revealed.get(0).opponent().character());
+    }
+
+    @Test
+    void doesNotAskForAnEndingWhileTheGameIsStillOn() throws Exception {
+        joinedGame();
+
+        poller.listener.updated(roomState(RoomStatus.IN_PROGRESS));
+        settle();
+
+        assertEquals(0, client.revealRequests,
+                "Asking mid-game is a request the server refuses anyway");
+    }
+
+    @Test
+    void stillShowsTheResultWhenTheEndingCannotBeLoaded() throws Exception {
+        //The game is already decided and on screen. A player who cannot load the
+        //reveal should see the result without the portraits, not an error over
+        //the top of it.
+        joinedGame();
+        client.nextReveal = OnlineOutcome.failed(
+                OnlineOutcome.Kind.UNREACHABLE, "The server could not be reached");
+
+        poller.listener.updated(roomState(RoomStatus.FINISHED));
+        settle();
+
+        assertEquals(0, revealed.size());
+        assertEquals(List.of(), problems, "A missing reveal is not worth interrupting over");
+    }
+
     /** A controller in a joined room, with the poller running. */
     private void joinedGame() throws Exception {
         controller.joinRoom("bcd fgh", view);
@@ -380,6 +426,13 @@ class OnlineGameControllerTest {
         private boolean fail;
         //Counted so a test can show that rejoining does not ask to join.
         private int joinRequests;
+        private int revealRequests;
+        private OnlineOutcome<com.guesswho.room.GameReveal> nextReveal =
+                OnlineOutcome.ok(new com.guesswho.room.GameReveal("BCDFGH", "host",
+                        new com.guesswho.room.GameReveal.Verified(
+                                "host", "Olivia", true, true, List.of()),
+                        new com.guesswho.room.GameReveal.Verified(
+                                "guest", "Sam", true, true, List.of())));
 
         private CompletableFuture<OnlineOutcome<Room>> roomOutcome() {
 
@@ -412,9 +465,8 @@ class OnlineGameControllerTest {
         @Override
         public CompletableFuture<OnlineOutcome<com.guesswho.room.GameReveal>> reveal(
                 String code, String token) {
-            //Nothing here reads an ending; the reveal has its own tests.
-            return CompletableFuture.completedFuture(
-                    OnlineOutcome.failed(OnlineOutcome.Kind.REFUSED, "not used here"));
+            revealRequests++;
+            return CompletableFuture.completedFuture(nextReveal);
         }
 
         @Override
