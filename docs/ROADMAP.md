@@ -467,8 +467,9 @@ The headline feature. The server holds the authoritative `Game`; clients stay
 thin and never decide anything.
 
 Two people can now play a game: create a room, share the code, join, choose,
-ask, answer, guess. What remains is what a deployment needs rather than what a
-game needs — timers, reconnect, rate limits and versioning.
+ask, answer, guess, and a turn nobody comes back to forfeits. What remains is
+what a deployment needs rather than what a game needs — reconnect, rate limits
+and API versioning.
 
 > **Automated end to end, not yet played.** `LiveOnlineGameTest` runs the real
 > client against a real server over a real socket, through a whole game and
