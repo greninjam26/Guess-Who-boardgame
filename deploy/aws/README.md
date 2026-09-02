@@ -311,6 +311,64 @@ sudo -u postgres dropdb guesswho_restore_test
 rm -f /tmp/the-newest.dump.gz /tmp/restore.dump
 ```
 
+## What this is expected to consume
+
+The Free Plan gives credits for six months rather than a free-tier allowance, so
+the question is not "is this free" but "does six months of this fit inside the
+credits". Below is the estimate that decision was made on.
+
+**These are figures for `us-east-1`, and they are estimates, not quotes.**
+Confirm them against the pricing pages before creating the stack — AWS changes
+prices, and one item here changed recently in a way that catches people out.
+
+| Item | Basis | Per month |
+| --- | --- | --- |
+| `t3.micro` on-demand | ~$0.0104/hr × 730 hr | **~$7.60** |
+| Elastic IP | ~$0.005/hr × 730 hr | **~$3.65** |
+| 12 GB gp3 root volume | ~$0.08/GB-month | ~$0.96 |
+| S3 storage | releases + 14 days of dumps, ~1–2 GB | ~$0.05 |
+| CloudWatch Logs | 7-day retention, low volume | ~$0.25 |
+| Data transfer out | a handful of players, well under the free 100 GB | ~$0 |
+| SSM, Parameter Store (standard), Budgets | no charge at this usage | $0 |
+| | **Total** | **~$12.50** |
+
+**Six months: roughly $75.**
+
+> **The Elastic IP is not free, and it used to be.** Since early 2024 AWS
+> charges for every public IPv4 address, attached or not. It is about 29% of
+> the monthly cost here and the single most surprising line — plenty of guidance
+> written before that change still says an attached Elastic IP costs nothing.
+>
+> It also means a forgotten Elastic IP keeps billing after the instance is gone,
+> which is why `teardown.sh` checks for one by tag and fails if it finds one.
+
+### What the estimate assumes
+
+- The instance runs continuously for six months. Stopping it when nobody is
+  playing would cut the largest line roughly in proportion — but the EBS volume
+  and Elastic IP bill regardless of whether the instance is running.
+- CPU credits stay `standard`. On `unlimited`, sustained load buys surplus
+  credits **billed in real money** and this projection stops meaning anything.
+- Nothing is added. A NAT gateway (~$32/month), a load balancer (~$16/month) or
+  RDS would each cost more than the whole stack above.
+
+### How much margin there is
+
+Against ~$75 of consumption, the credits should cover the demo with room to
+spare — but not so much room that an accidental addition goes unnoticed. That is
+why the budget is set at $15/month and configured to exclude credits: at these
+figures, an alert at 80% means something has been added that should not have
+been.
+
+Check actual consumption weekly rather than trusting this table.
+
+Sources to confirm against: [EC2 on-demand
+pricing](https://aws.amazon.com/ec2/pricing/on-demand/), [EBS
+pricing](https://aws.amazon.com/ebs/pricing/), [VPC pricing (public IPv4
+addresses)](https://aws.amazon.com/vpc/pricing/), [S3
+pricing](https://aws.amazon.com/s3/pricing/), [CloudWatch
+pricing](https://aws.amazon.com/cloudwatch/pricing/).
+
 ## Weekly, while it is up
 
 - Check Free Plan credit consumption in Billing and Cost Management.
