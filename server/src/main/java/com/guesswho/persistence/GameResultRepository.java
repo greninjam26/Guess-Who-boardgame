@@ -1,6 +1,7 @@
 package com.guesswho.persistence;
 
 import com.guesswho.game.GameResult;
+import java.util.Map;
 
 /**
  * Stores completed game snapshots independently of the transport that
@@ -40,11 +41,16 @@ public interface GameResultRepository {
      * both accounts without being told them by a client — and a client that
      * could name the second account could put its losses on somebody else.</p>
      *
-     * @param gameResult             the completed game
-     * @param accountIdsInPlayOrder  the account for each participant, matched by
-     *                               position; a null entry, or a list shorter
-     *                               than the participants, leaves the rest
-     *                               unattributed
+     * <p>Keyed by participant name rather than by play order. A positional list
+     * is right only for as long as everybody remembers what the positions mean,
+     * and one that slipped by a place would file a game on the wrong person's
+     * record without anything failing.</p>
+     *
+     * @param gameResult                 the completed game
+     * @param accountsByParticipantName  which account each named participant is,
+     *                                   for those that have one; a participant
+     *                                   the map does not mention, or maps to
+     *                                   null, is stored unattributed
      */
-    void saveOwnedBy(GameResult gameResult, java.util.List<Long> accountIdsInPlayOrder);
+    void saveOwnedBy(GameResult gameResult, Map<String, Long> accountsByParticipantName);
 }

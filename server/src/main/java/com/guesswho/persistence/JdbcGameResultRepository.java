@@ -76,20 +76,23 @@ public class JdbcGameResultRepository
     public void save(GameResult gameResult, Long accountId) {
         //Only the first participant belongs to the account: the second is
         //whoever else was sitting there, and the computer belongs to nobody.
-        saveOwnedBy(gameResult, java.util.Collections.singletonList(accountId));
+        Map<String, Long> owner = new java.util.HashMap<>();
+        if (!gameResult.participants().isEmpty()) {
+            owner.put(gameResult.participants().get(0).name(), accountId);
+        }
+        saveOwnedBy(gameResult, owner);
     }
 
     @Override
     @Transactional
-    public void saveOwnedBy(GameResult gameResult, List<Long> accountIdsInPlayOrder) {
+    public void saveOwnedBy(GameResult gameResult, Map<String, Long> accountsByParticipantName) {
         long gameResultId = insertGameResult(gameResult);
         for (int playOrder = 0; playOrder < gameResult.participants().size(); playOrder++) {
             GameResult.Participant participant = gameResult.participants().get(playOrder);
-            //Beyond the end of the list is unattributed rather than an error, so
-            //that naming one account stays as easy as naming both.
-            Long owner = playOrder < accountIdsInPlayOrder.size()
-                    ? accountIdsInPlayOrder.get(playOrder)
-                    : null;
+            //A participant nobody claimed is stored unattributed rather than
+            //refused, so that naming one account stays as easy as naming both
+            //and a guest game keeps working unchanged.
+            Long owner = accountsByParticipantName.get(participant.name());
             long participantId = insertParticipant(gameResultId, playOrder, participant, owner);
             insertQuestionAnswers(participantId, participant.questionAnswers());
         }

@@ -2,12 +2,9 @@ package com.guesswho.web;
 
 import com.guesswho.account.Account;
 import com.guesswho.game.Game;
-import com.guesswho.game.GameMode;
-import com.guesswho.game.GameResult;
 import com.guesswho.game.GameSnapshot;
 import com.guesswho.game.PlayerGameStart;
 import com.guesswho.game.QuestionMode;
-import com.guesswho.persistence.GameResultRepository;
 import com.guesswho.persistence.RoomRepository;
 import com.guesswho.room.Room;
 import com.guesswho.room.RoomCode;
@@ -16,8 +13,6 @@ import com.guesswho.room.RoomStatus;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
@@ -31,8 +26,6 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Service
 public class RoomService {
-    private static final Logger LOG = LoggerFactory.getLogger(RoomService.class);
-
     /** Long enough to read a code down a phone, short enough to be cheap to abandon. */
     static final Duration UNJOINED_LIFETIME = Duration.ofMinutes(10);
     /** A game nobody has moved in. Long enough for somebody to make a cup of tea. */
@@ -63,13 +56,13 @@ public class RoomService {
     private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private final RoomRepository rooms;
-    private final GameResultRepository results;
+    private final OnlineGameResults results;
 
     /**
      * @param rooms   where rooms are kept
-     * @param results where finished games are recorded
+     * @param results turns a finished room into a stored result
      */
-    public RoomService(RoomRepository rooms, GameResultRepository results) {
+    public RoomService(RoomRepository rooms, OnlineGameResults results) {
         this.rooms = rooms;
         this.results = results;
     }
@@ -318,7 +311,7 @@ public class RoomService {
             throw new RoomMovedOnException();
         }
         if (status == RoomStatus.FINISHED) {
-            recordResult(game, room);
+            results.record(game, room);
         }
         return state(room.code(), account.id());
     }
@@ -331,6 +324,13 @@ public class RoomService {
      * @return their view of it
      * @throws NoSuchRoomException if the code opens nothing of theirs
      */
+    //Transactional because a poll can end a game. Forfeiting writes the room and
+    //the result, and those two have to be one thing: a result written without
+    //the room finishing would be a game that is over twice, and a room finished
+    //without the result is a game nobody can see they won. The read and the
+    //presence mark join it, which costs nothing and keeps the whole answer
+    //consistent with itself.
+    @Transactional
     public RoomState state(String code, long accountId) {
         Instant now = Instant.now();
         RoomRepository.StoredRoom room = forPlayer(code, accountId)
@@ -404,46 +404,19 @@ public class RoomService {
         //that has just been forfeited needs no more time than it already had.
         boolean landed = rooms.updateGame(room.code(), serialise(game.snapshot()),
                 RoomStatus.FINISHED, room.expiresAt(), room.version());
-        if (!landed) {
-            return Optional.empty();
+        if (landed) {
+            //Only where the write landed, which is what makes it happen exactly
+            //once: both players poll a finished game and either could be the one
+            //to notice, so anything gated on "the game is over" rather than "this
+            //call is what ended it" would record the same game twice.
+            results.record(game, room);
         }
-        recordResult(game, room);
+        //Reloaded either way. Losing the race does not mean nothing happened —
+        //it means somebody else's request got there first, and that request
+        //finished the game. Returning empty here would have the caller project
+        //the in-progress room it read a moment ago and tell a player the game
+        //was still running after it had been settled.
         return rooms.findByCode(room.code());
-    }
-
-    /**
-     * Writes a finished online game to the record both players share.
-     *
-     * <p>Called only where the version-checked write landed, which is what makes
-     * it happen exactly once. Both players poll a finished game and either could
-     * be the one to notice, so anything gated on "the game is over" rather than
-     * "this call is what ended it" would record the same game twice.</p>
-     *
-     * <p>A failure here loses the record, not the game. The players have their
-     * result either way, and refusing to end a game because the leaderboard was
-     * briefly unwritable would be the worse trade.</p>
-     */
-    private void recordResult(Game game, RoomRepository.StoredRoom room) {
-        try {
-            GameResult played = game.getGameResult();
-            //Rebuilt with the mode the server knows and the game does not. A
-            //Game cannot tell an online opponent from somebody sharing the
-            //keyboard — both are two humans — so left alone it files every
-            //online game as hotseat, on a board that is meant to be the
-            //competitive one.
-            GameResult online = new GameResult(played.participants(), played.winner(),
-                    GameMode.PVP_ONLINE, played.difficulty(), played.questionMode());
-            //Play order is host then guest, because that is the order the game
-            //was started in when the room was joined.
-            //asList rather than List.of: the guest's account is a Long, and
-            //List.of throws on a null rather than storing an unattributed row.
-            results.saveOwnedBy(online,
-                    java.util.Arrays.asList(room.hostAccountId(), room.guestAccountId()));
-        }
-        catch (RuntimeException unrecorded) {
-            LOG.warn("Could not record the result of online game {}", room.code(),
-                    unrecorded);
-        }
     }
 
     /**
