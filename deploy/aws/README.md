@@ -317,6 +317,43 @@ rm -f /tmp/the-newest.dump.gz /tmp/restore.dump
 - Confirm a database backup landed in `s3://<bucket>/backups/` in the last day.
 - Confirm the budget has not alerted.
 
+## Tearing down, by day 165
+
+The demo has a deadline. `teardown.sh` gets the data out, deletes the stack, and
+then checks that the deletion actually happened.
+
+**Rehearse it first.** The dry run does everything except delete: resolves the
+stack, downloads the newest backup, verifies it, and prints what it *would*
+remove.
+
+```bash
+bash deploy/aws/teardown.sh --dry-run
+```
+
+Expected: a verified export path and SHA-256, and a list naming the bucket and
+stack. Nothing is deleted, and the export it leaves behind is a real backup you
+can keep.
+
+**On the day**, run the dry run again, confirm the export restores (see the
+section above), then:
+
+```bash
+bash deploy/aws/teardown.sh --confirm-delete ~/guess-who-final-export
+```
+
+It refuses without that exact argument. It will not proceed if the stack has
+never produced a backup, and it will not proceed if it cannot resolve the bucket
+name from the stack outputs — a deletion loop with an empty bucket name is the
+shape of accident this script exists to avoid.
+
+Afterwards it verifies by tag that no instance, Elastic IP, bucket or log group
+remains, and exits nonzero listing anything that does. Check Billing and Cost
+Explorer a day or two later: an Elastic IP left attached to nothing still bills
+and is invisible unless you go looking.
+
+The export is never deleted by this script. It is the only copy once the stack
+is gone.
+
 ## Deployment log
 
 | Date (UTC) | Release SHA | What happened | By |
