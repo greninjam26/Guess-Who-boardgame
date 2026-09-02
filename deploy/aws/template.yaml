@@ -1,0 +1,352 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Guess Who demo. One t3.micro in us-east-1 running PostgreSQL, the Spring Boot
+  server and Caddy, with an S3 bucket for release artifacts and backups. Sized
+  and configured to stay inside the AWS Free Plan, and built to be deleted:
+  every resource is in this one stack so the teardown is a stack deletion.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Where budget alerts go. Requires confirming a subscription email.
+    AllowedPattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+
+  PublicHostname:
+    Type: String
+    Description: The DuckDNS hostname pointed at this stack's Elastic IP.
+    AllowedPattern: ^[a-z0-9.-]+$
+
+  GitHubRepository:
+    Type: String
+    Default: greninjam26/Guess-Who-boardgame
+    Description: Only this repository's main branch may assume the deploy role.
+
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 15
+    MinValue: 1
+    Description: >-
+      Gross monthly consumption that triggers an alert. Not a spending cap —
+      AWS Budgets cannot stop anything. The real control is staying on the Free
+      Plan and tearing this down.
+
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: >-
+      Resolved at deploy time rather than hardcoded, so a rebuild does not pin
+      an image that has stopped receiving security updates.
+
+Resources:
+  # ---------------------------------------------------------------- network
+  # No VPC of its own. The default VPC is free and already has a gateway and
+  # subnets; creating another buys isolation this demo has no second thing to
+  # be isolated from, and a NAT gateway is the single easiest way to spend real
+  # money on AWS by accident.
+
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTP and HTTPS only. Everything else is reached through SSM.
+      SecurityGroupIngress:
+        # 80 exists for ACME validation and redirects to 443. Caddy cannot get a
+        # certificate without it.
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: ACME validation and the redirect to HTTPS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: The game
+      # Deliberately absent: 22, 8080 and 5432. Administration goes through
+      # Session Manager, the application binds to loopback behind Caddy, and
+      # PostgreSQL listens on localhost. Opening any of them would put a
+      # password prompt on the public internet.
+      Tags:
+        - Key: Name
+          Value: guess-who-server
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  # ---------------------------------------------------------------- storage
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    # Retained on stack deletion so a teardown cannot destroy the last database
+    # backup as a side effect. The teardown script empties it deliberately,
+    # after the export has been verified.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          # Releases are reproducible from a git SHA, so they are cheap to lose.
+          - Id: expire-releases
+            Status: Enabled
+            Prefix: releases/
+            ExpirationInDays: 7
+          # Backups are not reproducible from anything. Two weeks is long enough
+          # to notice a failure and short enough to stay small.
+          - Id: expire-backups
+            Status: Enabled
+            Prefix: backups/
+            ExpirationInDays: 14
+          - Id: expire-old-versions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 7
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  ServerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /guess-who/demo/server
+      # Seven days. Long enough to investigate what happened yesterday, short
+      # enough that ingestion and storage stay inside the free allowance.
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  # -------------------------------------------------------------------- IAM
+  ServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Session Manager, which is what makes closing port 22 possible.
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: guess-who-server
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${ServerLogGroup.Arn}:*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${ArtifactBucket.Arn}/*"
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt ArtifactBucket.Arn
+              # One parameter, named. Not /guesswho/demo/* — anything added
+              # under that prefix later, for any purpose, would become readable
+              # and writable by the one host exposed to the internet.
+              #
+              # PutParameter is here because bootstrap generates the database
+              # password on the instance and stores it; this is not a read-only
+              # workload.
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/guesswho/demo/db-password
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  ServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ServerRole
+
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # GitHub's OIDC thumbprint. AWS no longer validates it for this provider,
+      # but the field is still required.
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                # One repository, one branch. A pull request from a fork runs
+                # with a different sub and cannot assume this role, which is the
+                # point — otherwise anybody who opens a PR can deploy.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/main
+      Policies:
+        - PolicyName: guess-who-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Upload a release. Not read, and nothing outside releases/ — a
+              # deploy role that could read backups/ would make a leaked GitHub
+              # token a database disclosure.
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "${ArtifactBucket.Arn}/releases/*"
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ServerInstance}
+              - Effect: Allow
+                Action:
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                Resource: "*"
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  # --------------------------------------------------------------- compute
+  ServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref AmiId
+      IamInstanceProfile: !Ref ServerInstanceProfile
+      SecurityGroupIds:
+        - !GetAtt ServerSecurityGroup.GroupId
+      CreditSpecification:
+        # standard, not unlimited. On unlimited, a busy hour buys surplus
+        # credits that are billed in real money — the one setting on this
+        # instance that can produce a charge on its own.
+        CPUCredits: standard
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 12
+            Encrypted: true
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: guess-who-server
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  ServerAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref ServerInstance
+      Tags:
+        - Key: Project
+          Value: guess-who
+        - Key: Environment
+          Value: demo
+
+  # ---------------------------------------------------------------- budget
+  ConsumptionBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: guess-who-demo
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        CostTypes:
+          # The important one. By default a budget counts what is owed after
+          # credits, which while the free credits last is close to zero however
+          # much this stack actually consumes — so the alerts would stay silent
+          # right up until the credits ran out, which is exactly the moment they
+          # were meant to warn about. Excluding credits makes this track gross
+          # consumption, so 80% means "burning credits at a rate that would cost
+          # USD 12 a month if they were not there".
+          IncludeCredit: false
+          IncludeRefund: false
+          IncludeDiscount: true
+          IncludeTax: true
+          IncludeSubscription: true
+          IncludeSupport: false
+          IncludeUpfront: true
+          IncludeRecurring: true
+          UseBlended: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  InstanceId:
+    Description: For Session Manager and targeted SSM commands.
+    Value: !Ref ServerInstance
+
+  ElasticIp:
+    Description: Point the DuckDNS hostname here before bootstrapping.
+    Value: !Ref ServerAddress
+
+  ArtifactBucketName:
+    Description: Release artifacts under releases/, database dumps under backups/.
+    Value: !Ref ArtifactBucket
+
+  GitHubDeployRoleArn:
+    Description: Set as the AWS_DEPLOY_ROLE repository variable in GitHub.
+    Value: !GetAtt GitHubDeployRole.Arn
+
+  PublicUrl:
+    Description: What the installers are built against, once DNS and TLS are up.
+    Value: !Sub https://${PublicHostname}

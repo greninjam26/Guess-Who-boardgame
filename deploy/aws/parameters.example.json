@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "AlertEmail",
+    "ParameterValue": "you@example.com"
+  },
+  {
+    "ParameterKey": "PublicHostname",
+    "ParameterValue": "example-guess-who.duckdns.org"
+  },
+  {
+    "ParameterKey": "GitHubRepository",
+    "ParameterValue": "greninjam26/Guess-Who-boardgame"
+  },
+  {
+    "ParameterKey": "MonthlyBudgetUsd",
+    "ParameterValue": "15"
+  }
+]
