@@ -643,18 +643,28 @@ cannot be selected rather than failing partway through a game.
 
 ## Still to decide
 
-1. How long is a turn timer, and does it forfeit the game or just pass the turn?
-2. Do guests get to play online at all, or only PvE and hotseat? Letting them
+1. Do guests get to play online at all, or only PvE and hotseat? Letting them
    online means unranked rooms and throwaway identities.
-3. Does the store-my-character setting belong to the account or the machine?
-4. Does the hotseat board stay on the leaderboard as a casual tier, or come off
-   entirely because you referee both sides?
+2. Does the store-my-character setting belong to the account or the machine?
 
 ## Decided
 
 - **Offline results upload themselves.** Games queued while the server is
   unreachable are uploaded on the next successful submission. The write-only CSV
   fallback was replaced by `pending-game-results.jsonl`, which can be read back.
+- **A turn is three minutes, and running out forfeits the game** — but only to
+  a player who is still there. Passing the turn instead would move the stall
+  along and still need the sweep to end it; forfeiting against somebody who is
+  watching the board would lose them a game for thinking. Presence decides
+  which of those it is.
+- **Hotseat keeps a board, and it is not the same board as online.** Three
+  tables: vs Computer, vs Player (online), vs Player (same machine). An online
+  game is refereed by the server and answered by each player's own client
+  against a character committed to before play; a same-machine game is refereed
+  by whoever is holding the keyboard for both sides. Ranking those together
+  would put a result anybody can manufacture next to one they had to earn, so
+  the hotseat board stays as its own casual tier rather than coming off or
+  being merged in.
 - **Indentation is four spaces**, enforced by `.editorconfig`.
 - **Free questions against the computer become a fourth game mode**, on the
   condition that the computer declines a question it cannot resolve rather than
