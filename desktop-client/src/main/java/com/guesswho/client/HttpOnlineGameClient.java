@@ -1,6 +1,7 @@
 package com.guesswho.client;
 
 import com.guesswho.room.Room;
+import com.guesswho.room.GameReveal;
 import com.guesswho.room.RoomState;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -73,6 +74,12 @@ public class HttpOnlineGameClient implements OnlineGameClient {
     public CompletableFuture<OnlineOutcome<RoomState>> state(String code, String token) {
         return send(new Call("GET", path(code, "state"), null, token, null))
                 .thenApply(response -> outcome(response, RoomState.class));
+    }
+
+    @Override
+    public CompletableFuture<OnlineOutcome<GameReveal>> reveal(String code, String token) {
+        return send(new Call("GET", path(code, "reveal"), null, token, null))
+                .thenApply(response -> outcome(response, GameReveal.class));
     }
 
     @Override

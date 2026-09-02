@@ -57,14 +57,39 @@ public class RoomService {
 
     private final RoomRepository rooms;
     private final OnlineGameResults results;
+    private final RoomReveal reveals;
 
     /**
      * @param rooms   where rooms are kept
      * @param results turns a finished room into a stored result
+     * @param reveals turns a finished room into what both players may see
      */
-    public RoomService(RoomRepository rooms, OnlineGameResults results) {
+    public RoomService(RoomRepository rooms, OnlineGameResults results, RoomReveal reveals) {
         this.rooms = rooms;
         this.results = results;
+        this.reveals = reveals;
+    }
+
+    /**
+     * Shows a finished game to one of the two people who played it.
+     *
+     * @param code      the room's code
+     * @param accountId who is asking
+     * @return both characters, both promises, and how the answers held up
+     * @throws NoSuchRoomException if the code opens nothing of theirs
+     * @throws GameNotOverException if the game is still being played
+     */
+    public com.guesswho.room.GameReveal reveal(String code, long accountId) {
+        RoomRepository.StoredRoom room = forPlayer(code, accountId)
+                .orElseThrow(NoSuchRoomException::new);
+        if (room.status() != RoomStatus.FINISHED || room.gameState() == null) {
+            //Refused rather than answered with less. A reveal that quietly left
+            //the opponent's character out mid-game would be a response whose
+            //meaning depended on when it was asked for, which is how a leak gets
+            //written by accident later.
+            throw new GameNotOverException();
+        }
+        return reveals.forPlayer(room, accountId);
     }
 
     /**
@@ -524,6 +549,16 @@ public class RoomService {
         /** Creates the exception. */
         public RoomMovedOnException() {
             super("Your opponent moved first. The game has moved on.");
+        }
+    }
+
+    /** Thrown when a game's ending is asked for before it has one. */
+    public static class GameNotOverException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        /** Creates the exception. */
+        public GameNotOverException() {
+            super("That game is still being played.");
         }
     }
 

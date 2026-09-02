@@ -1,6 +1,7 @@
 package com.guesswho.client;
 
 import com.guesswho.room.Room;
+import com.guesswho.room.GameReveal;
 import com.guesswho.room.RoomState;
 import java.util.concurrent.CompletableFuture;
 
@@ -42,6 +43,20 @@ public interface OnlineGameClient {
      * @param token     the session token
      * @return their view of the game afterwards
      */
+    /**
+     * Asks for a finished game's ending: both characters, both promises, and
+     * how the answers held up.
+     *
+     * <p>Separate from {@link #state}, because the state of a game in progress
+     * is built so it cannot carry the opponent's character. This is the only
+     * call that can, and the server refuses it until the game is over.</p>
+     *
+     * @param code  the room's code
+     * @param token the session token
+     * @return the ending, or a refusal while the game is still being played
+     */
+    CompletableFuture<OnlineOutcome<GameReveal>> reveal(String code, String token);
+
     CompletableFuture<OnlineOutcome<RoomState>> chooseCharacter(
             String code, String character, String token);
 

@@ -196,6 +196,12 @@ class OnlineGameScreensTest {
     /** Nothing in these tests makes a move, so nothing should reach the server. */
     private static final class UnusedClient implements OnlineGameClient {
         @Override
+        public CompletableFuture<OnlineOutcome<com.guesswho.room.GameReveal>> reveal(
+                String code, String token) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public CompletableFuture<OnlineOutcome<Room>> createRoom(String token) {
             throw new UnsupportedOperationException();
         }

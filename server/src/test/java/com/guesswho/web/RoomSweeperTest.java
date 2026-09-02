@@ -74,7 +74,7 @@ class RoomSweeperTest {
     void survivesTheDatabaseBeingUnavailable() {
         //A sweep that could bring the server down would be a worse problem
         //than the rows it was tidying.
-        RoomSweeper sweeper = new RoomSweeper(new RoomService(null, null) {
+        RoomSweeper sweeper = new RoomSweeper(new RoomService(null, null, null) {
             @Override
             public int sweepExpired() {
                 throw new IllegalStateException("database is gone");

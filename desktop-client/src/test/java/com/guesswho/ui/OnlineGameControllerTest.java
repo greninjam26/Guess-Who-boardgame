@@ -410,6 +410,14 @@ class OnlineGameControllerTest {
         }
 
         @Override
+        public CompletableFuture<OnlineOutcome<com.guesswho.room.GameReveal>> reveal(
+                String code, String token) {
+            //Nothing here reads an ending; the reveal has its own tests.
+            return CompletableFuture.completedFuture(
+                    OnlineOutcome.failed(OnlineOutcome.Kind.REFUSED, "not used here"));
+        }
+
+        @Override
         public CompletableFuture<OnlineOutcome<RoomState>> state(String code, String token) {
             return stateOutcome();
         }
