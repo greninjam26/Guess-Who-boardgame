@@ -461,7 +461,7 @@ account owns the record and player two is just a name.
       digits, underscores and hyphens: a name that cannot be typed back
       reliably is a name that can impersonate another.
 
-## Phase 09 — Online PvP · XL — playable
+## Phase 09 — Online PvP · XL — done
 
 **Blocks:** 12 **Needs:** 04, 08
 
@@ -548,8 +548,23 @@ and API versioning.
       accounts all along, so it only starts polling again, and whether the room
       survived is answered by the first poll rather than by a request on every
       launch.
-- [ ] API versioning with a clear rejection message for stale clients. Installers
-      live on disk and will fall behind the server.
+- [x] **API versioning.** A header rather than a path, since there is one client
+      and it ships from this repository — `/api/v1/` would rewrite every URL to
+      buy a property nobody outside relies on. The server declares a minimum it
+      will answer and turns away anything below it with 426 and a sentence a
+      player can act on.
+
+> **The minimum is zero, and shipping it that way is the point.** Every
+> installer already released sends no version header at all. Rejecting them on
+> the first deployed server would be the check doing harm rather than good:
+> nothing is incompatible yet, and those builds map an unrecognised status to
+> "the server could not be reached" — which, since reconnect landed, means a
+> reconnecting banner and a retry every two seconds. A player told to wait for
+> ever instead of to update.
+>
+> So the mechanism ships now and turns nobody away. By the time raising the
+> minimum matters, the clients in the wild send a version and know what a 426
+> means.
 - [x] **The commitment reveal at game end.** Its own type and its own endpoint,
       refused until the game is finished. `RoomState` stays shaped so that no
       field on it can carry the opponent's character; a nullable one for the

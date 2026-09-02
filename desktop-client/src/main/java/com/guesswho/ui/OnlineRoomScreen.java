@@ -134,7 +134,7 @@ class OnlineRoomScreen implements OnlineGameController.View {
     }
 
     @Override
-    public void gameGone(String message) {
+    public void cannotContinue(String message) {
         problem(message);
     }
 

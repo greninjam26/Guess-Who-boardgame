@@ -140,7 +140,12 @@ public class HttpAccountClient implements AccountClient {
         return call -> {
             HttpRequest.Builder builder = HttpRequest.newBuilder(call.endpoint())
                     .timeout(REQUEST_TIMEOUT)
-                    .header("Content-Type", "application/json");
+                    .header("Content-Type", "application/json")
+                    //Announced on every request, so a server that has moved on
+                    //can say so rather than failing in whatever way the
+                    //mismatch happens to produce.
+                    .header(com.guesswho.api.ApiVersion.HEADER,
+                            String.valueOf(com.guesswho.api.ApiVersion.CURRENT));
             if (call.token() != null) {
                 builder.header("Authorization", "Bearer " + call.token());
             }

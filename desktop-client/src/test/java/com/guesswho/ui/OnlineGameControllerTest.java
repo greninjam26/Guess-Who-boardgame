@@ -55,7 +55,7 @@ class OnlineGameControllerTest {
         }
 
         @Override
-        public void gameGone(String message) {
+        public void cannotContinue(String message) {
             gone.add(message);
         }
 
