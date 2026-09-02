@@ -17,7 +17,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 - Answers checked against the character a player committed to before playing
 - HTTP submission of completed game results
 - Paginated HTTP history of completed games
-- Database-backed leaderboard standings
+- Three leaderboards — vs Computer, vs Player (online), vs Player (same
+  machine) — kept apart because a game refereed by the server and a game
+  refereed by whoever holds the keyboard are not the same achievement
 - Leaderboard window available from the Swing application
 - Completed games queued locally and uploaded once the server is reachable again
 - Leaderboard rows that belong to an account, rather than to whoever typed a name
