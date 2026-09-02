@@ -120,6 +120,31 @@ class OnlineGameController {
     }
 
     /**
+     * Picks a game back up in a room this client is already one of the two
+     * players in.
+     *
+     * <p>Not {@link #joinRoom}, which asks the server to put somebody into a
+     * waiting room and is refused for a game already under way — including by
+     * the player who is in it. Rejoining adds nobody: the server has held the
+     * room, the game and both accounts all along, so this only has to start
+     * asking again, and the first poll brings back whatever the game has become
+     * in the meantime.</p>
+     *
+     * <p>Whether the room is still there is not checked first. That would be a
+     * request on every launch to answer a question the first poll answers
+     * anyway, and a room that has gone already has somewhere to arrive: the
+     * poll reports it, and the game-gone screen says so.</p>
+     *
+     * @param roomCode the room to pick back up
+     * @param view     told what to show
+     */
+    void rejoin(String roomCode, View view) {
+        this.view = view;
+        this.code = roomCode;
+        beginPolling();
+    }
+
+    /**
      * Chooses the character this player will be guessed at.
      *
      * @param character the character they are holding

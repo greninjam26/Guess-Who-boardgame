@@ -51,6 +51,9 @@ public class GUI {
     private OnlineGameScreens onlineScreens;
     //keeps the game in progress, so a closed window is not a lost game
     private final SavedGameStore savedGames = new SavedGameStore();
+    //remembers the online room, so a closed window is not a lost game there either
+    private final com.guesswho.client.ActiveRoomStore activeRoom =
+            new com.guesswho.client.ActiveRoomStore();
     //retrieves server-backed leaderboard standings without blocking Swing
     private final LeaderboardClient leaderboardClient = new HttpLeaderboardClient();
     //the music
@@ -187,7 +190,12 @@ public class GUI {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-        offerSavedGame();
+        //The online room first: it has a clock running and a room that expires,
+        //where a saved local game waits as long as it likes. Only one is offered
+        //on a launch — two questions before the menu is an interrogation.
+        if (!offerOnlineRoom()) {
+            offerSavedGame();
+        }
         settingsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -358,13 +366,38 @@ public class GUI {
     private void showOnlineGame(com.guesswho.room.RoomState state) {
         frame.remove(onlineRoomScreen.panel());
         //From here the board is what the server talks to, not the room screen.
-        onlineController.showOn(new OnlineGameController.View() {
+        onlineController.showOn(onlineView());
+        onlineScreens.show(state);
+        frame.add(onlineScreens.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    /** Puts the online board on screen before there is a state to show on it. */
+    private void showOnlineBoard() {
+        onlineScreens.showRejoining();
+        frame.add(onlineScreens.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    /** What the online controller reports to, however the game was entered. */
+    private OnlineGameController.View onlineView() {
+        return new OnlineGameController.View() {
+
             @Override
             public void roomOpened(com.guesswho.room.Room room) {
             }
 
             @Override
             public void stateChanged(com.guesswho.room.RoomState updated) {
+                //Remembered from the state rather than from roomOpened, because
+                //rejoining never calls that one — and a rejoined game is exactly
+                //the one that must still be remembered next time.
+                if (updated.status() == com.guesswho.room.RoomStatus.FINISHED) {
+                    activeRoom.clear();
+                }
+                else {
+                    activeRoom.save(updated.code());
+                }
                 onlineScreens.show(updated);
             }
 
@@ -387,6 +420,8 @@ public class GUI {
 
             @Override
             public void gameGone(String message) {
+                //Nothing to come back to, so nothing to offer next launch.
+                activeRoom.clear();
                 onlineScreens.showGone(message);
             }
 
@@ -395,14 +430,14 @@ public class GUI {
                 showInputError("You have been signed out. Sign in again to play online.");
                 leaveOnlinePlay();
             }
-        });
-        onlineScreens.show(state);
-        frame.add(onlineScreens.panel(), BorderLayout.CENTER);
-        refreshFrame();
+        };
     }
 
     /** Back to the setup screens, with nothing left polling. */
     private void leaveOnlinePlay() {
+        //Walking back to the menu is leaving the game, not pausing it. Keeping
+        //the code would offer a room the player chose to step out of.
+        activeRoom.clear();
         onlineController.leave();
         frame.remove(onlineRoomScreen.panel());
         frame.remove(onlineScreens.panel());
@@ -442,6 +477,45 @@ public class GUI {
     }
 
     /** Asks, on launch, whether to pick up where the last game left off. */
+    /**
+     * Offers to pick an online game back up, if this client was in one.
+     *
+     * <p>Whether the room is still there is deliberately not checked before
+     * asking. That would be a request on every launch, on the chance that one
+     * of them was in a game; a room that has gone is reported by the first poll
+     * and lands on the game-gone screen, which is where that news belongs
+     * anyway.</p>
+     *
+     * @return whether an offer was made, so a launch asks at most one question
+     */
+    private boolean offerOnlineRoom() {
+        Optional<String> room = activeRoom.read();
+        if (room.isEmpty()) {
+            return false;
+        }
+        if (identity.token().isEmpty()) {
+            //An online game needs the account that was in it. Without a session
+            //there is nothing to offer, and the code would only be refused.
+            activeRoom.clear();
+            return false;
+        }
+        int answer = JOptionPane.showConfirmDialog(
+                frame,
+                "You were in an online game (room " + room.get() + "). Rejoin it?",
+                "Rejoin game",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (answer != JOptionPane.YES_OPTION) {
+            //Declining is a decision, and leaving the code would ask again.
+            activeRoom.clear();
+            return true;
+        }
+        frame.remove(setupScreens.panel());
+        showOnlineBoard();
+        onlineController.rejoin(room.get(), onlineView());
+        return true;
+    }
+
     private void offerSavedGame() {
         Optional<SavedGame> saved = savedGames.read();
         if (saved.isEmpty()) {

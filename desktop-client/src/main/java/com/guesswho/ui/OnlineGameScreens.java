@@ -26,6 +26,7 @@ class OnlineGameScreens {
     private static final String PLAYING = "playing";
     private static final String FINISHED = "finished";
     private static final String GONE = "gone";
+    private static final String REJOINING = "rejoining";
 
     private final OnlineGameController controller;
 
@@ -110,6 +111,7 @@ class OnlineGameScreens {
         root.add(playing, PLAYING);
         root.add(finishedCard(onFinished), FINISHED);
         root.add(goneCard(onFinished), GONE);
+        root.add(rejoiningCard(), REJOINING);
     }
 
     /**
@@ -191,6 +193,25 @@ class OnlineGameScreens {
         cards.show(root, PLAYING);
         playing.revalidate();
         playing.repaint();
+    }
+
+    /**
+     * Shows that this client is picking a game back up.
+     *
+     * <p>Held until the first poll answers. Without it a rejoining client shows
+     * whichever card the layout happens to start on — the character chooser —
+     * which invites a player to choose a character they chose yesterday.</p>
+     */
+    void showRejoining() {
+        cards.show(root, REJOINING);
+    }
+
+    private JPanel rejoiningCard() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(32, 32, 32, 32));
+        panel.add(new JLabel("Picking your game back up…",
+                javax.swing.SwingConstants.CENTER), BorderLayout.CENTER);
+        return panel;
     }
 
     /**

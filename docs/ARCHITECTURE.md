@@ -7,8 +7,8 @@ not.
 Two kinds of note appear throughout:
 
 - **Still missing.** Something named here that has not been written. What is
-  left is narrow: rejoining a game after closing the application, API
-  versioning, and rate limits. `docs/ROADMAP.md` has them in Phase 09.
+  left is narrow: API versioning and rate limits. `docs/ROADMAP.md` has them in
+  Phase 09.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
@@ -356,10 +356,26 @@ rather than being retried. More polling returns the same answer for ever. The
 same 404 before joining means a mistyped code, which is why it is only terminal
 once the client is in a room.
 
-**Still missing:** rejoining a game after closing the application. The server
-keeps everything needed — the room, the snapshot, both accounts — so this is
-the client remembering which room it was in, in the way a local game is already
-offered back on the next launch.
+Closing the application no longer loses the game. The room's code is kept in
+`active-room`, beside the saved local game and the session token, and the next
+launch offers to pick it back up. Rejoining is not joining: the server has held
+the room, the game and both accounts all along, so the client sets the code and
+starts polling, and the first answer brings back whatever the game became.
+
+> **Its own file, not a field on `SavedGame`.** A saved local game is the whole
+> game — this client is the only place it exists. An online room is six
+> characters, because the game is on the server. Sharing one slot would mean a
+> field that is null for every local game, and would make a player choose
+> between two things they can genuinely have at once.
+
+> **The room is not checked before offering.** That would be a request on every
+> launch to answer a question the first poll answers anyway. A room that expired
+> while the application was shut arrives at the game-gone screen, which is where
+> that news belongs.
+
+One question per launch: the online room is offered ahead of a saved local game,
+because it has a turn clock running and a room that expires while the local one
+waits as long as it likes.
 
 ---
 
