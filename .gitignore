@@ -30,3 +30,6 @@ Thumbs.db
 
 # Intermediate icon sizes; ApplicationIcon regenerates them
 packaging/GuessWho.iconset/
+
+# Rehearsal scratch: disposable databases, logs and dumps.
+rehearsals/*/work/
