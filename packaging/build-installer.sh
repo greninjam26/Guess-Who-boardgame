@@ -36,25 +36,114 @@ DESCRIPTION="The Guess Who board game, for one or two players"
 SERVER_OPTIONS=()
 SERVER_URL="${GUESSWHO_SERVER_URL:-}"
 if [ -n "$SERVER_URL" ]; then
+    # Every check below refuses rather than warns, and refuses before the build
+    # rather than after it. This value is written into the installer with
+    # --java-options and cannot be corrected afterwards: a wrong one is not a
+    # failed build, it is a download that talks to the wrong place on somebody
+    # else's machine. Nothing downstream re-checks it — the client takes the
+    # property as given and joins "/api/..." onto it.
+    #
+    # The refusal names the rule and never quotes the value back. A rejected
+    # endpoint can carry a password in its userinfo, and this output goes to a
+    # CI log that outlives the build and is readable by anybody who can see the
+    # repository. Whoever set the variable can already see what they set.
+    refuse() {
+        echo "GUESSWHO_SERVER_URL $1" >&2
+        echo "(the value is not shown here: a rejected endpoint can carry credentials)" >&2
+        exit 1
+    }
+
+    # Checked first, because none of the checks after it can see whitespace for
+    # what it is — a leading space would shift the scheme out of position and be
+    # reported as the wrong problem. A copy-paste out of a runbook or a browser
+    # brings a space or a newline with it, a repository variable keeps it, and
+    # the Actions UI displays the value with the whitespace invisible.
     case "$SERVER_URL" in
-        https://*) ;;
-        *)
-            # Refused rather than warned about. Accounts are created and signed
-            # into over this connection, so a plain-http installer would send
-            # passwords in clear to everybody between the player and the server
-            # — and it would work, which is what makes it dangerous.
-            echo "GUESSWHO_SERVER_URL must be an https:// URL, got: $SERVER_URL" >&2
-            exit 1
+        *[[:space:]]*) refuse "must not contain whitespace" ;;
+    esac
+
+    # Refused rather than warned about. Accounts are created and signed into
+    # over this connection, so a plain-http installer would send passwords in
+    # clear to everybody between the player and the server — and it would work,
+    # which is what makes it dangerous.
+    #
+    # The scheme is compared case-insensitively because RFC 3986 says schemes
+    # are, and java.net.URI agrees; the host and everything after it are left
+    # exactly as given.
+    scheme="$(printf '%s' "${SERVER_URL:0:8}" | tr 'A-Z' 'a-z')"
+    if [ "$scheme" != "https://" ]; then
+        refuse "must use the https scheme"
+    fi
+    origin="${SERVER_URL:8}"
+
+    # Nothing after the host survives being joined to. The client builds
+    # "$url/api/rooms", so a trailing slash produces //api/rooms and a path,
+    # query or fragment produces a URL no route on the server matches. Both fail
+    # only on an installed game, and both look like the server being down.
+    case "$origin" in
+        */)  refuse "must not end with a slash" ;;
+        */*) refuse "must be a bare origin, with no path" ;;
+    esac
+    case "$origin" in
+        *"?"*) refuse "must not contain a query string" ;;
+        *"#"*) refuse "must not contain a fragment" ;;
+        # The one that ships a secret rather than breaking a feature. Userinfo
+        # baked in here is readable by anybody who downloads the installer, and
+        # is sent to the host on every request the game makes.
+        *@*)   refuse "must not contain credentials" ;;
+    esac
+
+    host="$origin"
+    port=""
+    case "$origin" in
+        *:*)
+            host="${origin%%:*}"
+            port="${origin#*:}"
             ;;
     esac
-    case "$SERVER_URL" in
-        */)
-            # The client joins paths onto this, so a trailing slash produces
-            # //api/rooms. Some servers forgive that and this one need not.
-            echo "GUESSWHO_SERVER_URL must not end with a slash, got: $SERVER_URL" >&2
-            exit 1
+
+    # Dot-separated labels of letters, digits and internal hyphens: a hostname,
+    # and deliberately not an IPv6 literal or anything else this deployment has
+    # no way to serve. The underscore is the near-miss worth naming — legal in
+    # DNS, refused by the certificate authority, so an installer built with one
+    # would fail at TLS on a player's machine rather than here.
+    if ! printf '%s' "$host" \
+        | grep -qE '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$'
+    then
+        refuse "must name a host of dot-separated letters, digits and hyphens"
+    fi
+
+    # DNS limits, which are the reason these are not merely long: a name over
+    # 253 characters or a label over 63 cannot be resolved on a player's machine
+    # and cannot be issued a certificate, so an installer carrying one is broken
+    # before it is downloaded.
+    if [ "${#host}" -gt 253 ]; then
+        refuse "must name a host of at most 253 characters"
+    fi
+    remaining="$host"
+    while [ -n "$remaining" ]; do
+        label="${remaining%%.*}"
+        case "$remaining" in
+            *.*) remaining="${remaining#*.}" ;;
+            *)   remaining="" ;;
+        esac
+        if [ "${#label}" -gt 63 ]; then
+            refuse "must name a host whose every label is at most 63 characters"
+        fi
+    done
+
+    # A colon with nothing usable after it is how a mistyped ":8443" survives.
+    case "$origin" in
+        *:*)
+            if ! printf '%s' "$port" | grep -qE '^[0-9]{1,5}$'; then
+                refuse "must have a numeric port after the colon"
+            fi
+            if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+                refuse "must have a port between 1 and 65535"
+            fi
             ;;
     esac
+
     echo "Installers will connect to $SERVER_URL"
     SERVER_OPTIONS=(--java-options "-Dguesswho.server.url=$SERVER_URL")
 else
