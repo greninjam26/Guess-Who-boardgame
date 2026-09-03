@@ -36,6 +36,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      # Neither of these needs Java, Maven or a build: they read the packaging
+      # scripts, and run build-installer.sh against a stubbed toolchain that
+      # cannot reach a real build. They are wired in here because until now
+      # nothing ran them — the same way a gated test that is skipped everywhere
+      # is a test that does not exist.
+      - name: Check the installer endpoint rules
+        run: |
+          bash packaging/tests/build-installer-contract.sh
+          bash packaging/tests/server-url-validation.sh
+
       - name: Set up Java 17
         uses: actions/setup-java@v5
         with:
