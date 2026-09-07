@@ -115,6 +115,14 @@ check "$([ "$xff" = "127.0.0.1" ] && echo true || echo false)" \
 check "$(printf '%s' "$xff" | grep -qv "$forged" && echo true || echo false)" \
     "the forged address is nowhere in the forwarded header (it was not appended)"
 
+real_ip="$(printf '%s' "$seen" | python3 -c "import json,sys; print(json.load(sys.stdin).get('X-Real-Ip','<absent>'))")"
+say "X-Real-IP seen upstream: '$real_ip'"
+# Caddy never sets this header, so anything downstream sees is the caller's own
+# claim about itself. Nothing reads it today; the check is here so that the day
+# something does, it is reading a value a stranger could not write.
+check "$([ "$real_ip" = "<absent>" ] && echo true || echo false)" \
+    "a client-supplied X-Real-IP does not reach the application"
+
 step "3. Room limits are keyed on the account, not the address"
 reg() { curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
     -d "{\"username\":\"$1\",\"password\":\"a-good-password\"}" "http://127.0.0.1:$caddyport/api/accounts"; }
