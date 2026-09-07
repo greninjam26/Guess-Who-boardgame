@@ -21,6 +21,19 @@
     # Forwarded is stripped for the same reason: it is the RFC 7239 way of
     # saying the same thing, and leaving it would be closing one door.
     request_header -Forwarded
+
+    # X-Real-IP is the third door, and the quietest. Caddy does not set it, so
+    # anything the application sees under that name was written by the caller —
+    # it is not a proxy's account of who is connecting, it is the connection's
+    # own claim about itself, arriving beside headers that are trustworthy.
+    #
+    # Nothing reads it today: Spring's FRAMEWORK strategy takes Forwarded and
+    # X-Forwarded-* and no more. That is exactly why it is removed now. It is
+    # the header somebody reaches for when they add request logging or block a
+    # troublesome address, precisely because one clean value looks more
+    # authoritative than a chain, and the damage would be silent — a log naming
+    # whoever the caller chose, or a ban landing on somebody who did nothing.
+    request_header -X-Real-IP
     reverse_proxy 127.0.0.1:8080 {
         header_up X-Forwarded-For {http.request.remote.host}
     }

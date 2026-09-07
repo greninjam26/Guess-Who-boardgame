@@ -12,7 +12,11 @@ out = sys.argv[2]
 
 body = production[production.index("{", production.index("\n")) + 1:production.rindex("}")]
 
-REQUIRED = ["request_header -Forwarded", "header_up X-Forwarded-For {http.request.remote.host}"]
+REQUIRED = [
+    "request_header -Forwarded",
+    "request_header -X-Real-IP",
+    "header_up X-Forwarded-For {http.request.remote.host}",
+]
 for directive in REQUIRED:
     if directive not in body:
         sys.exit(f"production Caddyfile no longer contains: {directive}")

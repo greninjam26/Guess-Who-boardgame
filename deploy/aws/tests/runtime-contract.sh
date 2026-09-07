@@ -75,6 +75,11 @@ has Caddyfile "request_header -Forwarded" \
     || fail "Caddy does not strip a forged Forwarded header"
 has Caddyfile "header_up X-Forwarded-For {http.request.remote.host}" \
     || fail "Caddy appends to X-Forwarded-For instead of replacing it, so any caller can forge an address and dodge the sign-in limit"
+# Caddy sets no X-Real-IP of its own, so one arriving upstream can only be the
+# caller's. Nothing reads it yet, which is the reason to remove it now rather
+# than after something does.
+has Caddyfile "request_header -X-Real-IP" \
+    || fail "Caddy passes a client-supplied X-Real-IP through, which is an address any caller can choose"
 
 # --- PostgreSQL is not on the internet ------------------------------------
 has bootstrap.sh "listen_addresses = '127.0.0.1'" \
