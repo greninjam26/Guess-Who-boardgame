@@ -6,9 +6,9 @@ not.
 
 Two kinds of note appear throughout:
 
-- **Still missing.** Something named here that has not been written. What is
-  left is narrow: nothing in Phase 09. What remains is the deployment itself,
-  in Phase 10.
+- **Still missing.** Something named here that has not been written. Nothing
+  in Phase 09 is. The deployment exists; what remains of Phase 10 is proving it
+  with two people, and the release.
 - **What was actually built differs.** Somewhere the design was tried and
   something else turned out to be right. These are the interesting ones, and
   they are kept rather than tidied away: the reasoning that changed is worth
@@ -265,13 +265,17 @@ whole offending payload, and was reverted.
 
 ### Durability
 
-Sessions persist in the result database — H2 today, Postgres when there is
-something deployed. The migrations use no engine-specific syntax, so that is a
-configuration change rather than a rewrite, and moving it early would only
-oblige everyone running the server to install a database. This is
-not a scaling decision — in-memory sessions die on restart, so deploying while two
-friends are mid-game destroys their game. Redis is an upgrade to consider only if
-session reads ever appear in profiling.
+Sessions persist in the result database: H2 for development and tests,
+PostgreSQL 15 on the deployed server. The migrations were not quite as portable
+as this section once said — `V8` declared `game_state CLOB`, which H2 accepts and
+PostgreSQL has no type for — so it became `TEXT`, and CI now runs every migration
+against PostgreSQL instead of treating H2's acceptance as evidence.
+
+This is not a scaling decision — in-memory sessions die on restart, so deploying
+while two friends are mid-game would destroy their game. `rehearsals/two-client`
+stops a real server in the middle of one and checks that the room's version and
+stored state come back untouched. Redis is an upgrade to consider only if session
+reads ever appear in profiling.
 
 ### Idempotency and concurrency
 
@@ -477,7 +481,7 @@ meaningful.
 
 ```text
   desktop-client + game-core ──jpackage──▶  .dmg / .exe  (bundled JRE)
-  server + game-core         ──deploy───▶  Railway / Fly / Render + Postgres
+  server + game-core         ──deploy───▶  one EC2 instance on AWS, below
 ```
 
 Installers live on user disks and will fall behind the server, so every request
@@ -495,6 +499,70 @@ player to update — never undefined behaviour.
 > the rejection — those clients read an unrecognised status as "could not be
 > reached", which now means a reconnecting banner for ever. The mechanism ships
 > doing nothing, and works properly by the time it is needed.
+
+---
+
+## Deployment
+
+Phase 10. A demonstration on AWS's Free Plan rather than a high-availability
+service: one machine, removed before the free period ends. Everything
+operational — creating it, deploying to it, backing it up, what it costs and how
+it comes down — is in [deploy/aws/README.md](../deploy/aws/README.md), along with
+the log of what has actually happened to it.
+
+```text
+Desktop client
+   │ HTTPS :443                         DuckDNS name → Elastic IP
+   ▼
+Caddy ── strips Forwarded and X-Real-IP, replaces X-Forwarded-For
+   │ HTTP 127.0.0.1:8080
+   ▼
+Spring Boot, aws profile ──▶ ECS JSON logs ──▶ CloudWatch, seven days
+   │ 127.0.0.1:5432
+   ▼
+PostgreSQL 15 ──daily pg_dump──▶ private, encrypted, versioned S3
+                                        └──▶ a verified copy kept off AWS
+
+GitHub Actions ──OIDC──▶ one-run credentials ──SSM──▶ deploy.sh on the instance
+```
+
+Only ports 80 and 443 are open. The application and the database listen on
+loopback, and administration goes through Session Manager rather than SSH, so
+port 22 is closed as well.
+
+**A proxy changes who the server thinks is calling.** Behind Caddy every request
+arrives from `127.0.0.1`, so the two limits keyed on the caller's address —
+signing in and registering — would collapse into one bucket shared by the whole
+internet: ten sign-in attempts a minute for everybody, and one person guessing
+passwords locking out every real player. So the server reads `X-Forwarded-For`
+instead. That is safe only because nothing but Caddy can reach the application,
+and true only because Caddy *replaces* the header rather than appending to it,
+which is not its default — appending would let any caller name themselves.
+`rehearsals/caddy` checks that against a real proxy, and the deployment log
+records it checked against the live one.
+
+**Deploying holds no key.** GitHub asks AWS for credentials that last one run,
+from a role that trusts only this repository's `main` branch. A release goes to
+S3 under its commit SHA beside a checksum of the script that installs it, and the
+instance verifies that checksum before running anything as root. A release that
+fails its health check puts the previous one back.
+
+### Alternatives rejected
+
+- **RDS** — simpler to run, and another resource billing continuously against
+  limited credits, for a database one small instance holds comfortably.
+- **ECS or Fargate** — more moving parts, and less predictable consumption, than
+  one machine.
+- **Lambda, API Gateway and DynamoDB** — would mean reshaping the room model and
+  the persistence layer to fit the platform.
+- **H2 on the instance** — the easiest move, and a weaker recovery story than
+  PostgreSQL with dumps for something facing the internet.
+- **More than one instance** — the rate-limit counters live in one process, so a
+  second instance would hand every caller a second allowance. Rooms would not be
+  the obstacle; they are in the database already.
+- **Route 53 and a bought domain** — a recurring cost for what DuckDNS provides
+  free: a name to hang a certificate on.
+- **Public SSH** — exposure for nothing Session Manager does not already do.
 
 ---
 

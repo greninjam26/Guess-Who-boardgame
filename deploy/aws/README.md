@@ -5,7 +5,10 @@ PostgreSQL, the Spring Boot server and Caddy, reachable over HTTPS at a DuckDNS
 hostname. Everything is in one CloudFormation stack, so the teardown is a stack
 deletion rather than a hunt.
 
-Design and reasoning: `docs/superpowers/specs/2026-09-02-aws-free-deployment-design.md`.
+**Live since 2026-09-14** at <https://greninja-guesswho.duckdns.org>. **Tear down
+by 2027-02-26.** What has happened to it is in the [deployment log](#deployment-log)
+at the bottom of this file; why it is built this way is in
+[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md#deployment).
 
 > **Nothing here creates AWS resources until you run it.** The template and the
 > contract test are files; the contract test reads the template and never calls
@@ -154,14 +157,29 @@ resource is tagged. It fails on any of them.
 ## Bootstrapping the host
 
 Once DuckDNS points at the Elastic IP, open a Session Manager shell on the
-instance (`InstanceId` from the stack outputs) and run bootstrap with the stack's
+instance (`InstanceId` from the stack outputs).
+
+**The instance does not come with `bootstrap.sh`, and the script cannot run on
+its own.** Nothing in the stack puts it on the host, and it installs seven files
+from its own directory: `set-db-password.sh`, `backup.sh`, `guesswho.service`,
+`guesswho-backup.service`, `guesswho-backup.timer`, `Caddyfile` and
+`cloudwatch-agent.json`. All eight have to arrive together, from one commit. The
+first host got them by packaging those files from `deploy/aws/` with a checksum,
+uploading both to the artifact bucket, downloading them through Session Manager
+into a directory of their own, and running bootstrap from there.
+
+That step is manual and not yet scripted. It is the one thing standing between
+this stack and a clean rebuild of the instance, and it is open in
+[Phase 10 of the roadmap](../../docs/ROADMAP.md).
+
+From the directory the files were unpacked into, run bootstrap with the stack's
 values. It is safe to run again if anything fails part-way:
 
 ```bash
 sudo PUBLIC_HOSTNAME=your-host.duckdns.org \
      ARTIFACT_BUCKET=the-bucket-from-the-outputs \
      AWS_REGION=us-east-1 \
-     bash /opt/guesswho/bootstrap.sh
+     bash ./bootstrap.sh
 ```
 
 It ends with its own checks — PostgreSQL and Caddy running, the backup timer
@@ -208,6 +226,17 @@ appending rather than replacing, every per-address limit is bypassable by anyone
 who sends a header, and the sign-in endpoint — which costs a BCrypt hash per
 attempt — is effectively unprotected. Record the result in the deployment log.
 
+One part of the boundary cannot be seen from outside at all. Nothing reads
+`X-Real-IP`, so whether Caddy strips it changes no response. Read the rendered
+configuration on the host instead:
+
+```bash
+sudo grep -n 'X-Real-IP' /etc/caddy/Caddyfile
+```
+
+Expected: the `request_header -X-Real-IP` line. A host bootstrapped from a
+commit before `a1774c2` will not have it.
+
 ## Deploying
 
 The workflow is `.github/workflows/deploy-aws.yml`, run manually from the
@@ -229,6 +258,13 @@ waits for it, and finishes with the public smoke test.
 
 It refuses to run unless you type `deploy` in the confirmation box, because it
 restarts the public server.
+
+### Release installers
+
+The installers workflow reads a fifth variable, `GUESSWHO_SERVER_URL`, which
+should be `https://greninja-guesswho.duckdns.org`. A tagged release refuses to
+build without it, rather than shipping installers that quietly talk to
+`localhost`. It was not yet set on 2026-09-14.
 
 ### Rehearsing a rollback
 
@@ -284,6 +320,91 @@ aws s3 rm s3://the-bucket/releases/rollback-test-2/ --recursive
 rm -rf /tmp/bad /tmp/notajar
 ```
 
+## Two-client acceptance session
+
+The one check no script can make: two people playing a whole game on the
+deployed server while somebody watches. `smoke-test.sh` says the server is up
+and safe to talk to, and `rehearsals/` proves the logic — including a server
+restarted mid-game. Neither shows that the reconnecting banner appears, that four
+idle minutes on a real clock forfeit nothing, or that the reveal renders. Phase 10
+is not complete until this passes.
+
+**Two machines, two networks, two accounts.** Two networks, because callers
+behind one public address share one sign-in allowance, and the separation the
+forwarding boundary exists to give cannot be seen from a single network.
+
+Run each client from source against the live server, each with its own **named**
+home directory. Named rather than temporary, because closing a client and opening
+it again only offers to rejoin if its token and its remembered room are still
+there:
+
+```bash
+mvn install -DskipTests
+```
+
+```bash
+mkdir -p /tmp/guesswho-client-a
+```
+
+```bash
+java -Duser.home=/tmp/guesswho-client-a \
+  -Dguesswho.server.url=https://greninja-guesswho.duckdns.org \
+  -cp "desktop-client/target/desktop-client-1.0.0.jar:desktop-client/target/lib/*" \
+  com.guesswho.ui.GUI
+```
+
+Client B is the same on the second machine, with its own directory. Reopening a
+client means running its own command again, unchanged.
+
+| # | Do this | Pass looks like |
+| --- | --- | --- |
+| 1 | Register a fresh account on each client and sign in | Two accounts; neither sign-in displaces the other |
+| 2 | A opens a room; B joins, typing the code in lowercase with a space in it | The code is accepted |
+| 3 | Choose characters; ask and answer a question each way | Transcripts agree; neither side is shown the other's character |
+| 4 | Press Guess with no cards flipped, then flip several and press it again | The first explains what it needs; ruled-out cards stay faded and clickable |
+| 5 | **Leave both clients untouched for four minutes** | **Nothing forfeits** |
+| 6 | Read the room row, then restart the service mid-game (below) | Both clients show reconnecting and recover with nobody touching anything |
+| 7 | Read the room row again | Same `status`, `version` and `game_state` length; whoever owed the move can still make it |
+| 8 | Quit B entirely and watch A; then reopen B | Within about 15s A says B seems to have gone; B offers to rejoin the same game |
+| 9 | Play on through a wrong guess to a correct one | Both characters revealed; the promise and answer checks both pass |
+| 10 | Open the leaderboard on both | The result is under **vs Player (online)**, against both accounts |
+| 11 | Sign in and open a room from both networks | Neither network's use earns the other a `429` |
+
+Row 5 matters most: it is the failure that takes a game away from somebody who is
+still playing it. A forfeit there stops the session.
+
+The room row, in a Session Manager shell. The code is read into a variable rather
+than typed into the SQL, and tidied the way the server tidies it — spaces and
+hyphens dropped, case ignored — so it can be typed however the client showed it.
+The SQL goes to `psql` on standard input because `psql -c` does not substitute
+variables, which is the same trap `set-db-password.sh` exists to avoid:
+
+```bash
+printf 'Room code: '; read -r ROOM_CODE
+```
+
+```bash
+sudo -u postgres psql -d guesswho -v room_code="$ROOM_CODE" <<'SQL'
+SELECT status, version, length(game_state)
+FROM game_rooms
+WHERE code = upper(regexp_replace(:'room_code', '[[:space:]-]', '', 'g'));
+SQL
+```
+
+The restart, between the two readings:
+
+```bash
+sudo systemctl restart guesswho.service
+```
+
+```bash
+sudo systemctl is-active guesswho.service
+```
+
+Record it in the deployment log: the date, the release SHA, both client operating
+systems, the two kinds of network, the row before and after, and the result of
+every row. No passwords, tokens, IP addresses or nonces.
+
 ## Verifying a backup can be restored
 
 A backup nobody has restored is a hope. Before calling the deployment done, run
@@ -310,6 +431,11 @@ sudo -u postgres psql -d guesswho_restore_test \
 sudo -u postgres dropdb guesswho_restore_test
 rm -f /tmp/the-newest.dump.gz /tmp/restore.dump
 ```
+
+The first restore, on 2026-09-14, ran against an empty database: the counts
+matched at zero, which proves the archive is sound and says nothing about what is
+in it. Repeat it after the acceptance session, when there are accounts and a
+result to compare, and keep that export off AWS with its checksum.
 
 ## What this is expected to consume
 
@@ -374,11 +500,14 @@ pricing](https://aws.amazon.com/cloudwatch/pricing/).
 - Check Free Plan credit consumption in Billing and Cost Management.
 - Confirm a database backup landed in `s3://<bucket>/backups/` in the last day.
 - Confirm the budget has not alerted.
+- Investigate any charge you did not expect, rather than assuming the credits make
+  it harmless. The credits end; whatever caused the charge does not.
 
 ## Tearing down, by day 165
 
-The demo has a deadline. `teardown.sh` gets the data out, deletes the stack, and
-then checks that the deletion actually happened.
+The demo has a deadline: **2027-02-26**, day 165 of a Free Plan that started on
+2026-09-14 and ends on 2027-03-14. `teardown.sh` gets the data out, deletes the
+stack, and then checks that the deletion actually happened.
 
 **Rehearse it first.** The dry run does everything except delete: resolves the
 stack, downloads the newest backup, verifies it, and prints what it *would*
@@ -416,4 +545,11 @@ is gone.
 
 | Date (UTC) | Release SHA | What happened | By |
 | --- | --- | --- | --- |
-| | | Free Plan started — expiry: ______ , teardown by: ______ | |
+| 2026-09-14 | | Free Plan started — expiry: **2027-03-14**, teardown by: **2027-02-26** (day 165) | greninjam26 |
+| 2026-09-14 | | Stack `guess-who-demo` created in `us-east-1` with the expected ten resources, CPU credits `standard` and only ports 80 and 443 open. Budget USD 15 a month, alerting on gross consumption. DuckDNS name pointed at the Elastic IP; Caddy obtained a certificate | greninjam26 |
+| 2026-09-14 | | First host bootstrapped from a hand-delivered copy of the runtime files, not yet scripted — see [Bootstrapping the host](#bootstrapping-the-host). Three fixes found on the way, merged as `83241c5`: the `jar` tool `deploy.sh` needs is in Corretto's devel package, not the headless one; the database password goes through `set-db-password.sh` on standard input, because `psql -c` does not substitute variables; loopback TCP authentication moved from `ident`, which cannot authenticate a different OS user, to `scram-sha-256` | greninjam26 |
+| 2026-09-14 | `c3657c3` | The deploy role could not be assumed: the workflow declared a GitHub environment, which changes the OIDC subject away from the `main` branch the role trusts. Environment removed; the deploy contract now fails if one comes back | greninjam26 |
+| 2026-09-14 | `c3657c3` | First deployment, [run 34883880272](https://github.com/greninjam26/Guess-Who-boardgame/actions/runs/34883880272): build, tests, upload, SSM install and public smoke test passed; `/api/status` online | greninjam26 |
+| 2026-09-14 | `c3657c3` | Forwarding boundary on the live host: 30 sign-ins, each with a different forged `X-Forwarded-For`, went from `401` to `429` after ten | greninjam26 |
+| 2026-09-14 | `c3657c3` | Backup `guesswho-20260914T191252Z.dump.gz`: passed `gzip -t`, read as a PostgreSQL 15 custom-format archive, restored into a temporary database. Counts matched at **0 accounts and 0 results** — this proves the archive, not its contents. Copy kept off AWS, SHA-256 `025db5712f94361b0404067e56944620f05695bb899dcc94f8c0063219e06da0` | greninjam26 |
+| 2026-09-14 | `c3657c3` | Checked from outside: certificate valid until 2026-12-13, `http://` redirects to `https://`, a 404 names nothing inside, smoke test 7 of 7 with ports 22, 8080 and 5432 closed. Not checkable from outside: whether the host's Caddyfile strips `X-Real-IP` | Claude Code |

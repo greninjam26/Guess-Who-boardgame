@@ -34,7 +34,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  07 ✔   shipped
                                    06  needs 00 only — slot in anywhere
 
-v2.0    08 ✔  →  09 ▸  Online PvP — playable  →  10  Ship (and Postgres)
+v2.0    08 ✔  →  09 ✔  →  10 ▸  Ship — deployed, not yet accepted
 
 post    11  Stats and replay  →  12  Chat and spectating
         13  External session storage — only if measured
@@ -444,7 +444,7 @@ account owns the record and player two is just a name.
       One correction: this said the migrations were portable already, and `V8`
       later added `game_state CLOB`, which H2 accepts and Postgres does not. It
       is the only such column across all eleven — checked — and Phase 10 makes
-      it `TEXT`.
+      it `TEXT`. Done there.
 - [x] **Leaderboard keyed on accounts.** Standings group by account where there
       is one and by typed name where there is not. The account comes from the
       bearer token and never from the request body — a body that could name an
@@ -479,8 +479,10 @@ and API versioning.
 > **Automated end to end, not yet played.** `LiveOnlineGameTest` runs the real
 > client against a real server over a real socket, through a whole game and
 > through a forfeit, which is where the contract bugs between layers surface.
-> What has still never happened is two people at two machines. That is the next
-> thing to do, not the next thing to build.
+> `rehearsals/two-client` goes one step further and stops a real server
+> mid-game, which nothing inside the suite can do. What has still never happened
+> is two people at two machines — and that session is now Phase 10's acceptance
+> gate, played against the deployed server.
 
 - [x] **Rooms, not a registry.** Six-character codes from an alphabet without
       the characters people mishear reading one screen and typing into another.
@@ -610,16 +612,47 @@ and API versioning.
 
 **Needs:** everything above
 
-- [ ] Deploy the server. **AWS on the free plan**, not Railway/Fly/Render: one
-      `t3.micro` running Postgres, the JAR and Caddy, torn down before the free
-      period ends. Planned in `docs/superpowers/`, which is untracked.
-- [ ] Structured logging and a database-aware health endpoint. `/api/status`
-      returns a hardcoded string and says nothing about connectivity.
-- [ ] Error responses that don't leak stack traces to clients.
-- [ ] Rebuild installers against the deployed server.
+The server has been live since 2026-09-14 at
+<https://greninja-guesswho.duckdns.org>: one `t3.micro` in `us-east-1` running
+PostgreSQL, the JAR and Caddy, deployed from GitHub through OIDC and Systems
+Manager with no AWS key stored anywhere. How it was built, what it costs, how it
+comes down, and what happened along the way are in
+[deploy/aws/README.md](../deploy/aws/README.md).
+
+**Live is not the same as accepted.** Nothing below that depends on the
+deployment is ticked until two people have played a game on it.
+
+- [x] **PostgreSQL.** `V8`'s `CLOB` became `TEXT`, and CI runs every migration
+      against PostgreSQL 15 — and fails if that test was skipped, rather than
+      passing without it.
+- [x] **A database-aware health endpoint.** `/api/status` runs `SELECT 1` and
+      answers 503 when the database cannot, rather than a hardcoded string that
+      stays true while the database is gone.
+- [x] **Structured logging.** One ECS JSON object per line under the `aws`
+      profile, which is what CloudWatch can search.
+- [x] **Error responses that name nothing inside.** No exception, message, stack
+      trace or binding detail — checked by the smoke test on every deployment,
+      and against a stopped database in `rehearsals/postgres`.
+- [ ] **Deploy the server.** Running, and passing the public smoke test:
+      certificate, status, API version, nothing leaked, and ports 22, 8080 and
+      5432 closed. Ticked after the acceptance session, not before.
+- [ ] **Two-client acceptance against the deployed server**, from two different
+      networks, with the service restarted in the middle of the game. The
+      procedure is in the runbook.
+- [ ] **Restore a backup with real data in it.** The first restore succeeded
+      against an empty database, which proves the archive and not its contents.
+- [ ] **A replacement instance can be bootstrapped.** `bootstrap.sh` installs
+      seven files from its own directory and nothing puts them on a new host;
+      the first one was bootstrapped by copying them over by hand.
+- [ ] **Rebuild the installers against the deployed server**, and run the
+      Windows one on Windows.
 - [ ] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and screenshots.
 - [ ] Tag `v2.0`.
+
+**Tear down by 2027-02-26.** The Free Plan started on 2026-09-14 and ends on
+2027-03-14; stopping at day 165 leaves sixteen days to discover that an export
+is bad while there is still something to export from.
 
 ---
 
@@ -734,25 +767,22 @@ cannot be selected rather than failing partway through a game.
 
 ---
 
-Everything through Phase 08 is done, and Phase 09 is playable. v1.0 shipped as
-installers anyone can download; two people can now open a room and play each
-other. What remains in Phase 09 is what a deployment needs rather than what a
-game needs.
+Everything through Phase 09 is done, and v2.0 is deployed but not accepted.
+v1.0 shipped as installers anyone can download; the server online play needs has
+been running since 2026-09-14.
 
-**Next: not a branch.** Play a game against a second client with the server
-running.
+**Next: not a branch.** Two people, two machines, two networks, and one game
+against <https://greninja-guesswho.duckdns.org> — with the service restarted
+while it is being played. The runbook has the procedure and says where to write
+down what happened.
 
-The chain now runs end to end under test, which caught what that kind of test
-catches. What it cannot catch is the part that needs two people: whether the
-polling feels like a game, whether a three-minute timer is generous or mean in
-practice, whether the room code is readable down a phone. Finding that now costs
-an afternoon; finding it after reconnect and rate limits are layered on top
-costs considerably more.
+What an automated check can prove has been proven: `rehearsals/` stops a real
+server mid-game, restores a backup taken during one, and pushes forged addresses
+through a real Caddy. What none of them can prove is the part that needs people —
+whether the reconnecting banner appears, whether four idle minutes on a real
+clock forfeit nothing, whether the reveal renders.
 
-Three things carried forward and not forgotten:
+Carried forward and not forgotten:
 
 - Nobody has run the Windows installer. CI proves it builds; the `.msi` has only
   ever been a file.
-- Postgres moved to Phase 10, to sit with the deployment that needs it.
-- The four open Phase 09 items bound abuse and handle reconnection. Two people
-  on one network can play without them.
