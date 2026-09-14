@@ -26,7 +26,7 @@ say() { printf '\n== %s\n' "$1"; }
 # ---------------------------------------------------------------- packages
 say "packages"
 dnf install -y \
-    java-17-amazon-corretto-headless \
+    java-17-amazon-corretto-devel \
     postgresql15-server postgresql15 \
     amazon-cloudwatch-agent \
     jq gzip openssl
@@ -84,7 +84,19 @@ sed -i "s/^#\?work_mem.*/work_mem = 4MB/" "$PGDATA/postgresql.conf"
 sed -i "s/^#\?maintenance_work_mem.*/maintenance_work_mem = 32MB/" "$PGDATA/postgresql.conf"
 sed -i "s/^#\?max_connections.*/max_connections = 30/" "$PGDATA/postgresql.conf"
 
+# Amazon Linux initializes TCP localhost rules with ident authentication. The
+# application is a separate OS user, so ident can never authenticate its
+# database role. Keep Unix-socket administration unchanged, but require the
+# generated SCRAM password for TCP connections from either loopback address.
+sed -i -E \
+    's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32[[:space:]]+).*$|\1scram-sha-256|' \
+    "$PGDATA/pg_hba.conf"
+sed -i -E \
+    's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+::1/128[[:space:]]+).*$|\1scram-sha-256|' \
+    "$PGDATA/pg_hba.conf"
+
 systemctl enable --now postgresql
+systemctl reload postgresql
 until sudo -u postgres psql -c 'SELECT 1' >/dev/null 2>&1; do sleep 1; done
 
 # ---------------------------------------------------------------- password
@@ -118,10 +130,10 @@ say "role and database"
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='guesswho'" | grep -q 1; then
     sudo -u postgres psql -c "CREATE ROLE guesswho LOGIN" >/dev/null
 fi
-# Passed through a variable rather than interpolated into the SQL string, so the
-# password never reaches ps output or the shell history.
-sudo -u postgres psql -v pw="$db_password" \
-    -c "ALTER ROLE guesswho WITH PASSWORD :'pw'" >/dev/null
+# Feed the password over standard input. The helper passes it to psql through
+# the environment, so it never appears in the process arguments or shell
+# history, and psql performs the SQL-literal quoting.
+printf '%s\n' "$db_password" | sudo -u postgres "$here/set-db-password.sh" >/dev/null
 
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='guesswho'" | grep -q 1; then
     sudo -u postgres createdb --owner guesswho guesswho

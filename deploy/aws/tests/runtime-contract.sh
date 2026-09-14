@@ -35,7 +35,7 @@ hasnt() {
     [ -f "$aws_dir/$1" ] && ! grep -qF -- "$2" "$aws_dir/$1"
 }
 
-scripts="bootstrap.sh backup.sh smoke-test.sh"
+scripts="bootstrap.sh backup.sh smoke-test.sh set-db-password.sh"
 units="guesswho.service guesswho-backup.service guesswho-backup.timer"
 others="Caddyfile cloudwatch-agent.json"
 
@@ -50,11 +50,16 @@ for f in $scripts; do
     fi
 done
 
+# deploy.sh validates each downloaded artifact with `jar tf`, so the host
+# bootstrap must install the JDK package that supplies that executable.
+has bootstrap.sh "java-17-amazon-corretto-devel" \
+    || fail "bootstrap does not install the jar utility required by deploy.sh"
+
 # --- and stop at the first error rather than carrying on ------------------
 # A bootstrap that continues past a failed step leaves a half-configured host
 # that looks deployed. A backup that continues past a failed pg_dump uploads
 # an empty file over a good one.
-for f in bootstrap.sh backup.sh; do
+for f in bootstrap.sh backup.sh set-db-password.sh; do
     has "$f" "set -euo pipefail" || fail "$f does not set -euo pipefail"
 done
 
@@ -85,10 +90,14 @@ has Caddyfile "request_header -X-Real-IP" \
 has bootstrap.sh "listen_addresses = '127.0.0.1'" \
     || fail "bootstrap does not restrict PostgreSQL to localhost"
 has bootstrap.sh "max_connections" || fail "bootstrap does not cap PostgreSQL connections"
+has bootstrap.sh "pg_hba.conf" || fail "bootstrap does not configure PostgreSQL client authentication"
+has bootstrap.sh "scram-sha-256" \
+    || fail "bootstrap does not require password authentication for localhost PostgreSQL clients"
 
 # --- the password is generated, stored, and never printed ------------------
 has bootstrap.sh "openssl rand" || fail "bootstrap does not generate a database password"
 has bootstrap.sh "SecureString" || fail "the password is not stored as a SecureString"
+has bootstrap.sh "set-db-password.sh" || fail "bootstrap does not use the tested password setter"
 if [ -f "$aws_dir/bootstrap.sh" ] && grep -nE '^[^#]*echo[^#]*(PASSWORD|password)' "$aws_dir/bootstrap.sh" >/dev/null; then
     fail "bootstrap echoes something password-shaped"
 fi
