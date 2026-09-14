@@ -482,7 +482,11 @@ aggregation, normalized database storage, and transactional rollback.
 ## What Is Next
 
 [docs/ROADMAP.md](docs/ROADMAP.md) is the plan of record: fourteen phases across
-three releases, with each one marked as it lands.
+three releases, with each one marked as it lands. The next v2.0 slice is release
+acceptance: script replacement-host bootstrap delivery and freeze the candidate,
+finish the live-host operational checks, play the two-client game, restore its
+non-empty backup, and launch both target-native installers before tagging the
+release.
 
 ## Data and Assets
 

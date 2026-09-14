@@ -580,5 +580,5 @@ because it seemed more impressive.
 
 ---
 
-See `docs/ROADMAP.md` for the phase ordering that gets from the current code to
-this design.
+See `docs/ROADMAP.md` for the remaining v2.0 release-acceptance work and the
+post-v2 phase ordering.
