@@ -27,7 +27,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: demo
 
     steps:
       - name: Refuse an accidental run
