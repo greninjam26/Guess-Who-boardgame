@@ -173,13 +173,27 @@ this stack and a clean rebuild of the instance, and it is open in
 [Phase 10 of the roadmap](../../docs/ROADMAP.md).
 
 From the directory the files were unpacked into, run bootstrap with the stack's
-values. It is safe to run again if anything fails part-way:
+values. It is written to be safe to run again if anything fails part-way, but no
+second run on the live host is in the deployment log yet — do one, and record
+it. The live host keeps the non-secret bucket and region values in
+`/etc/guesswho/backup.env`; resolve them without assuming the Session Manager
+user can read that file directly:
 
 ```bash
-sudo PUBLIC_HOSTNAME=your-host.duckdns.org \
-     ARTIFACT_BUCKET=the-bucket-from-the-outputs \
-     AWS_REGION=us-east-1 \
-     bash ./bootstrap.sh
+BOOTSTRAP_PATH="$(sudo find /opt/guesswho -maxdepth 4 -type f -name bootstrap.sh -print -quit)"
+test -n "$BOOTSTRAP_PATH"
+BOOTSTRAP_DIR="$(dirname "$BOOTSTRAP_PATH")"
+for file in bootstrap.sh set-db-password.sh backup.sh guesswho.service \
+  guesswho-backup.service guesswho-backup.timer Caddyfile cloudwatch-agent.json; do
+  test -f "$BOOTSTRAP_DIR/$file"
+done
+ARTIFACT_BUCKET="$(sudo sed -n 's/^ARTIFACT_BUCKET=//p' /etc/guesswho/backup.env)"
+AWS_REGION="$(sudo sed -n 's/^AWS_REGION=//p' /etc/guesswho/backup.env)"
+test -n "$ARTIFACT_BUCKET" && test -n "$AWS_REGION"
+sudo PUBLIC_HOSTNAME=greninja-guesswho.duckdns.org \
+     ARTIFACT_BUCKET="$ARTIFACT_BUCKET" \
+     AWS_REGION="$AWS_REGION" \
+     bash "$BOOTSTRAP_PATH"
 ```
 
 It ends with its own checks — PostgreSQL and Caddy running, the backup timer
@@ -266,44 +280,93 @@ should be `https://greninja-guesswho.duckdns.org`. A tagged release refuses to
 build without it, rather than shipping installers that quietly talk to
 `localhost`. It was not yet set on 2026-09-14.
 
+### Closing the live-host release gates
+
+Before the two-client session, close the operational gates that prove the host
+can be observed, rebuilt and recovered. Record each result separately in the
+[deployment log](#deployment-log), with its UTC time and release SHA:
+
+1. Confirm the installed Caddyfile removes `X-Real-IP` using the check above.
+2. Confirm `amazon-cloudwatch-agent` is active and the server log group has a
+   recent event:
+
+   ```bash
+   aws logs describe-log-streams \
+     --region us-east-1 \
+     --log-group-name /guess-who/demo/server \
+     --order-by LastEventTime \
+     --descending \
+     --max-items 1
+   ```
+
+3. In AWS Billing and Cost Management → Budgets → `guess-who-demo`, confirm the
+   subscriber is confirmed for both the 80% and 100% actual-cost notifications.
+   Record the confirmation state, never the address.
+4. Run bootstrap a second time using the checked eight-file source directory
+   above. All four services must remain active and both the loopback and public
+   status endpoints must answer.
+5. Rehearse both rollback paths below: rejection before installation and
+   automatic rollback after a failed candidate health check.
+6. From an authenticated maintainer checkout, run
+   `bash deploy/aws/teardown.sh --dry-run`. It must verify and retain the newest
+   backup, name the resources it would remove, and report that nothing was
+   deleted.
+
+Any failed item blocks the release. The log should contain the command outcome
+or observed AWS state that proves each claim, not merely the intended
+configuration.
+
 ### Rehearsing a rollback
 
 Do this once, before trusting it. Two failures, and the second needs building
-deliberately.
+deliberately. No rollback rehearsal on the live host is in the deployment log
+yet.
 
 **A corrupt artifact.** Upload something that is not a JAR under a test prefix
 and run `deploy.sh` against it by hand through Session Manager:
 
 ```bash
+ARTIFACT_BUCKET="$(sudo sed -n 's/^ARTIFACT_BUCKET=//p' /etc/guesswho/backup.env)"
+AWS_REGION="$(sudo sed -n 's/^AWS_REGION=//p' /etc/guesswho/backup.env)"
+test -n "$ARTIFACT_BUCKET" && test -n "$AWS_REGION"
 echo "not a jar" > /tmp/notajar
-aws s3 cp /tmp/notajar s3://the-bucket/releases/rollback-test-1/server.jar --sse AES256
-sudo bash /opt/guesswho/deploy.sh the-bucket rollback-test-1
+aws s3 cp /tmp/notajar \
+  "s3://$ARTIFACT_BUCKET/releases/rollback-test-1/server.jar" \
+  --region "$AWS_REGION" --sse AES256
+sudo bash /opt/guesswho/deploy.sh "$ARTIFACT_BUCKET" rollback-test-1
 ```
 
 Expected: `jar tf` rejects it, the message says nothing was changed, and
 `/api/status` is still answering from the release that was already there.
 
-**A JAR that starts and fails its health check.** The tempting version of this —
-adding a bad value to `/etc/guesswho/server.env` — **does not test rollback at
-all.** That file is shared by whatever the symlink points at, so the restored
-previous JAR would fail for the same reason the candidate did; a passing run
-would mean "both are broken" and a failing one would tell you nothing about the
-rollback path. Failure has to belong to the candidate alone.
+**A structurally valid JAR that never becomes healthy.** The tempting version of
+this — adding a bad value to `/etc/guesswho/server.env` — **does not test
+rollback at all.** That file is shared by whatever the symlink points at, so the
+restored previous JAR would fail for the same reason the candidate did. A
+property embedded in the JAR does not solve that: the environment value has
+higher Spring precedence. Failure has to belong to the candidate alone.
 
-Build an unhealthy candidate instead — the real JAR, repackaged with its own
-datasource pointing at a closed port, so it starts and reports 503:
+Build an unhealthy candidate from the real JAR by replacing only its main class
+with an invalid class file. The archive still passes `jar tf`, so `deploy.sh`
+installs it and reaches the health-check rollback path; only that candidate
+fails to start:
 
 ```bash
 mkdir -p /tmp/bad && cd /tmp/bad
 cp /opt/guesswho/current/server.jar bad.jar
-printf 'spring.datasource.url=jdbc:postgresql://127.0.0.1:1/nothing\n' > application.properties
-jar uf bad.jar application.properties
-aws s3 cp bad.jar s3://the-bucket/releases/rollback-test-2/server.jar --sse AES256
-sudo bash /opt/guesswho/deploy.sh the-bucket rollback-test-2
+mkdir -p BOOT-INF/classes/com/guesswho
+: > BOOT-INF/classes/com/guesswho/GuessWhoServerApplication.class
+jar uf bad.jar BOOT-INF/classes/com/guesswho/GuessWhoServerApplication.class
+jar tf bad.jar >/dev/null
+aws s3 cp bad.jar \
+  "s3://$ARTIFACT_BUCKET/releases/rollback-test-2/server.jar" \
+  --region "$AWS_REGION" --sse AES256
+sudo bash /opt/guesswho/deploy.sh "$ARTIFACT_BUCKET" rollback-test-2
 ```
 
-Expected: the health retry times out, the symlink goes back to the previous
-release, the service restarts, and the script reports rolling back. Then check
+Expected: the candidate cannot start, the health retry times out, the symlink
+goes back to the previous release, the service restarts, and the script reports
+rolling back. Then check
 which JAR is actually running — recording only "health recovered" would also be
 satisfied by a rollback that never happened:
 
@@ -315,8 +378,10 @@ curl -fsS http://127.0.0.1:8080/api/status
 Expected: the previous SHA, not `rollback-test-2`. Clean up:
 
 ```bash
-aws s3 rm s3://the-bucket/releases/rollback-test-1/ --recursive
-aws s3 rm s3://the-bucket/releases/rollback-test-2/ --recursive
+aws s3 rm "s3://$ARTIFACT_BUCKET/releases/rollback-test-1/" \
+  --region "$AWS_REGION" --recursive
+aws s3 rm "s3://$ARTIFACT_BUCKET/releases/rollback-test-2/" \
+  --region "$AWS_REGION" --recursive
 rm -rf /tmp/bad /tmp/notajar
 ```
 
@@ -407,35 +472,80 @@ every row. No passwords, tokens, IP addresses or nonces.
 
 ## Verifying a backup can be restored
 
-A backup nobody has restored is a hope. Before calling the deployment done, run
-one and put it back:
+A backup nobody has restored is a hope. Do this after the acceptance game so the
+archive contains real account, result and answer rows. First record the live
+counts and trigger a new backup in Session Manager:
 
 ```bash
+sudo -u postgres psql -d guesswho -c \
+  'SELECT (SELECT COUNT(*) FROM accounts) AS accounts,
+          (SELECT COUNT(*) FROM game_results) AS results,
+          (SELECT COUNT(*) FROM game_result_question_answers) AS answers;'
 sudo systemctl start guesswho-backup.service
-aws s3 ls s3://the-bucket/backups/ --region us-east-1
+sudo systemctl status guesswho-backup.service --no-pager
 ```
 
+All three counts must be non-zero. On an authenticated maintainer machine,
+resolve the bucket and newest object from AWS rather than guessing either name,
+then keep a checked copy outside both the repository and AWS:
+
 ```bash
-aws s3 cp s3://the-bucket/backups/the-newest.dump.gz /tmp/ --region us-east-1
-gzip -t /tmp/the-newest.dump.gz && gunzip -c /tmp/the-newest.dump.gz > /tmp/restore.dump
-sudo -u postgres createdb guesswho_restore_test
-sudo -u postgres pg_restore --no-owner --no-acl -d guesswho_restore_test /tmp/restore.dump
+AWS_REGION=us-east-1
+STACK_NAME=guess-who-demo
+ARTIFACT_BUCKET="$(aws cloudformation describe-stacks \
+  --region "$AWS_REGION" --stack-name "$STACK_NAME" \
+  --query "Stacks[0].Outputs[?OutputKey=='ArtifactBucketName'].OutputValue | [0]" \
+  --output text)"
+LATEST_KEY="$(aws s3api list-objects-v2 \
+  --region "$AWS_REGION" --bucket "$ARTIFACT_BUCKET" --prefix backups/ \
+  --query 'sort_by(Contents,&LastModified)[-1].Key' --output text)"
+test -n "$ARTIFACT_BUCKET" && test "$ARTIFACT_BUCKET" != None
+test -n "$LATEST_KEY" && test "$LATEST_KEY" != None
+mkdir -p /Users/greninja/Documents/Guess-Who-backups
+ARCHIVE_PATH="/Users/greninja/Documents/Guess-Who-backups/$(basename "$LATEST_KEY")"
+aws s3 cp "s3://$ARTIFACT_BUCKET/$LATEST_KEY" "$ARCHIVE_PATH" \
+  --region "$AWS_REGION"
+gzip -t "$ARCHIVE_PATH"
+shasum -a 256 "$ARCHIVE_PATH"
 ```
 
-Compare what matters, then remove only the named temporary database:
+Restore that exact object into one explicitly named temporary database on the
+host. Session Manager users cannot necessarily source `backup.env`, so read only
+the two non-secret values needed here:
 
 ```bash
-sudo -u postgres psql -d guesswho_restore_test \
+ARTIFACT_BUCKET="$(sudo sed -n 's/^ARTIFACT_BUCKET=//p' /etc/guesswho/backup.env)"
+AWS_REGION="$(sudo sed -n 's/^AWS_REGION=//p' /etc/guesswho/backup.env)"
+LATEST_KEY="$(aws s3api list-objects-v2 \
+  --region "$AWS_REGION" --bucket "$ARTIFACT_BUCKET" --prefix backups/ \
+  --query 'sort_by(Contents,&LastModified)[-1].Key' --output text)"
+test -n "$LATEST_KEY" && test "$LATEST_KEY" != None
+aws s3 cp "s3://$ARTIFACT_BUCKET/$LATEST_KEY" \
+  /tmp/guesswho-acceptance.dump.gz --region "$AWS_REGION"
+gzip -t /tmp/guesswho-acceptance.dump.gz
+gunzip -c /tmp/guesswho-acceptance.dump.gz > /tmp/guesswho-acceptance.dump
+sudo -u postgres dropdb --if-exists guesswho_restore_acceptance
+sudo -u postgres createdb guesswho_restore_acceptance
+sudo -u postgres pg_restore --no-owner --no-acl \
+  -d guesswho_restore_acceptance /tmp/guesswho-acceptance.dump
+sudo -u postgres psql -d guesswho_restore_acceptance \
   -c 'SELECT (SELECT COUNT(*) FROM accounts) AS accounts,
-             (SELECT COUNT(*) FROM game_results) AS results;'
-sudo -u postgres dropdb guesswho_restore_test
-rm -f /tmp/the-newest.dump.gz /tmp/restore.dump
+             (SELECT COUNT(*) FROM game_results) AS results,
+             (SELECT COUNT(*) FROM game_result_question_answers) AS answers;'
 ```
 
-The first restore, on 2026-09-14, ran against an empty database: the counts
-matched at zero, which proves the archive is sound and says nothing about what is
-in it. Repeat it after the acceptance session, when there are accounts and a
-result to compare, and keep that export off AWS with its checksum.
+The restored counts must exactly match the live counts. Then remove only the
+named temporary database and files; keep the off-AWS archive:
+
+```bash
+sudo -u postgres dropdb guesswho_restore_acceptance
+rm -f /tmp/guesswho-acceptance.dump.gz /tmp/guesswho-acceptance.dump
+```
+
+The first restore, on 2026-09-14, matched at zero accounts and zero results. It
+proved the archive format, not its contents; the non-empty restore above is the
+release gate. Record the object key, UTC time, live and restored counts,
+checksum, and retained path in the deployment log.
 
 ## What this is expected to consume
 
@@ -502,6 +612,9 @@ pricing](https://aws.amazon.com/cloudwatch/pricing/).
 - Confirm the budget has not alerted.
 - Investigate any charge you did not expect, rather than assuming the credits make
   it harmless. The credits end; whatever caused the charge does not.
+- Every few weeks, check when the certificate expires. Caddy renews it on its own,
+  and the first renewal is due around 2026-11-13, but the smoke test only notices
+  a renewal that failed once the old certificate has actually run out.
 
 ## Tearing down, by day 165
 
@@ -509,9 +622,9 @@ The demo has a deadline: **2027-02-26**, day 165 of a Free Plan that started on
 2026-09-14 and ends on 2027-03-14. `teardown.sh` gets the data out, deletes the
 stack, and then checks that the deletion actually happened.
 
-**Rehearse it first.** The dry run does everything except delete: resolves the
-stack, downloads the newest backup, verifies it, and prints what it *would*
-remove.
+**Rehearse it first**, well before the day — no dry run is in the deployment log
+yet. The dry run does everything except delete: resolves the stack, downloads
+the newest backup, verifies it, and prints what it *would* remove.
 
 ```bash
 bash deploy/aws/teardown.sh --dry-run

@@ -438,13 +438,10 @@ account owns the record and player two is just a name.
       owner-only file rather than in preferences, which on macOS are
       world-readable. Resumed before the window is shown, so nobody types into
       a screen that then vanishes.
-- [ ] **Moved to Phase 10.** Postgres matters when something is deployed, and
-      nothing is yet. Switching engines is close to configuration rather than a
-      rewrite, so doing it early would only oblige everyone to run a database.
-      One correction: this said the migrations were portable already, and `V8`
-      later added `game_state CLOB`, which H2 accepts and Postgres does not. It
-      is the only such column across all eleven — checked — and Phase 10 makes
-      it `TEXT`. Done there.
+- [x] **PostgreSQL moved to Phase 10 and was completed there.** Keeping H2 for
+      local development avoided obliging every contributor to run a database.
+      The deployed server now uses PostgreSQL, `game_state` is portable as
+      `TEXT`, and CI runs all eleven migrations against PostgreSQL.
 - [x] **Leaderboard keyed on accounts.** Standings group by account where there
       is one and by typed name where there is not. The account comes from the
       bearer token and never from the request body — a body that could name an
@@ -636,15 +633,35 @@ deployment is ticked until two people have played a game on it.
 - [ ] **Deploy the server.** Running, and passing the public smoke test:
       certificate, status, API version, nothing leaked, and ports 22, 8080 and
       5432 closed. Ticked after the acceptance session, not before.
+- [ ] **Rehearse a rollback on the live host**, both ways the runbook describes:
+      a corrupt artifact refused before anything changes, and a candidate that
+      installs but never becomes healthy replaced by the previous release.
+      Deferred to the real host because `deploy.sh` depends on `systemctl` and
+      `/opt/guesswho`, and nothing records it as done.
+- [ ] **Run bootstrap a second time on the live host** and confirm it changes
+      nothing. Being safe to re-run is claimed by the script, and not yet shown
+      on Amazon Linux.
+- [ ] **Confirm the host's Caddyfile strips `X-Real-IP`.** Nothing outside can
+      tell, because nothing reads the header; the runbook has the one-line
+      check.
+- [ ] **Confirm logs are arriving in CloudWatch.** The log group exists and the
+      agent is configured, but nobody has looked at a stream.
+- [ ] **Confirm the budget alert subscription.** AWS emails a confirmation when
+      the stack is created, and until it is clicked the alerts go nowhere.
+- [ ] **Rehearse the teardown with `--dry-run`** now, while there is time to fix
+      what it finds, rather than for the first time on the day.
 - [ ] **Two-client acceptance against the deployed server**, from two different
       networks, with the service restarted in the middle of the game. The
       procedure is in the runbook.
 - [ ] **Restore a backup with real data in it.** The first restore succeeded
       against an empty database, which proves the archive and not its contents.
+      Include a game with questions asked, so the answers table has rows too —
+      it was the one table the local backup rehearsal left empty.
 - [ ] **A replacement instance can be bootstrapped.** `bootstrap.sh` installs
       seven files from its own directory and nothing puts them on a new host;
       the first one was bootstrapped by copying them over by hand.
-- [ ] **Rebuild the installers against the deployed server**, and run the
+- [ ] **Rebuild the installers against the deployed server** — which first
+      needs the `GUESSWHO_SERVER_URL` repository variable set — and run the
       Windows one on Windows.
 - [ ] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and screenshots.
@@ -652,7 +669,8 @@ deployment is ticked until two people have played a game on it.
 
 **Tear down by 2027-02-26.** The Free Plan started on 2026-09-14 and ends on
 2027-03-14; stopping at day 165 leaves sixteen days to discover that an export
-is bad while there is still something to export from.
+is bad while there is still something to export from. Put it in a calendar as
+well; nothing in the repository will remind anybody.
 
 ---
 
@@ -707,19 +725,20 @@ condition.
 
 ## The mode matrix
 
-`Game.askComputer()` routes to `ComputerPlayer.answerQuestion()`, which looks the
-question up on the board and throws on anything else, so free questions are
-impossible against the computer today. Phase 06 closes that cell by teaching the
-computer to resolve typed text to a board attribute.
+`Game.askComputer()` routes to `ComputerPlayer.answerQuestion()`, which now
+resolves supported free-text questions to board attributes and answers them
+automatically. Unknown or ambiguous wording is declined without recording a
+question or consuming the turn.
 
 | Mode                | Preset questions | Free questions | Verification   |
 | ------------------- | ---------------- | -------------- | -------------- |
-| PvE                 | Yes              | Phase 06       | Automatic      |
+| PvE                 | Yes              | Yes            | Automatic      |
 | PvP local (hotseat) | Yes              | Yes            | Optional       |
 | PvP online          | Yes              | Yes            | Via commitment |
 
-Until then `GameSetup.againstComputer()` forces preset questions, so the mode
-cannot be selected rather than failing partway through a game.
+`GameSetup.againstComputer()` allows preset or free questions; the setup flow
+passes supported text to the same resolver and leaves the player free to retype
+anything it cannot place against the board.
 
 ## Deliberately not doing
 
@@ -771,10 +790,13 @@ Everything through Phase 09 is done, and v2.0 is deployed but not accepted.
 v1.0 shipped as installers anyone can download; the server online play needs has
 been running since 2026-09-14.
 
-**Next: not a branch.** Two people, two machines, two networks, and one game
-against <https://greninja-guesswho.duckdns.org> — with the service restarted
-while it is being played. The runbook has the procedure and says where to write
-down what happened.
+**Next: release acceptance, not Phase 11.** Package the replacement-host
+bootstrap inputs first so the candidate can be frozen, then close the live-host
+observation and recovery gates. Play one game with two people, two machines and
+two networks against <https://greninja-guesswho.duckdns.org>, restarting the
+service while it is being played. Restore the resulting non-empty backup and
+validate both native installers before tagging. The runbook has the procedures
+and says where to write down what happened.
 
 What an automated check can prove has been proven: `rehearsals/` stops a real
 server mid-game, restores a backup taken during one, and pushes forged addresses
@@ -786,3 +808,21 @@ Carried forward and not forgotten:
 
 - Nobody has run the Windows installer. CI proves it builds; the `.msi` has only
   ever been a file.
+- The rate limits are guesses. Their ratios are argued for; their absolute values
+  have never met a real player. Expect to tune them once people play.
+- No CI job runs the AWS contract tests under `deploy/aws/tests/` — only the
+  packaging tests are wired into `maven.yml`. They pass today because somebody
+  ran them.
+- `deploy/aws/tests/bootstrap-password-test.sh` starts a real PostgreSQL, unlike
+  the contract tests beside it, and fails on macOS unless `LC_ALL=C` is set. It
+  belongs with the rehearsals, or needs the locale set inside it.
+- The installers workflow says `GUESSWHO_SERVER_URL` is unset on a manual run.
+  That holds only while the repository variable is unset: once it is set, a
+  manual run bakes the public server into its installers too.
+- A deploy started from any branch but `main` fails only when AWS refuses the
+  credentials, after the build and the tests have run. A branch check at the top
+  of `deploy-aws.yml` would fail it in seconds.
+- Two edges nothing has exercised: the server refusing to start against a schema
+  that does not match its migrations — `baseline-on-migrate=false` has only met
+  an empty database and a matching one — and the connection pool reaching its
+  cap of four, which sixty concurrent requests never did.
