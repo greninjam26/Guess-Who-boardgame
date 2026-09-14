@@ -27,9 +27,12 @@ class HowToPlayDialogTest {
     }
 
     @Test
-    void saysWhyFreeQuestionsAreTwoPlayerOnly() throws Exception {
-        assertTrue(rulesText().contains("the computer can only answer the board's"),
-                "Otherwise the missing option looks like an oversight");
+    void explainsFreeQuestionsAgainstTheComputer() throws Exception {
+        String rules = rulesText();
+
+        assertTrue(rules.contains("questions in your own words"), rules);
+        assertTrue(rules.contains("without using your turn"),
+                "Players need to know that unresolved wording is safe to retry");
     }
 
     @Test
