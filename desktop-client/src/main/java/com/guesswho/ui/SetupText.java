@@ -40,10 +40,11 @@ final class SetupText {
             <h3>Game modes</h3>
             <p><b>Against the computer</b> on easy or hard. Hard narrows the
             field faster by choosing questions that rule out about half the
-            remaining characters.</p>
+            remaining characters. Hard mode can also take questions in your own
+            words; if it cannot match one to the board, it asks you to retype it
+            without using your turn.</p>
             <p><b>Against another player</b> on this machine, taking turns. You
-            can use the board's questions or type your own — the computer can
-            only answer the board's, so free questions are for two players.</p>
+            can use the board's questions or type your own.</p>
 
             <h3>Afterwards</h3>
             <p>Completed games are sent to the server and counted on the

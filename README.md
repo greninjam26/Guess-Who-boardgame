@@ -4,7 +4,9 @@ A desktop adaptation of the classic Guess Who board game, written in Java with a
 
 ## Features
 
-- Player-versus-computer games with easy and hard AI modes
+- Player-versus-computer games with easy and hard AI modes, including a
+  free-question mode that declines wording it cannot resolve without taking the
+  player's turn
 - Local player-versus-player games
 - Online games against a friend, using a six-character code — no matchmaking
 - A three-minute turn timer that forfeits only once the player who owes the move
