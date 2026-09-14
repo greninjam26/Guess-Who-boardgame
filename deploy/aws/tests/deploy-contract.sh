@@ -41,6 +41,11 @@ has "$workflow" "contents: read" || fail "the workflow does not state contents: 
 has "$workflow" "aws-actions/configure-aws-credentials" \
     || fail "the workflow does not use the AWS credentials action"
 has "$workflow" "role-to-assume" || fail "the workflow does not assume a role"
+# The role trust policy is intentionally scoped to the main-branch OIDC
+# subject. Declaring a GitHub environment replaces that subject with an
+# environment-scoped one, so AWS rejects the otherwise valid token.
+hasnt "$workflow" "    environment:" \
+    || fail "the workflow environment overrides the main-branch OIDC subject"
 for secret in "aws-access-key-id" "AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY"; do
     hasnt "$workflow" "$secret" || fail "the workflow uses a static AWS key ($secret)"
 done
