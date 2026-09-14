@@ -82,12 +82,12 @@ bash rehearsals/caddy/run.sh
 ```
 
 The forwarding boundary, through a real proxy configured from
-`deploy/aws/Caddyfile` — the two header directives are copied out of it, not
-retyped, and the run fails if they are missing.
+`deploy/aws/Caddyfile` — its header directives are copied out of it, not
+retyped, and the run fails if any of them is missing.
 
 Spring trusts `X-Forwarded-For` because only Caddy should be able to write it.
-This checks that: the RFC `Forwarded` header is stripped, `X-Forwarded-For` is
-replaced rather than appended, and a rotating forged address per request still
+This checks that: the RFC `Forwarded` header and `X-Real-IP` are stripped,
+`X-Forwarded-For` is replaced rather than appended, and a rotating forged address per request still
 hits the sign-in limit through the proxy — while the same requests sent straight
 to the application are never limited at all. That contrast is the point; the
 second half is what the first half is protecting against.
@@ -98,5 +98,6 @@ HTTP only. Certificates, the HTTPS redirect and HSTS belong to the real host.
 
 Certificate issuance, DNS, the deployment and rollback path on the instance,
 `bootstrap.sh` being idempotent, S3, cost — and anything a person has to look
-at. The visual half of acceptance is a checklist in
-`docs/two-client-acceptance-checklist.md`, and no harness can do it for you.
+at. The visual half of acceptance is the two-client session in
+[deploy/aws/README.md](../deploy/aws/README.md), played against the deployed
+server, and no harness can do it for you.
