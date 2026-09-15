@@ -6,12 +6,15 @@ import com.guesswho.game.GameResult;
 import com.guesswho.game.QuestionMode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.net.ProtocolException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 
 class GameResultSubmissionServiceTest {
@@ -39,6 +42,21 @@ class GameResultSubmissionServiceTest {
         submissionService.submit(gameResult).join();
 
         assertEquals(List.of(gameResult), pending.stored);
+    }
+
+    @Test
+    void outdatedClientFailureIsReportedWithoutQueueingTheResult() {
+        CapturingStore pending = new CapturingStore();
+        GameResultClient serverClient = (result, token) -> CompletableFuture.failedFuture(
+                new ProtocolException("This version is too old. Update the game."));
+        GameResultSubmissionService submissionService =
+                new GameResultSubmissionService(serverClient, pending);
+
+        assertThrows(CompletionException.class,
+                () -> submissionService.submit(gameResult("Player")).join());
+
+        assertTrue(pending.stored.isEmpty(),
+                "An incompatible result must not be retried as a temporary outage");
     }
 
     @Test

@@ -67,6 +67,8 @@ public interface AccountClient {
             USERNAME_TAKEN,
             /** The server refused it and said why. */
             REJECTED,
+            /** The server requires a newer version of the game. */
+            OUTDATED,
             /** The server could not be reached, which is not the player's fault. */
             UNREACHABLE
         }
@@ -91,6 +93,10 @@ public interface AccountClient {
 
         static Outcome rejected(String message) {
             return new Outcome(Kind.REJECTED, null, null, message);
+        }
+
+        static Outcome outdated(String message) {
+            return new Outcome(Kind.OUTDATED, null, null, message);
         }
 
         static Outcome unreachable() {

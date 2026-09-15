@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
+import java.net.ProtocolException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -52,6 +53,19 @@ class HttpGameResultClientTest {
                 (uri, body, token) -> CompletableFuture.completedFuture(500));
 
         assertThrows(CompletionException.class, () -> client.submit(gameResult()).join());
+    }
+
+    @Test
+    void identifiesAnOutdatedClientAsAPermanentProtocolFailure() {
+        HttpGameResultClient client = new HttpGameResultClient(
+                URI.create("http://localhost:8080"),
+                (uri, body, token) -> CompletableFuture.completedFuture(426));
+
+        CompletionException failure = assertThrows(
+                CompletionException.class, () -> client.submit(gameResult()).join());
+
+        assertTrue(failure.getCause() instanceof ProtocolException);
+        assertTrue(failure.getCause().getMessage().contains("Update"));
     }
 
     @Test

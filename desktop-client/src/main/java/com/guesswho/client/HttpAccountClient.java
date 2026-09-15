@@ -60,6 +60,7 @@ public class HttpAccountClient implements AccountClient {
                         case 201 -> Outcome.registered(accountFrom(response.body()));
                         case 409 -> Outcome.usernameTaken();
                         case 400 -> Outcome.rejected(messageFrom(response.body()));
+                        case 426 -> Outcome.outdated(messageFrom(response.body()));
                         default -> Outcome.unreachable();
                     };
                 });
@@ -75,6 +76,7 @@ public class HttpAccountClient implements AccountClient {
                     return switch (response.statusCode()) {
                         case 201 -> loggedIn(response.body());
                         case 401 -> Outcome.wrongCredentials();
+                        case 426 -> Outcome.outdated(messageFrom(response.body()));
                         default -> Outcome.unreachable();
                     };
                 });

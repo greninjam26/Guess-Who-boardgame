@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.net.ProtocolException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -69,6 +70,22 @@ class HttpLeaderboardClientTest {
                         new HttpLeaderboardClient.Response(503, "[]")));
 
         assertThrows(CompletionException.class, () -> client.fetch(null).join());
+    }
+
+    @Test
+    void preservesTheServersExplanationWhenTheClientIsOutdated() {
+        HttpLeaderboardClient client = new HttpLeaderboardClient(
+                URI.create("http://localhost:8080"),
+                uri -> CompletableFuture.completedFuture(
+                        new HttpLeaderboardClient.Response(426,
+                                "{\"detail\":\"This version is too old. Update the game.\"}")));
+
+        CompletionException failure = assertThrows(
+                CompletionException.class, () -> client.fetch(null).join());
+
+        assertTrue(failure.getCause() instanceof ProtocolException);
+        assertEquals("This version is too old. Update the game.",
+                failure.getCause().getMessage());
     }
 
     @Test

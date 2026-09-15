@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.net.ProtocolException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -83,6 +84,22 @@ class LeaderboardPanelTest {
                 "Leaderboard is unavailable. Start the server and try again.",
                 statusLabel.getText());
         assertFalse(table.isVisible());
+    }
+
+    @Test
+    void showsTheUpdateInstructionWhenTheClientIsOutdated() throws Exception {
+        AtomicReference<LeaderboardPanel> panelReference = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> panelReference.set(new LeaderboardPanel(
+                mode -> CompletableFuture.failedFuture(
+                        new ProtocolException("This version is too old. Update the game.")),
+                GameMode.PVE)));
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        JLabel statusLabel = findComponent(panelReference.get(), JLabel.class);
+
+        assertTrue(statusLabel.isVisible());
+        assertEquals("This version is too old. Update the game.", statusLabel.getText());
     }
 
     @Test
