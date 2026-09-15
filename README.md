@@ -248,7 +248,7 @@ mvn -pl server spring-boot:run
 Alternatively, run the executable JAR after building:
 
 ```bash
-java -jar server/target/server-1.0.0.jar
+java -jar server/target/server-2.0.0.jar
 ```
 
 Rate limits are on by default: signing in and registering are held per address,
@@ -258,7 +258,7 @@ make a player look absent and eventually forfeit their game. Turn the limits off
 for local experimentation with:
 
 ```bash
-java -jar server/target/server-1.0.0.jar --guesswho.rate-limits.enabled=false
+java -jar server/target/server-2.0.0.jar --guesswho.rate-limits.enabled=false
 ```
 
 The server listens on port `8080` by default. Verify it from another terminal:

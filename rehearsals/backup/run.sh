@@ -35,7 +35,7 @@ check() { if [ "$1" = "true" ]; then pass "$2"; else fail "$2"; fi; }
 say()  { echo "   . $1"; }
 step() { echo; echo "== $1"; }
 
-jar="$repo/server/target/server-1.0.0.jar"
+jar="$repo/server/target/server-2.0.0.jar"
 
 if [ ! -f "$jar" ]; then
     echo "This rehearsal needs a built server jar at $jar."
@@ -94,9 +94,9 @@ check "$([ "$(q "$srcdb" 'SELECT 1')" = "1" ] && echo true || echo false)" \
     "the source database answers"
 
 step "1. Data created the way the application creates it"
-cp="$repo/desktop-client/target/desktop-client-1.0.0.jar:$repo/desktop-client/target/lib/*:$pgjar"
+cp="$repo/desktop-client/target/desktop-client-2.0.0.jar:$repo/desktop-client/target/lib/*:$pgjar"
 java -cp "$cp" "$harness" \
-    "$repo/server/target/server-1.0.0.jar" \
+    "$repo/server/target/server-2.0.0.jar" \
     "jdbc:postgresql://127.0.0.1:$pgport/$srcdb" \
     "$apiport" "$work/server.log" "$work/queue.jsonl" \
     "$dbuser" "$dbpass" populate > "$work/populate.log" 2>&1

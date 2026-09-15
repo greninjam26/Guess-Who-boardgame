@@ -9,7 +9,7 @@ rm -rf "$work"
 mkdir -p "$work"
 
 port=18080
-jar="$repo/server/target/server-1.0.0.jar"
+jar="$repo/server/target/server-2.0.0.jar"
 
 if [ ! -f "$jar" ]; then
     echo "This rehearsal needs a built server jar at $jar."
@@ -18,7 +18,7 @@ if [ ! -f "$jar" ]; then
 fi
 
 h2="$(find "$HOME/.m2/repository/com/h2database/h2" -name "h2-*.jar" 2>/dev/null | sort -V | tail -1)"
-cp="$repo/desktop-client/target/desktop-client-1.0.0.jar:$repo/desktop-client/target/lib/*:$h2"
+cp="$repo/desktop-client/target/desktop-client-2.0.0.jar:$repo/desktop-client/target/lib/*:$h2"
 jdbc="jdbc:h2:file:$work/rehearsal;AUTO_SERVER=TRUE"
 
 echo "database: $jdbc"

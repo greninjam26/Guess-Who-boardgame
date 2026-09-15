@@ -28,7 +28,7 @@ check() { if [ "$1" = "true" ]; then pass "$2"; else fail "$2"; fi; }
 say()  { echo "   . $1"; }
 step() { echo; echo "== $1"; }
 
-jar="$repo/server/target/server-1.0.0.jar"
+jar="$repo/server/target/server-2.0.0.jar"
 
 if [ ! -f "$jar" ]; then
     echo "This rehearsal needs a built server jar at $jar."
@@ -73,7 +73,7 @@ step "1. The pieces, all on loopback"
 SPRING_PROFILES_ACTIVE=aws \
 SPRING_DATASOURCE_URL="jdbc:h2:file:$work/boundary-db;DB_CLOSE_ON_EXIT=FALSE" \
 SPRING_DATASOURCE_USERNAME=sa SPRING_DATASOURCE_PASSWORD= \
-nohup java -jar "$repo/server/target/server-1.0.0.jar" --server.port="$springport" \
+nohup java -jar "$repo/server/target/server-2.0.0.jar" --server.port="$springport" \
     --spring.flyway.baseline-on-migrate=true > "$work/server.log" 2>&1 &
 spring_pid=$!
 nohup python3 "$here/echo-upstream.py" > "$work/echo.log" 2>&1 &
