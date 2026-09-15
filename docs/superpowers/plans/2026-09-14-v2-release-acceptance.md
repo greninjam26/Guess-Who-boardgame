@@ -579,7 +579,7 @@ Expected: all pass. Do not replace the live instance merely to rehearse this rel
 - Consumes: the accepted candidate SHA and repository variable `GUESSWHO_SERVER_URL`.
 - Produces: a macOS `.dmg` and Windows `.msi` proven to install, launch, and contact the deployed service.
 
-- [ ] **Step 1: Verify the repository variable**
+- [x] **Step 1: Verify the repository variable**
 
 In GitHub Actions repository variables, confirm `GUESSWHO_SERVER_URL` is exactly:
 
@@ -589,25 +589,25 @@ https://greninja-guesswho.duckdns.org
 
 No trailing slash, path, query, fragment, whitespace, or embedded credentials are allowed.
 
-- [ ] **Step 2: Manually run the installer workflow from the candidate SHA**
+- [x] **Step 2: Manually run the installer workflow from the candidate SHA**
 
 Dispatch `.github/workflows/installers.yml` from the candidate revision. Do not create a tag yet.
 
 Expected: both matrix jobs pass and upload `installer-macos` and `installer-windows` artifacts.
 
-- [ ] **Step 3: Validate the macOS artifact**
+- [x] **Step 3: Validate the macOS artifact**
 
 On Apple silicon macOS, install from the `.dmg`, use the documented first-launch right-click flow, start the app, register or sign in, and reach the online-room screen without setting any JVM property.
 
 Expected: the installed app contacts the AWS endpoint; it does not attempt `localhost:8080`.
 
-- [ ] **Step 4: Validate the Windows artifact**
+- [x] **Step 4: Validate the Windows artifact**
 
 On a real Windows system, install the `.msi`, pass through the documented SmartScreen flow, launch the app, register or sign in, and reach the online-room screen.
 
 Expected: installation and launch succeed and the app contacts the AWS endpoint. A green Windows build job alone is not acceptance.
 
-- [ ] **Step 5: Record immutable evidence**
+- [x] **Step 5: Record immutable evidence**
 
 Add the workflow URL, artifact names, candidate SHA, macOS version/result, and Windows version/result to `deploy/aws/README.md`'s deployment log.
 

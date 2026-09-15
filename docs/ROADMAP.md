@@ -661,9 +661,10 @@ deployment is ticked until two people have played a game on it.
       and delivers the fixed eight-file input bundle, and a checked copy reran
       cleanly on the existing host. A fresh replacement instance still has to
       prove the entire path from an empty machine.
-- [ ] **Rebuild the installers against the deployed server** — which first
-      needs the `GUESSWHO_SERVER_URL` repository variable set — and run the
-      Windows one on Windows.
+- [x] **Rebuild the installers against the deployed server.** The repository
+      variable is set, both native jobs passed in installer workflow run
+      34927610374, and the artifacts reached the public service on macOS 26.5.2
+      arm64 and Windows 11 Pro 24H2 (OS build 26100.8457).
 - [ ] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and screenshots.
 - [ ] Tag `v2.0`.

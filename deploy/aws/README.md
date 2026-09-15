@@ -324,7 +324,8 @@ restarts the public server.
 The installers workflow reads a fifth variable, `GUESSWHO_SERVER_URL`, which
 should be `https://greninja-guesswho.duckdns.org`. A tagged release refuses to
 build without it, rather than shipping installers that quietly talk to
-`localhost`. It was not yet set on 2026-09-14.
+`localhost`. It was set and validated by the manual installer run recorded in
+the deployment log below.
 
 ### Closing the live-host release gates
 
@@ -743,3 +744,4 @@ is gone.
 | 2026-09-15 01:20 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Corrupt-artifact rollback gate: a checksum-verified copy of the currently deployed release's `deploy.sh` rejected `rollback-test-1` with exit 1 before changing the symlink; the exact `c3657c366803341bd5980448d8e5a3b7c327d759` release remained current and loopback status stayed online | Codex |
 | 2026-09-15 01:21 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Unhealthy-candidate rollback gate: `rollback-test-2` passed `jar tf`, replaced the current symlink, failed its health window, and triggered automatic rollback. The symlink returned exactly to `server-c3657c366803341bd5980448d8e5a3b7c327d759.jar`, the service answered online, and both named S3 test prefixes and `/tmp` rehearsal inputs were removed | Codex |
 | 2026-09-15 01:26 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | `teardown.sh --dry-run` resolved the live stack and bucket, exported `guesswho-20260915T002025Z.dump.gz` off AWS, passed `gzip -t`, read 71 PostgreSQL archive entries, and retained SHA-256 `95206d2c7f191cf32ffdbcf2298659b6e9b3e9f13aedc4a3ce47dde5829b6e19`. It named the bucket and stack it would remove and explicitly reported that nothing was deleted | Codex |
+| 2026-09-15 04:32 UTC | `dde36a09313d286b7b672519935413967c325d7d` | [Installer workflow run 34927610374](https://github.com/greninjam26/Guess-Who-boardgame/actions/runs/34927610374) passed both native builds and produced `installer-macos` and `installer-windows`. `Guess Who-1.0.0.dmg` (SHA-256 `fdbbc13556df4fbcc88fc0239a7707bfce7c4f8034f84ee6e608ce53e2dd61de`) installed and reached the public service on macOS 26.5.2 arm64. `Guess Who-1.0.0.msi` (SHA-256 `97bdeb55b727bcfee4503fea24b82b5d1c6475d4f9102a346f6404cc709c6e7d`) installed and reached the public service on Windows 11 Pro 24H2, OS build 26100.8457. The Windows VM initially rejected HTTPS because its clock was months behind; synchronizing the clock fixed it without a code or installer change. No tag or release was created | Codex |
