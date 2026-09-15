@@ -163,37 +163,77 @@ instance (`InstanceId` from the stack outputs).
 its own.** Nothing in the stack puts it on the host, and it installs seven files
 from its own directory: `set-db-password.sh`, `backup.sh`, `guesswho.service`,
 `guesswho-backup.service`, `guesswho-backup.timer`, `Caddyfile` and
-`cloudwatch-agent.json`. All eight have to arrive together, from one commit. The
-first host got them by packaging those files from `deploy/aws/` with a checksum,
-uploading both to the artifact bucket, downloading them through Session Manager
-into a directory of their own, and running bootstrap from there.
+`cloudwatch-agent.json`. All eight have to arrive together, from one commit.
 
-That step is manual and not yet scripted. It is the one thing standing between
-this stack and a clean rebuild of the instance, and it is open in
-[Phase 10 of the roadmap](../../docs/ROADMAP.md).
-
-From the directory the files were unpacked into, run bootstrap with the stack's
-values. It is written to be safe to run again if anything fails part-way, but no
-second run on the live host is in the deployment log yet — do one, and record
-it. The live host keeps the non-secret bucket and region values in
-`/etc/guesswho/backup.env`; resolve them without assuming the Session Manager
-user can read that file directly:
+Build the fixed-input archive from a clean, committed release candidate. Key it
+by the candidate's exact SHA so a replacement never depends on a branch moving:
 
 ```bash
-BOOTSTRAP_PATH="$(sudo find /opt/guesswho -maxdepth 4 -type f -name bootstrap.sh -print -quit)"
-test -n "$BOOTSTRAP_PATH"
-BOOTSTRAP_DIR="$(dirname "$BOOTSTRAP_PATH")"
-for file in bootstrap.sh set-db-password.sh backup.sh guesswho.service \
-  guesswho-backup.service guesswho-backup.timer Caddyfile cloudwatch-agent.json; do
-  test -f "$BOOTSTRAP_DIR/$file"
+test -z "$(git status --porcelain)"
+RELEASE_SHA="$(git rev-parse HEAD)"
+AWS_REGION=us-east-1
+STACK_NAME=guess-who-demo
+ARTIFACT_BUCKET="$(aws cloudformation describe-stacks \
+  --region "$AWS_REGION" --stack-name "$STACK_NAME" \
+  --query "Stacks[0].Outputs[?OutputKey=='ArtifactBucketName'].OutputValue | [0]" \
+  --output text)"
+INSTANCE_ID="$(aws cloudformation describe-stacks \
+  --region "$AWS_REGION" --stack-name "$STACK_NAME" \
+  --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue | [0]" \
+  --output text)"
+test -n "$ARTIFACT_BUCKET" && test "$ARTIFACT_BUCKET" != None
+test -n "$INSTANCE_ID" && test "$INSTANCE_ID" != None
+
+bash deploy/aws/package-bootstrap.sh
+(cd target/aws-bootstrap && if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum -c guesswho-bootstrap.tar.gz.sha256
+else
+  shasum -a 256 -c guesswho-bootstrap.tar.gz.sha256
+fi)
+for file in guesswho-bootstrap.tar.gz guesswho-bootstrap.tar.gz.sha256; do
+  aws s3 cp "target/aws-bootstrap/$file" \
+    "s3://$ARTIFACT_BUCKET/bootstrap/$RELEASE_SHA/$file" \
+    --region "$AWS_REGION" --sse AES256
 done
-ARTIFACT_BUCKET="$(sudo sed -n 's/^ARTIFACT_BUCKET=//p' /etc/guesswho/backup.env)"
-AWS_REGION="$(sudo sed -n 's/^AWS_REGION=//p' /etc/guesswho/backup.env)"
-test -n "$ARTIFACT_BUCKET" && test -n "$AWS_REGION"
-sudo PUBLIC_HOSTNAME=greninja-guesswho.duckdns.org \
+printf 'release=%s instance=%s bucket=%s region=%s\n' \
+  "$RELEASE_SHA" "$INSTANCE_ID" "$ARTIFACT_BUCKET" "$AWS_REGION"
+```
+
+Open Session Manager on that exact `INSTANCE_ID`. Set the four values printed
+above — `PUBLIC_HOSTNAME` is the stack's configured DuckDNS hostname — then
+download and verify both objects before anything runs as root:
+
+```bash
+RELEASE_SHA=the-exact-40-character-sha-printed-above
+ARTIFACT_BUCKET=the-bucket-printed-above
+AWS_REGION=us-east-1
+PUBLIC_HOSTNAME=greninja-guesswho.duckdns.org
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+for file in guesswho-bootstrap.tar.gz guesswho-bootstrap.tar.gz.sha256; do
+  aws s3 cp "s3://$ARTIFACT_BUCKET/bootstrap/$RELEASE_SHA/$file" \
+    "$work/$file" --region "$AWS_REGION"
+done
+(cd "$work" && sha256sum -c guesswho-bootstrap.tar.gz.sha256)
+sudo install -d -o root -g root -m 0755 /opt/guesswho/bootstrap-source
+sudo tar --no-same-owner -xzf "$work/guesswho-bootstrap.tar.gz" \
+  -C /opt/guesswho/bootstrap-source
+```
+
+Run bootstrap from that checked source directory with the stack's values. It is
+written to be safe to run again if anything fails part-way, but no second run
+on the live host is in the deployment log yet — run it twice, and record both
+outcomes:
+
+```bash
+sudo PUBLIC_HOSTNAME="$PUBLIC_HOSTNAME" \
      ARTIFACT_BUCKET="$ARTIFACT_BUCKET" \
      AWS_REGION="$AWS_REGION" \
-     bash "$BOOTSTRAP_PATH"
+     bash /opt/guesswho/bootstrap-source/bootstrap.sh
+sudo PUBLIC_HOSTNAME="$PUBLIC_HOSTNAME" \
+     ARTIFACT_BUCKET="$ARTIFACT_BUCKET" \
+     AWS_REGION="$AWS_REGION" \
+     bash /opt/guesswho/bootstrap-source/bootstrap.sh
 ```
 
 It ends with its own checks — PostgreSQL and Caddy running, the backup timer
@@ -203,6 +243,10 @@ looks bootstrapped and is not will say so.
 
 The application service is enabled but **not started**: there is no JAR until
 the first deployment, and starting it here would only produce a restart loop.
+Once both bootstrap runs pass, deploy the same `RELEASE_SHA` through the
+existing GitHub workflow and run the public smoke test. A bundle proves a clean
+host can receive its operating files; the deployment supplies the application
+JAR.
 
 ### Checking the forwarding boundary
 
