@@ -32,7 +32,7 @@ check() { if [ "$1" = "true" ]; then pass "$2"; else fail "$2"; fi; }
 say()  { echo "   . $1"; }
 step() { echo; echo "== $1"; }
 
-jar="$repo/server/target/server-1.0.0.jar"
+jar="$repo/server/target/server-2.0.0.jar"
 
 if [ ! -f "$jar" ]; then
     echo "This rehearsal needs a built server jar at $jar."
@@ -143,7 +143,7 @@ SPRING_PROFILES_ACTIVE=aws \
 SPRING_DATASOURCE_URL="jdbc:postgresql://127.0.0.1:$pgport/$db" \
 SPRING_DATASOURCE_USERNAME="$dbuser" \
 SPRING_DATASOURCE_PASSWORD="$dbpass" \
-nohup java -jar "$repo/server/target/server-1.0.0.jar" --server.port="$apiport" \
+nohup java -jar "$repo/server/target/server-2.0.0.jar" --server.port="$apiport" \
     --logging.level.com.zaxxer.hikari=DEBUG \
     > "$work/server.log" 2>&1 &
 server_pid=$!

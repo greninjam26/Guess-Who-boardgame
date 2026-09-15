@@ -402,17 +402,16 @@ Built in Phase 04. Each player names their character before playing, and
 character, so a choice is final because `Game.selectCharacter()` refuses a second
 call. Nothing local depends on the hash.
 
-Its value is verification _without disclosure_, which Phase 09 needs. An online
-opponent's own client answers questions about their character, so the server can
-record a whole game without ever learning either character and still check both
-at the end. It cannot leak what it never held.
+Its value online is verification across a trust boundary. The server stores the
+complete game, including both selected characters, while `RoomProjection` hides
+the opponent's character from each client until the game ends. At the reveal it
+recomputes both commitments and checks every recorded answer against the
+character that player selected.
 
-It does not **prevent** a modified client from committing to one character and
-answering as though it held another — nothing on the wire can, because the
-answering client is the only thing that knows. What it does is make that
-detectable. The reveal at game end checks every answer somebody gave against the
-character they committed to, so answering as Sam while holding Olivia produces a
-list of answers Olivia contradicts.
+It does not **prevent** a player from giving an answer their selected character
+contradicts. What it does is make that detectable. The reveal at game end checks
+every answer somebody gave against the character they committed to, so answering
+as Sam after selecting Olivia produces a list of answers Olivia contradicts.
 
 Detection, not prevention, and worth being exact about: a cheat can still win the
 game. What they cannot do is win it unnoticed. And the review only sees the

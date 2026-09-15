@@ -486,7 +486,7 @@ mkdir -p /tmp/guesswho-client-a
 ```bash
 java -Duser.home=/tmp/guesswho-client-a \
   -Dguesswho.server.url=https://greninja-guesswho.duckdns.org \
-  -cp "desktop-client/target/desktop-client-1.0.0.jar:desktop-client/target/lib/*" \
+  -cp "desktop-client/target/desktop-client-2.0.0.jar:desktop-client/target/lib/*" \
   com.guesswho.ui.GUI
 ```
 
@@ -694,9 +694,10 @@ The demo has a deadline: **2027-02-26**, day 165 of a Free Plan that started on
 2026-09-14 and ends on 2027-03-14. `teardown.sh` gets the data out, deletes the
 stack, and then checks that the deletion actually happened.
 
-**Rehearse it first**, well before the day — no dry run is in the deployment log
-yet. The dry run does everything except delete: resolves the stack, downloads
-the newest backup, verifies it, and prints what it *would* remove.
+**Rehearse it first**, well before the day. The first rehearsal is recorded in
+the deployment log below. The dry run does everything except delete: resolves
+the stack, downloads the newest backup, verifies it, and prints what it *would*
+remove.
 
 ```bash
 bash deploy/aws/teardown.sh --dry-run

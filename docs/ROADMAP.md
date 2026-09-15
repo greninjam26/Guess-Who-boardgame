@@ -670,7 +670,7 @@ played a game on it.
 - [x] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and the validated installer state.
 - [ ] Add current screenshots once they show the accepted v2 build.
-- [ ] Tag `v2.0`.
+- [ ] Tag `v2.0.0`.
 
 **Tear down by 2027-02-26.** The Free Plan started on 2026-09-14 and ends on
 2027-03-14; stopping at day 165 leaves sixteen days to discover that an export
