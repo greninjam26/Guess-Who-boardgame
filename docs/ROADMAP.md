@@ -658,10 +658,11 @@ played a game on it.
       against an empty database, which proves the archive and not its contents.
       Include a game with questions asked, so the answers table has rows too —
       it was the one table the local backup rehearsal left empty.
-- [ ] **A replacement instance can be bootstrapped.** The candidate now packages
-      and delivers the fixed eight-file input bundle, and a checked copy reran
-      cleanly on the existing host. A fresh replacement instance still has to
-      prove the entire path from an empty machine.
+- [x] **A replacement instance can be bootstrapped.** A temporary `t3.micro`
+      using the live host's AMI, role and security group downloaded and verified
+      the candidate's fixed eight-file bundle, ran bootstrap twice from an empty
+      machine, and passed every service, permission and listening-address check.
+      It was terminated immediately after the test.
 - [x] **Rebuild the installers against the deployed server.** The repository
       variable is set, both native jobs passed in installer workflow run
       34927610374, and the artifacts reached the public service on macOS 26.5.2
@@ -798,9 +799,8 @@ it on both target platforms.
 **Next: release acceptance, not Phase 11.** Play one game with two people, two
 machines and two networks against <https://greninja-guesswho.duckdns.org>,
 restarting the service while it is being played. Restore the resulting
-non-empty backup, prove the checked bootstrap bundle on a fresh replacement
-instance, then tag. The runbook has the procedures and says where to write down
-what happened.
+non-empty backup, capture accepted-build screenshots, then tag. The runbook has
+the procedures and says where to write down what happened.
 
 What an automated check can prove has been proven: `rehearsals/` stops a real
 server mid-game, restores a backup taken during one, and pushes forged addresses
