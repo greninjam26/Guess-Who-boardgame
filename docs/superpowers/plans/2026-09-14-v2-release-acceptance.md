@@ -421,7 +421,7 @@ Record the object key, UTC time, live/restored counts, checksum, and off-AWS pat
 - Consumes: the runtime files already installed by `deploy/aws/bootstrap.sh`.
 - Produces: one checksummed archive plus exact S3/SSM commands that can bootstrap a clean replacement instance.
 
-- [ ] **Step 1: Add a failing bundle contract**
+- [x] **Step 1: Add a failing bundle contract**
 
 Extend `deploy/aws/tests/runtime-contract.sh` to require `package-bootstrap.sh` and assert that the archive includes exactly:
 
@@ -478,7 +478,7 @@ bash deploy/aws/tests/runtime-contract.sh
 
 Expected: failure because `deploy/aws/package-bootstrap.sh` does not exist yet.
 
-- [ ] **Step 2: Implement validated bundle creation**
+- [x] **Step 2: Implement validated bundle creation**
 
 Create `deploy/aws/package-bootstrap.sh` with this implementation:
 
@@ -531,7 +531,7 @@ echo "Created $checksum"
 
 This script reads only the eight fixed inputs, so real parameters, generated environment files, database dumps, and tokens cannot enter the archive through directory recursion.
 
-- [ ] **Step 3: Verify the real archive**
+- [x] **Step 3: Verify the real archive**
 
 Run:
 
@@ -544,13 +544,13 @@ bash deploy/aws/tests/runtime-contract.sh
 
 Expected: the archive lists exactly the eight runtime files and both checksum and contract checks pass.
 
-- [ ] **Step 4: Document clean-host delivery**
+- [x] **Step 4: Document clean-host delivery**
 
 In `deploy/aws/README.md`, document this sequence: build the archive; set `RELEASE_SHA="$(git rev-parse HEAD)"`; upload both archive and checksum under `bootstrap/$RELEASE_SHA/`; use SSM on the exact replacement instance to download both; verify the checksum; extract into a new `/opt/guesswho/bootstrap-source` directory; run `bootstrap.sh` from that directory with `PUBLIC_HOSTNAME`, `ARTIFACT_BUCKET`, and `AWS_REGION`; run bootstrap a second time to prove idempotency; then deploy the server through the existing GitHub workflow.
 
 Always derive `RELEASE_SHA` with `git rev-parse HEAD` during execution rather than typing a branch name or mutable label.
 
-- [ ] **Step 5: Run the full local release contracts again**
+- [x] **Step 5: Run the full local release contracts again**
 
 Run:
 

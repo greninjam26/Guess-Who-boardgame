@@ -493,8 +493,8 @@ aggregation, normalized database storage, and transactional rollback.
 three releases, with each one marked as it lands. The server is live, and its
 operational checks, bootstrap bundle and both target-native installers have
 passed their gates. v2.0 still needs the two-person, two-network game, a restore
-of the resulting non-empty backup, a bootstrap on a fresh replacement instance,
-and the release tag.
+of the resulting non-empty backup, accepted-build screenshots, and the release
+tag.
 
 ## Data and Assets
 
