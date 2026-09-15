@@ -629,15 +629,15 @@ Add the workflow URL, artifact names, candidate SHA, macOS version/result, and W
 - Consumes: passing evidence from Tasks 1–6.
 - Produces: durable project documentation and a release-ready, untagged working tree.
 
-- [ ] **Step 1: Close only the Phase 10 gates with evidence**
+- [x] **Step 1: Close only the Phase 10 gates with evidence**
 
 Mark each remaining Phase 10 checkbox complete only when its deployment-log evidence exists. Keep `Tag v2.0` unchecked until the tag actually exists.
 
-- [ ] **Step 2: Update the end-user README after installer acceptance**
+- [x] **Step 2: Update the end-user README after installer acceptance**
 
 Replace the current limitation saying released installers use localhost with the accepted v2.0 behavior. Keep the source-run localhost default and `guesswho.server.url` override documented for developers. Add current application screenshots only if they show the accepted build.
 
-- [ ] **Step 3: Reconcile the architecture and runbook**
+- [x] **Step 3: Reconcile the architecture and runbook**
 
 Update `docs/ARCHITECTURE.md` only if the accepted deployment or replacement-bootstrap path differs from the architecture already recorded. Make the runbook's remaining-language and every open Phase 10 checkbox agree.
 
