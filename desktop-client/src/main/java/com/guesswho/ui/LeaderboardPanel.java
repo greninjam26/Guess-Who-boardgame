@@ -5,6 +5,7 @@ import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import java.awt.BorderLayout;
+import java.net.ProtocolException;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -52,8 +53,10 @@ class LeaderboardPanel extends JPanel {
                 SwingUtilities.invokeLater(() -> {
                     refreshButton.setEnabled(true);
                     if (failure != null) {
-                        statusLabel.setText(
-                                "Leaderboard is unavailable. Start the server and try again.");
+                        ProtocolException protocolFailure = protocolFailure(failure);
+                        statusLabel.setText(protocolFailure == null
+                                ? "Leaderboard is unavailable. Start the server and try again."
+                                : protocolFailure.getMessage());
                         statusLabel.setVisible(true);
                         standingsTable.setVisible(false);
                         return;
@@ -69,6 +72,17 @@ class LeaderboardPanel extends JPanel {
                     statusLabel.setVisible(false);
                     standingsTable.setVisible(true);
                 }));
+    }
+
+    private static ProtocolException protocolFailure(Throwable failure) {
+        Throwable cause = failure;
+        while (cause != null) {
+            if (cause instanceof ProtocolException protocolException) {
+                return protocolException;
+            }
+            cause = cause.getCause();
+        }
+        return null;
     }
 
     private static final class LeaderboardTableModel extends AbstractTableModel {

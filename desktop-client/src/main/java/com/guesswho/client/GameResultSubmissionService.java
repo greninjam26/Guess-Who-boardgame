@@ -2,6 +2,7 @@ package com.guesswho.client;
 
 import com.guesswho.game.GameResult;
 
+import java.net.ProtocolException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -49,7 +50,13 @@ public class GameResultSubmissionService {
      */
     public CompletableFuture<Void> submit(GameResult gameResult, String token) {
         return serverClient.submit(gameResult, token)
-                .handle((ignored, failure) -> failure == null)
+                .handle((ignored, failure) -> {
+                    if (isProtocolFailure(failure)) {
+                        throw new java.util.concurrent.CompletionException(
+                                protocolFailure(failure));
+                    }
+                    return failure == null;
+                })
                 .thenCompose(accepted -> {
                     if (!accepted) {
                         pendingResults.add(gameResult);
@@ -57,6 +64,21 @@ public class GameResultSubmissionService {
                     }
                     return uploadQueued();
                 });
+    }
+
+    private static boolean isProtocolFailure(Throwable failure) {
+        return protocolFailure(failure) != null;
+    }
+
+    private static ProtocolException protocolFailure(Throwable failure) {
+        Throwable cause = failure;
+        while (cause != null) {
+            if (cause instanceof ProtocolException protocolException) {
+                return protocolException;
+            }
+            cause = cause.getCause();
+        }
+        return null;
     }
 
     private CompletableFuture<Void> uploadQueued() {

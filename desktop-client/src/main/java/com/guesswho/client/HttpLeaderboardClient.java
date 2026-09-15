@@ -4,6 +4,7 @@ import com.guesswho.game.GameMode;
 import com.guesswho.leaderboard.LeaderboardEntry;
 
 import java.io.IOException;
+import java.net.ProtocolException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -63,6 +64,10 @@ public class HttpLeaderboardClient implements LeaderboardClient {
                 : URI.create(endpoint + "?mode=" + mode.name());
         return httpGetter.get(request)
                 .thenApply(response -> {
+                    if (response.statusCode() == 426) {
+                        throw new CompletionException(new ProtocolException(
+                                messageFrom(response.body())));
+                    }
                     if (response.statusCode() != 200) {
                         throw new CompletionException(new IOException(
                                 "Leaderboard request returned HTTP "
@@ -70,6 +75,17 @@ public class HttpLeaderboardClient implements LeaderboardClient {
                     }
                     return parse(response.body());
                 });
+    }
+
+    private static String messageFrom(String body) {
+        try {
+            String detail = JSON_MAPPER.readTree(body).path("detail").asString();
+            return detail == null || detail.isBlank()
+                    ? "This version is too old. Update the game."
+                    : detail;
+        } catch (RuntimeException unparseable) {
+            return "This version is too old. Update the game.";
+        }
     }
 
     private List<LeaderboardEntry> parse(String body) {

@@ -50,6 +50,28 @@ class HttpAccountClientTest {
     }
 
     @Test
+    void explainsWhenTheServerRequiresANewerClientToLogIn() {
+        Outcome outcome = clientReturning(426,
+                "{\"detail\":\"This version is too old. Download Guess Who 2.1 or later.\"}")
+                .logIn("greninja", "a-good-password").join();
+
+        assertEquals(Outcome.Kind.OUTDATED, outcome.kind());
+        assertEquals("This version is too old. Download Guess Who 2.1 or later.",
+                outcome.message());
+    }
+
+    @Test
+    void explainsWhenTheServerRequiresANewerClientToRegister() {
+        Outcome outcome = clientReturning(426,
+                "{\"detail\":\"This version is too old. Download Guess Who 2.1 or later.\"}")
+                .register("greninja", "a-good-password").join();
+
+        assertEquals(Outcome.Kind.OUTDATED, outcome.kind());
+        assertEquals("This version is too old. Download Guess Who 2.1 or later.",
+                outcome.message());
+    }
+
+    @Test
     void reportsANameSomebodyElseHas() {
         Outcome outcome = clientReturning(409, "").register("greninja", "pw").join();
 

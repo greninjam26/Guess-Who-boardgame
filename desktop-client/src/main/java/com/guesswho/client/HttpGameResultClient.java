@@ -4,6 +4,7 @@ import com.guesswho.game.GameResult;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.ProtocolException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -49,6 +50,10 @@ public class HttpGameResultClient implements GameResultClient {
                 .thenCompose(statusCode -> {
                     if (statusCode == 201) {
                         return CompletableFuture.completedFuture(null);
+                    }
+                    if (statusCode == 426) {
+                        return CompletableFuture.failedFuture(new ProtocolException(
+                                "This version is too old. Update the game."));
                     }
                     return CompletableFuture.failedFuture(new IOException(
                             "Game-result submission returned HTTP " + statusCode));
