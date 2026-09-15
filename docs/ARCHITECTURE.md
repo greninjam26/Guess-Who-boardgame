@@ -480,7 +480,7 @@ meaningful.
 ## Distribution
 
 ```text
-  desktop-client + game-core ──jpackage──▶  .dmg / .exe  (bundled JRE)
+  desktop-client + game-core ──jpackage──▶  .dmg / .msi  (bundled JRE)
   server + game-core         ──deploy───▶  one EC2 instance on AWS, below
 ```
 

@@ -56,8 +56,9 @@ jobs:
       # A tagged release must not ship installers that point at localhost. They
       # would build, install and launch perfectly, and every online game would
       # fail on a machine with no server — which looks like the game being
-      # broken rather than the release being misbuilt. A manual run may omit it,
-      # because that is for checking a build rather than giving anybody the game.
+      # broken rather than the release being misbuilt. A manual run may omit it
+      # when checking a local-only build, but the repository variable is passed
+      # to manual runs when it is configured.
       - name: Require a server endpoint for a release
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -75,8 +76,8 @@ jobs:
         # bash on the Windows runner too, so one script covers both platforms.
         shell: bash
         env:
-          # Unset on a manual run, which keeps the localhost behaviour a
-          # developer expects. Set on a tag, checked by the step above.
+          # Passed on both kinds of run. Tags require it in the step above;
+          # manual runs may intentionally leave it unset for a localhost build.
           GUESSWHO_SERVER_URL: ${{ vars.GUESSWHO_SERVER_URL }}
         run: ./packaging/build-installer.sh
 

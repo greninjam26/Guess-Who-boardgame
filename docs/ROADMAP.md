@@ -26,7 +26,7 @@ install and hand to someone, and it arrives well before the two XL phases.
 | Client    | Swing + FlatLaf       | The work ahead is architectural, not visual. Switching toolkits would stack a rewrite on a refactor. |
 | Server    | One Spring Boot app   | A monolith, deliberately. The load never justifies anything else.                                    |
 | Transport | Polling, not sockets  | Turns take a human ten seconds. A 1–2s poll is indistinguishable from realtime.                      |
-| Delivery  | `jpackage` installers | Native `.dmg` / `.exe` with a bundled JRE. Nobody installs Java.                                     |
+| Delivery  | `jpackage` installers | Native `.dmg` / `.msi` with a bundled JRE. Nobody installs Java.                                     |
 
 ## The dependency spine
 
@@ -616,8 +616,9 @@ Manager with no AWS key stored anywhere. How it was built, what it costs, how it
 comes down, and what happened along the way are in
 [deploy/aws/README.md](../deploy/aws/README.md).
 
-**Live is not the same as accepted.** Nothing below that depends on the
-deployment is ticked until two people have played a game on it.
+**Live is not the same as accepted.** Only gates backed by deployment-log
+evidence are ticked. The deployment itself remains open until two people have
+played a game on it.
 
 - [x] **PostgreSQL.** `V8`'s `CLOB` became `TEXT`, and CI runs every migration
       against PostgreSQL 15 — and fails if that test was skipped, rather than
@@ -665,8 +666,9 @@ deployment is ticked until two people have played a game on it.
       variable is set, both native jobs passed in installer workflow run
       34927610374, and the artifacts reached the public service on macOS 26.5.2
       arm64 and Windows 11 Pro 24H2 (OS build 26100.8457).
-- [ ] Rewrite the README around what it became: architecture, the commitment
-      scheme, why it's a monolith, and screenshots.
+- [x] Rewrite the README around what it became: architecture, the commitment
+      scheme, why it's a monolith, and the validated installer state.
+- [ ] Add current screenshots once they show the accepted v2 build.
 - [ ] Tag `v2.0`.
 
 **Tear down by 2027-02-26.** The Free Plan started on 2026-09-14 and ends on
@@ -790,15 +792,15 @@ anything it cannot place against the board.
 
 Everything through Phase 09 is done, and v2.0 is deployed but not accepted.
 v1.0 shipped as installers anyone can download; the server online play needs has
-been running since 2026-09-14.
+been running since 2026-09-14, and validated v2 installer candidates connect to
+it on both target platforms.
 
-**Next: release acceptance, not Phase 11.** Package the replacement-host
-bootstrap inputs first so the candidate can be frozen, then close the live-host
-observation and recovery gates. Play one game with two people, two machines and
-two networks against <https://greninja-guesswho.duckdns.org>, restarting the
-service while it is being played. Restore the resulting non-empty backup and
-validate both native installers before tagging. The runbook has the procedures
-and says where to write down what happened.
+**Next: release acceptance, not Phase 11.** Play one game with two people, two
+machines and two networks against <https://greninja-guesswho.duckdns.org>,
+restarting the service while it is being played. Restore the resulting
+non-empty backup, prove the checked bootstrap bundle on a fresh replacement
+instance, then tag. The runbook has the procedures and says where to write down
+what happened.
 
 What an automated check can prove has been proven: `rehearsals/` stops a real
 server mid-game, restores a backup taken during one, and pushes forged addresses
@@ -808,8 +810,6 @@ clock forfeit nothing, whether the reveal renders.
 
 Carried forward and not forgotten:
 
-- Nobody has run the Windows installer. CI proves it builds; the `.msi` has only
-  ever been a file.
 - The rate limits are guesses. Their ratios are argued for; their absolute values
   have never met a real player. Expect to tune them once people play.
 - No CI job runs the AWS contract tests under `deploy/aws/tests/` — only the
@@ -818,9 +818,6 @@ Carried forward and not forgotten:
 - `deploy/aws/tests/bootstrap-password-test.sh` starts a real PostgreSQL, unlike
   the contract tests beside it, and fails on macOS unless `LC_ALL=C` is set. It
   belongs with the rehearsals, or needs the locale set inside it.
-- The installers workflow says `GUESSWHO_SERVER_URL` is unset on a manual run.
-  That holds only while the repository variable is unset: once it is set, a
-  manual run bakes the public server into its installers too.
 - A deploy started from any branch but `main` fails only when AWS refuses the
   credentials, after the build and the tests have run. A branch check at the top
   of `deploy-aws.yml` would fail it in seconds.

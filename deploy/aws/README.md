@@ -329,9 +329,10 @@ the deployment log below.
 
 ### Closing the live-host release gates
 
-Before the two-client session, close the operational gates that prove the host
-can be observed, rebuilt and recovered. Record each result separately in the
-[deployment log](#deployment-log), with its UTC time and release SHA:
+The initial host passed these operational gates on 2026-09-15. Repeat them for
+a replacement host or a material deployment change, and record each result
+separately in the [deployment log](#deployment-log), with its UTC time and
+release SHA:
 
 1. Confirm the installed Caddyfile removes `X-Real-IP` using the check above.
 2. Confirm `amazon-cloudwatch-agent` is active and the server log group has a
