@@ -633,23 +633,23 @@ deployment is ticked until two people have played a game on it.
 - [ ] **Deploy the server.** Running, and passing the public smoke test:
       certificate, status, API version, nothing leaked, and ports 22, 8080 and
       5432 closed. Ticked after the acceptance session, not before.
-- [ ] **Rehearse a rollback on the live host**, both ways the runbook describes:
-      a corrupt artifact refused before anything changes, and a candidate that
-      installs but never becomes healthy replaced by the previous release.
-      Deferred to the real host because `deploy.sh` depends on `systemctl` and
-      `/opt/guesswho`, and nothing records it as done.
-- [ ] **Run bootstrap a second time on the live host** and confirm it changes
-      nothing. Being safe to re-run is claimed by the script, and not yet shown
-      on Amazon Linux.
-- [ ] **Confirm the host's Caddyfile strips `X-Real-IP`.** Nothing outside can
-      tell, because nothing reads the header; the runbook has the one-line
-      check.
-- [ ] **Confirm logs are arriving in CloudWatch.** The log group exists and the
-      agent is configured, but nobody has looked at a stream.
-- [ ] **Confirm the budget alert subscription.** AWS emails a confirmation when
-      the stack is created, and until it is clicked the alerts go nowhere.
-- [ ] **Rehearse the teardown with `--dry-run`** now, while there is time to fix
-      what it finds, rather than for the first time on the day.
+- [x] **Rehearse a rollback on the live host**, both ways the runbook describes:
+      a corrupt artifact was refused before anything changed, and a candidate
+      that installed but never became healthy was replaced by the exact
+      previous release.
+- [x] **Run bootstrap a second time on the live host** and confirm it changes
+      nothing. All rendered-file hashes stayed identical on Amazon Linux; only
+      CloudWatch Agent restarted when its configuration was reapplied.
+- [x] **Confirm the host's Caddyfile strips `X-Real-IP`.** The rendered file
+      contains `request_header -X-Real-IP`.
+- [x] **Confirm logs are arriving in CloudWatch.** An ECS JSON event from the
+      deployed server was present in the instance's log stream.
+- [x] **Verify both budget alert recipients.** The 80% and 100% actual-cost
+      alerts each name the same direct email recipient. Amazon SNS is not
+      enabled, so there is no SNS subscription confirmation to accept.
+- [x] **Rehearse the teardown with `--dry-run`.** It exported and verified the
+      newest backup, named the bucket and stack it would remove, and reported
+      that nothing was deleted.
 - [ ] **Two-client acceptance against the deployed server**, from two different
       networks, with the service restarted in the middle of the game. The
       procedure is in the runbook.
@@ -657,9 +657,10 @@ deployment is ticked until two people have played a game on it.
       against an empty database, which proves the archive and not its contents.
       Include a game with questions asked, so the answers table has rows too —
       it was the one table the local backup rehearsal left empty.
-- [ ] **A replacement instance can be bootstrapped.** `bootstrap.sh` installs
-      seven files from its own directory and nothing puts them on a new host;
-      the first one was bootstrapped by copying them over by hand.
+- [ ] **A replacement instance can be bootstrapped.** The candidate now packages
+      and delivers the fixed eight-file input bundle, and a checked copy reran
+      cleanly on the existing host. A fresh replacement instance still has to
+      prove the entire path from an empty machine.
 - [ ] **Rebuild the installers against the deployed server** — which first
       needs the `GUESSWHO_SERVER_URL` repository variable set — and run the
       Windows one on Windows.

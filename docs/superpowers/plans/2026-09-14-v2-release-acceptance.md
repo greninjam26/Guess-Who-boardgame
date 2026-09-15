@@ -140,11 +140,11 @@ aws logs describe-log-streams \
 
 Expected: at least one stream has a recent `lastEventTimestamp`. Open that stream and confirm one deployed server event is present before recording the gate.
 
-- [ ] **Step 2: Confirm both budget email subscriptions**
+- [ ] **Step 2: Verify both budget email recipients**
 
 In AWS Billing and Cost Management, open Budgets → `guess-who-demo` and inspect its subscribers.
 
-Expected: the configured address is confirmed for both the 80% and 100% actual-cost notifications. Record only the confirmation state, never the email address.
+Expected: both the 80% and 100% actual-cost notifications name the intended direct email recipient. Direct `EMAIL` subscribers expose no confirmation state; only an Amazon SNS subscription needs separate confirmation. Record that the recipients match, never the email address.
 
 - [ ] **Step 3: Run bootstrap a second time on the live host**
 

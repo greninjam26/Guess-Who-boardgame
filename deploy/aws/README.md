@@ -114,9 +114,11 @@ resource is tagged. It fails on any of them.
      --change-set-name initial
    ```
 
-6. **Confirm the budget email.** AWS sends a subscription confirmation; until
-   you click it the alerts go nowhere. This is the easiest step to skip and the
-   one whose absence you find out about last.
+6. **Verify both budget email recipients.** Open the 80% and 100% alerts and
+   confirm that each names the intended direct email recipient. Direct `EMAIL`
+   subscribers have no confirmation state in the Budgets API or console. If the
+   budget is changed to use Amazon SNS, that SNS subscription must be confirmed
+   before it can deliver notifications.
 
 7. **Record the dates** in the deployment log at the bottom of this file: the
    day the Free Plan started, its expiry, and the day-165 teardown date.
@@ -343,9 +345,11 @@ can be observed, rebuilt and recovered. Record each result separately in the
      --max-items 1
    ```
 
-3. In AWS Billing and Cost Management → Budgets → `guess-who-demo`, confirm the
-   subscriber is confirmed for both the 80% and 100% actual-cost notifications.
-   Record the confirmation state, never the address.
+3. In AWS Billing and Cost Management → Budgets → `guess-who-demo`, open both
+   actual-cost alerts and confirm that the intended direct email recipient is
+   configured at 80% and 100%. Record that the recipients match, never the
+   address. If Amazon SNS is enabled later, separately confirm its subscription
+   in the SNS console.
 4. Run bootstrap a second time using the checked eight-file source directory
    above. All four services must remain active and both the loopback and public
    status endpoints must answer.
@@ -363,21 +367,43 @@ configuration.
 ### Rehearsing a rollback
 
 Do this once, before trusting it. Two failures, and the second needs building
-deliberately. No rollback rehearsal on the live host is in the deployment log
-yet.
+deliberately. Both paths were rehearsed on the live host on 2026-09-15; these
+steps remain the recovery check for a replacement host or changed deploy script.
 
-**A corrupt artifact.** Upload something that is not a JAR under a test prefix
-and run `deploy.sh` against it by hand through Session Manager:
+The deployment workflow deliberately removes its temporary copy of `deploy.sh`
+after every run, so fetch the script for the currently running release and
+verify its published checksum before either rehearsal:
 
 ```bash
 ARTIFACT_BUCKET="$(sudo sed -n 's/^ARTIFACT_BUCKET=//p' /etc/guesswho/backup.env)"
 AWS_REGION="$(sudo sed -n 's/^AWS_REGION=//p' /etc/guesswho/backup.env)"
 test -n "$ARTIFACT_BUCKET" && test -n "$AWS_REGION"
+CURRENT_RELEASE="$(basename "$(readlink -f /opt/guesswho/current/server.jar)")"
+CURRENT_RELEASE="${CURRENT_RELEASE#server-}"
+CURRENT_RELEASE="${CURRENT_RELEASE%.jar}"
+case "$CURRENT_RELEASE" in
+  *[!0-9a-f]*|'') echo "current release is not a Git SHA" >&2; exit 1 ;;
+esac
+test "${#CURRENT_RELEASE}" -eq 40
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+for file in deploy.sh deploy.sh.sha256; do
+  aws s3 cp "s3://$ARTIFACT_BUCKET/releases/$CURRENT_RELEASE/$file" \
+    "$work/$file" --region "$AWS_REGION"
+done
+(cd "$work" && sha256sum -c deploy.sh.sha256)
+DEPLOY_SCRIPT="$work/deploy.sh"
+```
+
+**A corrupt artifact.** Upload something that is not a JAR under a test prefix
+and run `deploy.sh` against it by hand through Session Manager:
+
+```bash
 echo "not a jar" > /tmp/notajar
 aws s3 cp /tmp/notajar \
   "s3://$ARTIFACT_BUCKET/releases/rollback-test-1/server.jar" \
   --region "$AWS_REGION" --sse AES256
-sudo bash /opt/guesswho/deploy.sh "$ARTIFACT_BUCKET" rollback-test-1
+sudo bash "$DEPLOY_SCRIPT" "$ARTIFACT_BUCKET" rollback-test-1
 ```
 
 Expected: `jar tf` rejects it, the message says nothing was changed, and
@@ -405,7 +431,7 @@ jar tf bad.jar >/dev/null
 aws s3 cp bad.jar \
   "s3://$ARTIFACT_BUCKET/releases/rollback-test-2/server.jar" \
   --region "$AWS_REGION" --sse AES256
-sudo bash /opt/guesswho/deploy.sh "$ARTIFACT_BUCKET" rollback-test-2
+sudo bash "$DEPLOY_SCRIPT" "$ARTIFACT_BUCKET" rollback-test-2
 ```
 
 Expected: the candidate cannot start, the health retry times out, the symlink
@@ -710,3 +736,10 @@ is gone.
 | 2026-09-14 | `c3657c3` | Forwarding boundary on the live host: 30 sign-ins, each with a different forged `X-Forwarded-For`, went from `401` to `429` after ten | greninjam26 |
 | 2026-09-14 | `c3657c3` | Backup `guesswho-20260914T191252Z.dump.gz`: passed `gzip -t`, read as a PostgreSQL 15 custom-format archive, restored into a temporary database. Counts matched at **0 accounts and 0 results** — this proves the archive, not its contents. Copy kept off AWS, SHA-256 `025db5712f94361b0404067e56944620f05695bb899dcc94f8c0063219e06da0` | greninjam26 |
 | 2026-09-14 | `c3657c3` | Checked from outside: certificate valid until 2026-12-13, `http://` redirects to `https://`, a 404 names nothing inside, smoke test 7 of 7 with ports 22, 8080 and 5432 closed. Not checkable from outside: whether the host's Caddyfile strips `X-Real-IP` | Claude Code |
+| 2026-09-15 01:09 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Release preflight on Darwin 25.5.0 arm64: Maven 3.9.16 running on OpenJDK 26.0.2.1 completed `clean verify` with 701 tests, 0 failures or errors and 2 expected locally gated PostgreSQL tests skipped; all 6 deployment and packaging contracts passed. [Maven CI run 34915859790](https://github.com/greninjam26/Guess-Who-boardgame/actions/runs/34915859790) passed on Java 17 and confirmed the PostgreSQL migration test ran. Public `/api/status` returned online and the smoke test passed 7 of 7 with ports 22, 8080 and 5432 closed | Codex |
+| 2026-09-15 03:47 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Budget notification gate: the API and console showed one matching direct email recipient on each of the 80% and 100% actual-cost alerts. Amazon SNS is not enabled; direct `EMAIL` subscribers expose no confirmation state. No address was recorded | Codex |
+| 2026-09-15 01:13 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Live-host observation gate: the installed Caddyfile contains `request_header -X-Real-IP`; Caddy and CloudWatch Agent were active; the server log ended with one ECS JSON object; and that same event, timestamped 2026-09-15 01:08:41 UTC, was present in CloudWatch Logs | Codex |
+| 2026-09-15 01:18 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Packaged and checksum-verified the candidate's fixed eight-file bootstrap bundle, stored it under `bootstrap/0a770473a8520e4df9e9d45bef3e35b0b2c9c348/`, and reran it from the checked source directory. All bootstrap checks and four service checks passed, loopback status returned online, every rendered-file hash stayed unchanged, and only CloudWatch Agent restarted as expected when its configuration was reapplied | Codex |
+| 2026-09-15 01:20 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Corrupt-artifact rollback gate: a checksum-verified copy of the currently deployed release's `deploy.sh` rejected `rollback-test-1` with exit 1 before changing the symlink; the exact `c3657c366803341bd5980448d8e5a3b7c327d759` release remained current and loopback status stayed online | Codex |
+| 2026-09-15 01:21 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | Unhealthy-candidate rollback gate: `rollback-test-2` passed `jar tf`, replaced the current symlink, failed its health window, and triggered automatic rollback. The symlink returned exactly to `server-c3657c366803341bd5980448d8e5a3b7c327d759.jar`, the service answered online, and both named S3 test prefixes and `/tmp` rehearsal inputs were removed | Codex |
+| 2026-09-15 01:26 UTC | `0a770473a8520e4df9e9d45bef3e35b0b2c9c348` | `teardown.sh --dry-run` resolved the live stack and bucket, exported `guesswho-20260915T002025Z.dump.gz` off AWS, passed `gzip -t`, read 71 PostgreSQL archive entries, and retained SHA-256 `95206d2c7f191cf32ffdbcf2298659b6e9b3e9f13aedc4a3ce47dde5829b6e19`. It named the bucket and stack it would remove and explicitly reported that nothing was deleted | Codex |
