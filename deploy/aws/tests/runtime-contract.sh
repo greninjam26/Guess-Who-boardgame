@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
 # Checks the files that configure the host: the bootstrap script, the systemd
-# units, the Caddyfile, the backup script and the smoke test.
+# units, the Caddyfile, the backup script, the smoke test and the bootstrap
+# bundle packager.
 #
 # None of these run anywhere but the instance, which means the usual way to find
 # a mistake in them is to deploy and watch. This reads them instead. Everything
 # asserted here is either a door left open, a promise the application makes that
 # the host has to keep, or a backup that silently is not one.
 #
-# Reads files, runs nothing, needs no AWS.
+# Reads files and runs the local-only bundle packager, needs no AWS.
 
 set -uo pipefail
 
@@ -35,13 +36,63 @@ hasnt() {
     [ -f "$aws_dir/$1" ] && ! grep -qF -- "$2" "$aws_dir/$1"
 }
 
-scripts="bootstrap.sh backup.sh smoke-test.sh set-db-password.sh"
+scripts="bootstrap.sh backup.sh smoke-test.sh set-db-password.sh package-bootstrap.sh"
 units="guesswho.service guesswho-backup.service guesswho-backup.timer"
 others="Caddyfile cloudwatch-agent.json"
 
 for f in $scripts $units $others; do
     need_file "$f"
 done
+
+# --- replacement hosts receive one exact, checksummed bundle -------------
+runtime_files="bootstrap.sh set-db-password.sh backup.sh guesswho.service guesswho-backup.service guesswho-backup.timer Caddyfile cloudwatch-agent.json"
+bundle_test_root="$(mktemp -d)"
+trap 'rm -rf "$bundle_test_root"' EXIT
+bundle_aws_dir="$bundle_test_root/deploy/aws"
+bundle_output_dir="$bundle_test_root/target/aws-bootstrap"
+bundle_archive="$bundle_output_dir/guesswho-bootstrap.tar.gz"
+bundle_checksum="$bundle_archive.sha256"
+
+if [ -f "$aws_dir/package-bootstrap.sh" ]; then
+    mkdir -p "$bundle_aws_dir"
+    cp "$aws_dir/package-bootstrap.sh" "$bundle_aws_dir/"
+    for f in $runtime_files; do
+        cp "$aws_dir/$f" "$bundle_aws_dir/"
+    done
+
+    # Files beside the runtime inputs must not enter the archive. In the real
+    # checkout these names can hold deployment values or generated data.
+    touch "$bundle_aws_dir/parameters.json" \
+        "$bundle_aws_dir/server.env" \
+        "$bundle_aws_dir/database.dump" \
+        "$bundle_aws_dir/access.token"
+
+    if ! bash "$bundle_aws_dir/package-bootstrap.sh" >/dev/null; then
+        fail "package-bootstrap.sh could not build the runtime bundle"
+    elif [ ! -f "$bundle_archive" ] || [ ! -f "$bundle_checksum" ]; then
+        fail "package-bootstrap.sh did not create the archive and checksum"
+    else
+        expected_entries="$(printf '%s\n' $runtime_files)"
+        actual_entries="$(tar -tzf "$bundle_archive")"
+        [ "$actual_entries" = "$expected_entries" ] \
+            || fail "the bootstrap archive does not contain exactly the runtime files"
+
+        if command -v sha256sum >/dev/null 2>&1; then
+            (cd "$bundle_output_dir" && sha256sum -c "$(basename "$bundle_checksum")" >/dev/null) \
+                || fail "the bootstrap archive checksum does not verify"
+        else
+            (cd "$bundle_output_dir" && shasum -a 256 -c "$(basename "$bundle_checksum")" >/dev/null) \
+                || fail "the bootstrap archive checksum does not verify"
+        fi
+    fi
+
+    rm "$bundle_aws_dir/cloudwatch-agent.json"
+    if bash "$bundle_aws_dir/package-bootstrap.sh" >"$bundle_test_root/missing.out" 2>&1; then
+        fail "package-bootstrap.sh accepts a missing runtime input"
+    elif ! grep -qF "Missing bootstrap input: cloudwatch-agent.json" "$bundle_test_root/missing.out"; then
+        fail "package-bootstrap.sh does not identify a missing runtime input"
+    fi
+fi
 
 # --- every script must at least parse ------------------------------------
 for f in $scripts; do
