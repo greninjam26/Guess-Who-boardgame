@@ -17,10 +17,8 @@ import javax.swing.JSlider;
 /**
  * Everything that is about the application rather than the game in progress.
  *
- * <p>Quitting, restarting, the leaderboard, and the music used to sit in a strip
- * across the top of every screen, including the ones where restarting means
- * nothing. They are actions a player reaches for occasionally, so they live
- * behind one button instead.</p>
+ * <p>Quitting, returning home, the leaderboard, help, and the music are actions
+ * a player reaches for occasionally, so they live behind one button instead.</p>
  */
 final class SettingsDialog {
     private SettingsDialog() {
@@ -32,19 +30,23 @@ final class SettingsDialog {
      * @param owner window the dialog belongs to
      * @param music the background music being controlled
      * @param leaderboardClient client used by the leaderboard window
-     * @param onRestart starts a new game
+     * @param onHome returns to the welcome screen
      * @param onQuit closes the application
      */
     static void show(
             JFrame owner,
             BackgroundMusic music,
             LeaderboardClient leaderboardClient,
-            Runnable onRestart,
+            Runnable onHome,
             Runnable onQuit) {
         JDialog dialog = new JDialog(owner, "Settings", true);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         dialog.setContentPane(
-                contents(owner, dialog, music, leaderboardClient, onRestart, onQuit));
+                contents(owner, dialog, music, leaderboardClient,
+                        () -> HowToPlayDialog.show(owner),
+                        () -> CharacterGuideDialog.show(owner),
+                        onHome,
+                        onQuit));
         dialog.pack();
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
@@ -58,7 +60,9 @@ final class SettingsDialog {
      * @param dialog window to close when an action is taken, or {@code null}
      * @param music the background music being controlled
      * @param leaderboardClient client used by the leaderboard window
-     * @param onRestart starts a new game
+     * @param onHowToPlay opens the rules
+     * @param onCharacterGuide opens the character reference
+     * @param onHome returns to the welcome screen
      * @param onQuit closes the application
      * @return the settings panel
      */
@@ -67,12 +71,15 @@ final class SettingsDialog {
             JDialog dialog,
             BackgroundMusic music,
             LeaderboardClient leaderboardClient,
-            Runnable onRestart,
+            Runnable onHowToPlay,
+            Runnable onCharacterGuide,
+            Runnable onHome,
             Runnable onQuit) {
         JPanel panel = new JPanel(new BorderLayout(0, 12));
         panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         panel.add(musicControls(music), BorderLayout.CENTER);
-        panel.add(actions(owner, dialog, leaderboardClient, onRestart, onQuit),
+        panel.add(actions(owner, dialog, leaderboardClient,
+                        onHowToPlay, onCharacterGuide, onHome, onQuit),
                 BorderLayout.SOUTH);
         return panel;
     }
@@ -110,23 +117,37 @@ final class SettingsDialog {
             JFrame owner,
             JDialog dialog,
             LeaderboardClient leaderboardClient,
-            Runnable onRestart,
+            Runnable onHowToPlay,
+            Runnable onCharacterGuide,
+            Runnable onHome,
             Runnable onQuit) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         JButton leaderboard = new JButton("Leaderboard");
-        JButton restart = new JButton("Restart");
+        JButton howToPlay = new JButton("How To Play");
+        JButton characterGuide = new JButton("Character Guide");
+        JButton home = new JButton("Home");
         JButton quit = new JButton("Quit");
         leaderboard.addActionListener(event -> {
             close(dialog);
             LeaderboardDialog.show(owner, leaderboardClient);
         });
-        restart.addActionListener(event -> {
+        howToPlay.addActionListener(event -> {
             close(dialog);
-            onRestart.run();
+            onHowToPlay.run();
+        });
+        characterGuide.addActionListener(event -> {
+            close(dialog);
+            onCharacterGuide.run();
+        });
+        home.addActionListener(event -> {
+            close(dialog);
+            onHome.run();
         });
         quit.addActionListener(event -> onQuit.run());
         panel.add(leaderboard);
-        panel.add(restart);
+        panel.add(howToPlay);
+        panel.add(characterGuide);
+        panel.add(home);
         panel.add(quit);
         return panel;
     }

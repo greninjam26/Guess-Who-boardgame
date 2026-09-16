@@ -22,8 +22,6 @@ import com.guesswho.game.GameStatus;
  * */
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.Optional;
 
 /**
@@ -46,6 +44,8 @@ public class GUI {
     private PlayerIdentity identity;
     private SignInScreen signInScreen;
     private AccountControls accountControls;
+    private boolean accountChoiceComplete;
+    private boolean gameActive;
     //online play, which has its own controller and its own screens
     private OnlineGameController onlineController;
     private OnlineRoomScreen onlineRoomScreen;
@@ -88,17 +88,30 @@ public class GUI {
      */
     public GUI() {
         images = new CharacterImages();
-        gameGUI();
-    }
-    private void gameGUI() {
         frame = new JFrame("Guess Who? Game");//name of the frame
         //No fixed size: every screen now states what it needs and pack() honours it.
         frame.setMinimumSize(new Dimension(760, 520));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
+        identity = new PlayerIdentity(accountClient, new TokenStore());
+        //Resuming is checked before the window is shown, so nobody types into
+        //a sign-in screen that then vanishes.
+        accountChoiceComplete = identity.resumePreviousSession().isPresent();
+        buildGameInterface();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+        //The online room first: it has a clock running and a room that expires,
+        //where a saved local game waits as long as it likes. Only one is offered
+        //on a launch — two questions before the menu is an interrogation.
+        if (!offerOnlineRoom()) {
+            offerSavedGame();
+        }
+    }
+
+    /** Builds a fresh game session inside the existing application window. */
+    private void buildGameInterface() {
         //inialization of some of the veriables
         GameSetup setup = new GameSetup();
-        identity = new PlayerIdentity(accountClient, new TokenStore());
         controller = new GameController(new Game(), setup);
         setupScreens = new SetupScreens(setup, this::showInputError, this::startGame,
                 this::beginOnlineGame);
@@ -110,7 +123,8 @@ public class GUI {
                     }
                     refreshFrame();
                 },
-                this::playAgain);
+                this::playAgain,
+                this::returnHome);
         //Account state stays visible on every screen. Changing it is enabled
         //only while setup is on screen, so an active game cannot lose its owner.
         JPanel controlPanel = new JPanel(new BorderLayout());
@@ -185,37 +199,22 @@ public class GUI {
         //this panel is used to leftthe first player to enter their selected character
         //this the for the second player to enter the selected character
 
-        //Signed in already, or asking. Resuming a session is checked before
-        //the window is shown, so nobody types into a screen that then vanishes.
-        boolean signedIn = identity.resumePreviousSession().isPresent();
         accountControls.show(identity.username());
-        accountControls.switchingAllowed(signedIn);
-        frame.add(signedIn ? setupScreens.panel() : signInScreen.panel(), BorderLayout.CENTER);
+        accountControls.switchingAllowed(accountChoiceComplete);
+        identity.username().ifPresent(controller.setup()::firstUsername);
+        frame.add(accountChoiceComplete ? setupScreens.panel() : signInScreen.panel(),
+                BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.NORTH);
-        // Show the frame
         frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-        //The online room first: it has a clock running and a room that expires,
-        //where a saved local game waits as long as it likes. Only one is offered
-        //on a launch — two questions before the menu is an interrogation.
-        if (!offerOnlineRoom()) {
-            offerSavedGame();
-        }
-        settingsButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                SettingsDialog.show(frame, music, leaderboardClient,
-                        () -> {
-                            frame.dispose();
-                            gameGUI();
-                        },
-                        () -> {
-                            music.close();
-                            frame.dispose();
-                        });
-            }
-        });
+        settingsButton.addActionListener(event -> SettingsDialog.show(
+                frame,
+                music,
+                leaderboardClient,
+                this::returnHome,
+                () -> {
+                    music.close();
+                    frame.dispose();
+                }));
     }
     /**
      * repaint the frame
@@ -271,6 +270,7 @@ public class GUI {
             handleGameStartFailure(exception);
             return;
         }
+        gameActive = true;
         accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         history.begin(
@@ -311,6 +311,7 @@ public class GUI {
             handleGameStartFailure(exception);
             return;
         }
+        gameActive = true;
         frame.remove(endingScreens.panel());
         frame.remove(history.firstPanel());
         frame.remove(history.secondPanel());
@@ -330,6 +331,7 @@ public class GUI {
     private void showEnding(String outcome) {
         //The game is over, so there is nothing left to come back to.
         savedGames.clear();
+        gameActive = false;
         frame.add(endingScreens.panel(), BorderLayout.CENTER);
         frame.add(history.firstPanel(), BorderLayout.EAST);
         frame.add(history.secondPanel(), BorderLayout.WEST);
@@ -344,6 +346,7 @@ public class GUI {
      */
     private void beginSetup() {
         frame.remove(signInScreen.panel());
+        accountChoiceComplete = true;
         controller.setup().firstUsername(identity.username().orElse(null));
         accountControls.show(identity.username());
         accountControls.switchingAllowed(true);
@@ -354,6 +357,7 @@ public class GUI {
     /** Opens a fresh account choice screen from setup. */
     private void showAccountChoice() {
         frame.remove(setupScreens.panel());
+        accountChoiceComplete = false;
         signInScreen = new SignInScreen(accountClient, identity, this::beginSetup);
         accountControls.switchingAllowed(false);
         frame.add(signInScreen.panel(), BorderLayout.CENTER);
@@ -366,6 +370,35 @@ public class GUI {
         controller.setup().firstUsername(null);
         accountControls.show(identity.username());
         showAccountChoice();
+    }
+
+    /** Stops the current session and rebuilds home inside this same window. */
+    private void returnHome() {
+        HomeNavigation.returnHome(
+                gameActive,
+                this::confirmLeavingGame,
+                this::stopCurrentGame,
+                frame.getContentPane(),
+                this::buildGameInterface);
+    }
+
+    private boolean confirmLeavingGame() {
+        int answer = JOptionPane.showConfirmDialog(
+                frame,
+                "Leave the current game and return home?",
+                "Return home",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        return answer == JOptionPane.YES_OPTION;
+    }
+
+    private void stopCurrentGame() {
+        savedGames.clear();
+        activeRoom.clear();
+        if (onlineController != null) {
+            onlineController.leave();
+        }
+        gameActive = false;
     }
 
     // --- online play ----------------------------------------------------
@@ -382,6 +415,7 @@ public class GUI {
             showInputError("Sign in to play online. You can play the rest as a guest.");
             return;
         }
+        gameActive = true;
         accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         onlineRoomScreen.begin();
@@ -421,6 +455,7 @@ public class GUI {
                 //the one that must still be remembered next time.
                 if (updated.status() == com.guesswho.room.RoomStatus.FINISHED) {
                     activeRoom.clear();
+                    gameActive = false;
                 }
                 else {
                     activeRoom.save(updated.code());
@@ -454,6 +489,7 @@ public class GUI {
             public void cannotContinue(String message) {
                 //Nothing to come back to, so nothing to offer next launch.
                 activeRoom.clear();
+                gameActive = false;
                 onlineScreens.showGone(message);
             }
 
@@ -473,6 +509,7 @@ public class GUI {
         //the code would offer a room the player chose to step out of.
         activeRoom.clear();
         onlineController.leave();
+        gameActive = false;
         frame.remove(onlineRoomScreen.panel());
         frame.remove(onlineScreens.panel());
         accountControls.switchingAllowed(true);
@@ -545,6 +582,7 @@ public class GUI {
             activeRoom.clear();
             return true;
         }
+        gameActive = true;
         accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         showOnlineBoard();
@@ -586,6 +624,7 @@ public class GUI {
         boardPanel2.restore(saved.secondBoard());
         history.restore(saved.firstTranscript(), saved.secondTranscript());
 
+        gameActive = true;
         accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         if (controller.setup().isAgainstPlayer()) {

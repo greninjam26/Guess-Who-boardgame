@@ -24,6 +24,7 @@ class EndingScreensTest {
     private static CharacterImages images;
     private final List<Boolean> trustworthy = new ArrayList<>();
     private final List<String> rematches = new ArrayList<>();
+    private final List<String> homeVisits = new ArrayList<>();
 
     @BeforeAll
     static void loadImages() throws Exception {
@@ -106,6 +107,16 @@ class EndingScreensTest {
     }
 
     @Test
+    void returnsHomeAfterTheFinishedGame() throws Exception {
+        EndingScreens screens = screensFor(finishedPlayerGame());
+        reveal(screens, "Alex won");
+
+        SwingUtilities.invokeAndWait(findButton(screens.panel(), "Home")::doClick);
+
+        assertEquals(List.of("home"), homeVisits);
+    }
+
+    @Test
     void showsOneResultAtATime() throws Exception {
         EndingScreens screens = screensFor(finishedComputerGame(false));
         reveal(screens, "You won");
@@ -138,7 +149,8 @@ class EndingScreensTest {
         AtomicReference<EndingScreens> reference = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> reference.set(
                 new EndingScreens(controller, images, trustworthy::add,
-                        () -> rematches.add("again"))));
+                        () -> rematches.add("again"),
+                        () -> homeVisits.add("home"))));
         return reference.get();
     }
 

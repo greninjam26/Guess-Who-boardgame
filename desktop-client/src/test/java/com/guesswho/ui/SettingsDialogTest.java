@@ -35,7 +35,9 @@ class SettingsDialogTest {
         JPanel panel = contents();
 
         assertTrue(button(panel, "Leaderboard") != null);
-        assertTrue(button(panel, "Restart") != null);
+        assertTrue(button(panel, "How To Play") != null);
+        assertTrue(button(panel, "Character Guide") != null);
+        assertTrue(button(panel, "Home") != null);
         assertTrue(button(panel, "Quit") != null);
     }
 
@@ -89,12 +91,30 @@ class SettingsDialogTest {
     }
 
     @Test
-    void restartingTellsTheApplication() throws Exception {
+    void openingTheRulesUsesTheHelpAction() throws Exception {
         JPanel panel = contents();
 
-        SwingUtilities.invokeAndWait(button(panel, "Restart")::doClick);
+        SwingUtilities.invokeAndWait(button(panel, "How To Play")::doClick);
 
-        assertEquals(List.of("restart"), actions);
+        assertEquals(List.of("rules"), actions);
+    }
+
+    @Test
+    void openingTheCharacterGuideUsesTheReferenceAction() throws Exception {
+        JPanel panel = contents();
+
+        SwingUtilities.invokeAndWait(button(panel, "Character Guide")::doClick);
+
+        assertEquals(List.of("guide"), actions);
+    }
+
+    @Test
+    void returningHomeTellsTheApplication() throws Exception {
+        JPanel panel = contents();
+
+        SwingUtilities.invokeAndWait(button(panel, "Home")::doClick);
+
+        assertEquals(List.of("home"), actions);
     }
 
     @Test
@@ -115,7 +135,9 @@ class SettingsDialogTest {
                 null,
                 music,
                 mode -> CompletableFuture.completedFuture(List.of()),
-                () -> actions.add("restart"),
+                () -> actions.add("rules"),
+                () -> actions.add("guide"),
+                () -> actions.add("home"),
                 () -> actions.add("quit"))));
         return reference.get();
     }
