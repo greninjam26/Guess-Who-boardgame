@@ -9,8 +9,6 @@ import java.awt.GridLayout;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -54,12 +52,14 @@ class EndingScreens {
     private final CharacterImages images;
     private final Completion completion;
     private final Rematch rematch;
+    private final Runnable home;
 
     private final CardLayout cards = new CardLayout();
     private final JPanel root = new JPanel(cards);
     private final JPanel revealPanel = new JPanel(new BorderLayout(0, 12));
     private final JPanel portraits = new JPanel(new GridLayout(1, 2, 24, 0));
     private final JButton playAgain = new JButton("Play again");
+    private final JButton homeButton = new JButton("Home");
     private final JLabel outcomeLabel = new JLabel();
     private final JLabel validationLabel = new JLabel();
     private final JComboBox<String> firstChoice = new JComboBox<>();
@@ -72,16 +72,19 @@ class EndingScreens {
      * @param images portraits used to show the revealed characters
      * @param completion notified once both characters are on screen
      * @param rematch notified when the players want another game
+     * @param home notified when the players want to return to the welcome screen
      */
     EndingScreens(
             GameController controller,
             CharacterImages images,
             Completion completion,
-            Rematch rematch) {
+            Rematch rematch,
+            Runnable home) {
         this.controller = controller;
         this.images = images;
         this.completion = completion;
         this.rematch = rematch;
+        this.home = home;
         root.add(namePanel("Which character did you have?", firstChoice, this::nameFirst),
                 NAME_FIRST);
         root.add(namePanel("Second player, which character did you have?",
@@ -91,6 +94,7 @@ class EndingScreens {
         below.add(validationLabel, BorderLayout.CENTER);
         JPanel again = new JPanel(new FlowLayout(FlowLayout.CENTER));
         again.add(playAgain);
+        again.add(homeButton);
         below.add(again, BorderLayout.SOUTH);
         revealPanel.add(outcomeLabel, BorderLayout.NORTH);
         revealPanel.add(portraits, BorderLayout.CENTER);
@@ -98,6 +102,7 @@ class EndingScreens {
         outcomeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         validationLabel.setHorizontalAlignment(SwingConstants.CENTER);
         playAgain.addActionListener(event -> rematch.playAgain());
+        homeButton.addActionListener(event -> home.run());
         root.add(revealPanel, REVEAL);
     }
 
