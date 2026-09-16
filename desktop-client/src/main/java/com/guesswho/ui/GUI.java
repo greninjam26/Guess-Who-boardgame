@@ -45,6 +45,7 @@ public class GUI {
     private final AccountClient accountClient = new HttpAccountClient();
     private PlayerIdentity identity;
     private SignInScreen signInScreen;
+    private AccountControls accountControls;
     //online play, which has its own controller and its own screens
     private OnlineGameController onlineController;
     private OnlineRoomScreen onlineRoomScreen;
@@ -110,10 +111,13 @@ public class GUI {
                     refreshFrame();
                 },
                 this::playAgain);
-        //One button, rather than three across the top of every screen.
-        JPanel controlPanel = new JPanel();
+        //Account state stays visible on every screen. Changing it is enabled
+        //only while setup is on screen, so an active game cannot lose its owner.
+        JPanel controlPanel = new JPanel(new BorderLayout());
+        accountControls = new AccountControls(this::showAccountChoice, this::signOut);
         JButton settingsButton = new JButton("Settings");
-        controlPanel.add(settingsButton);
+        controlPanel.add(accountControls, BorderLayout.WEST);
+        controlPanel.add(settingsButton, BorderLayout.EAST);
         boardPanel1 = CharacterBoard.tracking(images, this::saveGame);
         boardPanel2 = CharacterBoard.tracking(images, this::saveGame);
         guessBoardPanel = CharacterBoard.selecting(images, characterIndex -> {
@@ -184,6 +188,8 @@ public class GUI {
         //Signed in already, or asking. Resuming a session is checked before
         //the window is shown, so nobody types into a screen that then vanishes.
         boolean signedIn = identity.resumePreviousSession().isPresent();
+        accountControls.show(identity.username());
+        accountControls.switchingAllowed(signedIn);
         frame.add(signedIn ? setupScreens.panel() : signInScreen.panel(), BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.NORTH);
         // Show the frame
@@ -265,6 +271,7 @@ public class GUI {
             handleGameStartFailure(exception);
             return;
         }
+        accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         history.begin(
                 controller.setup().firstUsername(),
@@ -337,9 +344,28 @@ public class GUI {
      */
     private void beginSetup() {
         frame.remove(signInScreen.panel());
-        identity.username().ifPresent(controller.setup()::firstUsername);
+        controller.setup().firstUsername(identity.username().orElse(null));
+        accountControls.show(identity.username());
+        accountControls.switchingAllowed(true);
         frame.add(setupScreens.panel(), BorderLayout.CENTER);
         refreshFrame();
+    }
+
+    /** Opens a fresh account choice screen from setup. */
+    private void showAccountChoice() {
+        frame.remove(setupScreens.panel());
+        signInScreen = new SignInScreen(accountClient, identity, this::beginSetup);
+        accountControls.switchingAllowed(false);
+        frame.add(signInScreen.panel(), BorderLayout.CENTER);
+        refreshFrame();
+    }
+
+    /** Ends the session and returns to the account choice screen. */
+    private void signOut() {
+        identity.signOut();
+        controller.setup().firstUsername(null);
+        accountControls.show(identity.username());
+        showAccountChoice();
     }
 
     // --- online play ----------------------------------------------------
@@ -356,6 +382,7 @@ public class GUI {
             showInputError("Sign in to play online. You can play the rest as a guest.");
             return;
         }
+        accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         onlineRoomScreen.begin();
         frame.add(onlineRoomScreen.panel(), BorderLayout.CENTER);
@@ -432,6 +459,8 @@ public class GUI {
 
             @Override
             public void signedOut() {
+                identity.signOut();
+                accountControls.show(identity.username());
                 showInputError("You have been signed out. Sign in again to play online.");
                 leaveOnlinePlay();
             }
@@ -446,6 +475,7 @@ public class GUI {
         onlineController.leave();
         frame.remove(onlineRoomScreen.panel());
         frame.remove(onlineScreens.panel());
+        accountControls.switchingAllowed(true);
         frame.add(setupScreens.panel(), BorderLayout.CENTER);
         refreshFrame();
     }
@@ -515,6 +545,7 @@ public class GUI {
             activeRoom.clear();
             return true;
         }
+        accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         showOnlineBoard();
         onlineController.rejoin(room.get(), onlineView());
@@ -555,6 +586,7 @@ public class GUI {
         boardPanel2.restore(saved.secondBoard());
         history.restore(saved.firstTranscript(), saved.secondTranscript());
 
+        accountControls.switchingAllowed(false);
         frame.remove(setupScreens.panel());
         if (controller.setup().isAgainstPlayer()) {
             playerTurns.beginTurn();
