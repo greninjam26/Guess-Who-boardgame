@@ -667,6 +667,11 @@ played a game on it.
       variable is set, both native jobs passed in installer workflow run
       34927610374, and the artifacts reached the public service on macOS 26.5.2
       arm64 and Windows 11 Pro 24H2 (OS build 26100.8457).
+- [ ] **Revalidate the final post-UI installers.** Workflow run 35153890972
+      built both native candidates from commit `9a4d55c`. The macOS candidate
+      launches after the expected unsigned-app quarantine clearance; the
+      Windows candidate still needs an install/launch check, and both need a
+      smoke test of Home, How To Play, and the Character Guide.
 - [x] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and the validated installer state.
 - [ ] Add current screenshots once they show the accepted v2 build.

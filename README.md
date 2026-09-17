@@ -1,71 +1,93 @@
 # Guess Who Board Game
 
-A desktop adaptation of the classic Guess Who board game, written in Java with a Swing user interface. Players narrow down a board of 24 characters by asking yes-or-no questions and making a final guess.
+A desktop adaptation of Guess Who built with Java, Swing, and Spring Boot.
+Play locally against another person or the computer, or sign in and challenge a
+friend online with a six-character room code.
 
-## Features
+## Demo
 
-- Player-versus-computer games with easy and hard AI modes, including a
-  free-question mode that declines wording it cannot resolve without taking the
-  player's turn
-- Local player-versus-player games
-- Online games against a friend, using a six-character code — no matchmaking
-- A three-minute turn timer that forfeits only once the player who owes the move
-  has gone quiet for a minute and a half, so neither thinking hard nor a dropped
-  connection loses a game somebody is still playing
-- Online games recorded against both players' accounts when they finish
-- A dropped connection recovers on its own, and closing the app offers the game
-  back on the next launch
-- Accounts, with guest play for anyone who would rather not have one
-- A versioned API, so a game too old for the server is told to update rather
-  than failing in whatever way the mismatch happens to produce
-- Rate limits on signing in, registering, opening rooms and moving, so a server
-  on the open internet cannot be used to guess passwords
-- Preset-question and free-question game modes
-- Interactive character boards for tracking eliminated characters
-- Character and question data loaded from CSV files
-- Answers checked against the character a player committed to before playing —
-  and in an online game, both characters revealed at the end with a review of
-  whether the opponent answered as who they promised to be
-- HTTP submission of completed game results
-- Paginated HTTP history of completed games
-- Three leaderboards — vs Computer, vs Player (online), vs Player (same
-  machine) — kept apart because a game refereed by the server and a game
-  refereed by whoever holds the keyboard are not the same achievement
-- Leaderboard window available from the Swing application
-- Completed games queued locally and uploaded once the server is reachable again
-- Leaderboard rows that belong to an account, rather than to whoever typed a name
-- A game in progress saved automatically and offered back on the next launch
-- Background music with volume, mute, and pause, kept between sessions
-- Settings, rules, and the leaderboard reachable from one button
+[![Watch the Guess Who v2 demo on YouTube](docs/media/demo-preview.png)](https://youtu.be/HXcnNW5vhzs)
+
+[Watch the Guess Who v2.0 demo on YouTube](https://youtu.be/HXcnNW5vhzs)
+
+The v2 walkthrough demonstrates account status, game setup, player-versus-
+computer gameplay, the leaderboard, in-game help, the character guide, and
+returning home without restarting the application.
+
+## Highlights
+
+### Play your way
+
+- Player versus computer with easy and hard AI
+- Local two-player games on one computer
+- Online games against a friend using a room code
+- Preset questions or free-form questions
+- Interactive boards for tracking eliminated characters
+- Automatic local saves with resume on the next launch
+
+### Online play that survives real networks
+
+- Account-backed online games and leaderboards
+- Automatic recovery after a dropped connection
+- A three-minute turn timer that distinguishes thinking from disconnection
+- Resumable online rooms after closing and reopening the app
+- Character commitments and post-game answer review to make dishonest answers
+  visible
+
+### A complete desktop experience
+
+- Native macOS and Windows installers with a bundled Java runtime
+- Persistent account status in the application header
+- Three separate leaderboards for computer, local, and online games
+- Settings for music, rules, the character reference, and returning home
+- Background music with persistent volume, mute, and playback controls
+- Completed results queued locally while the server is unavailable
+
+### Defensive by design
+
+- Versioned client/server API with clear outdated-client errors
+- Rate limits for authentication, room creation, and moves
+- Transactional game-result storage and Flyway database migrations
+- Idempotent online moves and player-specific room projections
+- No opponent character sent to a client before the reveal
 
 ## Install
 
 Download the installer for your system from the
 [releases page](https://github.com/greninjam26/Guess-Who-boardgame/releases).
-Java is bundled, so nothing else needs installing.
+Java is included.
 
-The currently published v1 installers support local play and expect a server
-on the same computer. The validated v2 installer candidates connect to the
-public server, but they will not replace the v1 downloads until the remaining
-v2 acceptance gates pass and the release is tagged.
+The published v1 installers support local play and expect a server on the same
+computer. The v2 candidates connect to the public server and will replace them
+after the remaining release checks pass and `v2.0.0` is tagged.
 
-**macOS (Apple silicon)** — open the `.dmg` and drag the app to Applications. The
-first time you open it, **right-click the app and choose Open**, then confirm.
-Double-clicking shows _"cannot be opened because the developer cannot be
-verified"_ instead: the app is not signed with an Apple developer certificate,
-which costs $99 a year and this project does not have one. Right-clicking the
-first time is the whole workaround, and macOS stops asking afterwards.
+### macOS — Apple silicon
 
-**Windows** — run the `.msi`. Windows SmartScreen shows a blue warning for
-installers it has not seen before; choose **More info**, then **Run anyway**.
-Same reason: no paid code-signing certificate.
+Open the `.dmg` and drag **Guess Who** to Applications. The app is not notarized,
+so macOS may block a normal double-click. Control-click the app, choose **Open**,
+and confirm the warning. If macOS still blocks it, open **System Settings →
+Privacy & Security** and choose **Open Anyway** for Guess Who.
 
-**Linux** — no installer is built. `jpackage` only produces the format of the
-system it runs on, and neither of the above can be built on Linux. Run it from
-source instead, as below.
+If **Open Anyway** is unavailable, first confirm the DMG came from this
+repository's release page, then clear quarantine from this app only:
 
-The game keeps its saved game, its queued results, and its settings in one
-place, which is also what to delete to remove every trace of it:
+```bash
+xattr -dr com.apple.quarantine '/Applications/Guess Who.app'
+```
+
+This does not disable Gatekeeper for any other application.
+
+### Windows
+
+Run the `.msi`. If SmartScreen warns about an unfamiliar application, choose
+**More info**, then **Run anyway**. The installer is not code-signed.
+
+### Linux
+
+There is no Linux installer because `jpackage` creates only the native format of
+the operating system running it. Use the development instructions below.
+
+### Local application data
 
 | System  | Location                                  |
 | ------- | ----------------------------------------- |
@@ -73,453 +95,131 @@ place, which is also what to delete to remove every trace of it:
 | Windows | `%APPDATA%\Guess Who`                     |
 | Linux   | `~/.local/share/guess-who`                |
 
-## Technology
+## Play Online
 
-- Java 17
-- Java Swing and AWT
-- Spring Boot 4.1.1 and Spring MVC
-- Spring JDBC and Flyway, on H2 for development and PostgreSQL 15 when deployed
-- AWS for the public server: one deliberately small Spring Boot monolith and
-  PostgreSQL database on a single EC2 instance behind Caddy — see
-  [deploy/aws/README.md](deploy/aws/README.md)
-- Maven
-- CSV-based game data
+The public demo server is available at
+<https://greninja-guesswho.duckdns.org> and is scheduled to be removed by
+2027-02-26.
 
-## Project Structure
+Both players must be signed in. One chooses **Play online against a friend** and
+**Start a game and get a code**; the other chooses **Join with a code** and
+enters it. Room codes are case-insensitive and may contain a space when typed.
 
-```text
-.
-├── pom.xml                          # parent, holds the three modules together
-├── game-core/                       # the rules, the data, the artwork
-│   └── src/main/
-│       ├── java/com/guesswho/
-│       │   ├── game/                # game flow, models, and resources
-│       │   └── leaderboard/         # standings types shared by both sides
-│       └── resources/
-│           ├── audio/               # background music
-│           ├── data/                # character and question CSV files
-│           └── images/              # character-card artwork
-├── desktop-client/                  # the Swing game
-│   └── src/main/java/com/guesswho/
-│       ├── client/                  # HTTP clients and the pending-upload queue
-│       └── ui/                      # Swing interface and entry point
-└── server/                          # the HTTP API
-    └── src/main/
-        ├── java/com/guesswho/
-        │   ├── GuessWhoServerApplication.java
-        │   ├── persistence/         # database persistence
-        │   └── web/                 # HTTP controllers and responses
-        └── resources/
-            ├── application.properties
-            └── db/migration/        # Flyway schema migrations
-```
+Rooms expire after ten minutes without a second player, thirty minutes of
+inactivity, or twenty-four hours total.
 
-`game-core` depends on nothing — no Spring, no Swing, no HTTP — and both other
-modules depend only on it. That is what keeps a web server and a database engine
-out of the desktop installer.
+## Development Quick Start
 
-## Prerequisites
+Requirements:
 
-Install the following tools:
+- JDK 17 or newer
+- Apache Maven
 
-- [JDK 17 or newer](https://adoptium.net/)
-- [Apache Maven](https://maven.apache.org/)
-
-Confirm that they are available:
-
-```bash
-java -version
-mvn -version
-```
-
-## Build
-
-From the repository root, run:
+Build and test everything:
 
 ```bash
 mvn clean package
+mvn test
 ```
 
-Maven compiles the application, copies its resources, and creates the build output under `target/`.
-
-## Run the Desktop App
-
-Start the Swing application with:
+Run the desktop client:
 
 ```bash
+mvn install -DskipTests
 mvn -pl desktop-client exec:java
 ```
 
-On a fresh clone, run `mvn install -DskipTests` first so `game-core` is available
-to the other modules.
+Run the development server:
 
-The bundled background music starts automatically. Open Settings to adjust its
-volume, mute it, or pause it.
+```bash
+mvn -pl server spring-boot:run
+```
 
-Completed games are submitted asynchronously to `http://localhost:8080` by
-default. If the server is unavailable, the result is queued in
-`pending-game-results.jsonl` and uploaded automatically the next time a
-submission succeeds. Point the desktop app at another server with the
-`guesswho.server.url` system property:
+Local builds use `http://localhost:8080`. Point a client at another server with
+the `guesswho.server.url` system property:
 
 ```bash
 mvn -pl desktop-client exec:java -Dexec.args="" \
   -Dguesswho.server.url=https://games.example
 ```
 
-## Build the Installers
+See [Development Guide](docs/DEVELOPMENT.md) for installer builds, the full
+project structure, API examples, configuration, and the main-class reference.
 
-Building an installer requires the system it targets: `jpackage` produces only
-the native format of the machine it runs on.
+## Architecture
 
-```bash
-./packaging/build-installer.sh
-```
+The Maven build contains three modules:
 
-That writes a `.dmg` on macOS or an `.msi` on Windows into `target/installer`.
-The bundled Java runtime is trimmed to the modules the application actually
-reaches, which `jdeps` works out during the build rather than a list in the
-script going stale.
+| Module           | Responsibility                                      |
+| ---------------- | --------------------------------------------------- |
+| `game-core`      | Rules, domain models, character data, and artwork   |
+| `desktop-client` | Swing interface, persistence, and HTTP clients      |
+| `server`         | Spring Boot API, online rooms, accounts, and storage |
 
-The same script runs in CI on tagged releases; see
-[.github/workflows/installers.yml](.github/workflows/installers.yml). Icons come
-from [packaging/](packaging/README.md).
+`game-core` has no Spring, Swing, or HTTP dependency. Both applications depend
+on it, which keeps server and database libraries out of the desktop installer.
 
-By default an installer connects to `http://localhost:8080`, which is what you
-want when building on your own machine. A release build points it at the
-deployed server instead:
+The deployed v2 service is one deliberately small Spring Boot monolith with
+PostgreSQL on a single EC2 instance behind Caddy. This is enough for a personal
+demo and avoids infrastructure whose cost and complexity the project does not
+need.
 
-```bash
-GUESSWHO_SERVER_URL=https://your-host.duckdns.org ./packaging/build-installer.sh
-```
+## Technology
 
-The URL is baked in with jpackage and checked before the build starts rather
-than after it: it must be a bare `https` origin, with an optional port and
-nothing else — no credentials, path, query, fragment, whitespace or trailing
-slash. A refusal names the rule it broke and never repeats the value, which
-could carry a password into a build log. A
-tagged release fails outright if the `GUESSWHO_SERVER_URL` repository variable
-is missing — installers that quietly talk to localhost would launch, install and
-look right while every online game failed.
+- Java 17, Swing, and AWT
+- Spring Boot 4.1.1 and Spring MVC
+- Spring JDBC and Flyway
+- H2 for development and PostgreSQL 15 in production
+- Maven and `jpackage`
+- AWS EC2, Caddy, S3, Systems Manager, and GitHub Actions
+- CSV-based character and question data
 
-## Play Online
+## Documentation
 
-A public server is running at <https://greninja-guesswho.duckdns.org>. The
-validated v2 macOS and Windows installer candidates connect to it without a JVM
-property. They are not on the releases page yet, so use a source build until
-v2 is released:
+| Document | Contents |
+| -------- | -------- |
+| [Documentation index](docs/README.md) | Guide to all project documentation |
+| [Development Guide](docs/DEVELOPMENT.md) | Build, run, test, package, and API reference |
+| [Architecture](docs/ARCHITECTURE.md) | Boundaries, persistence, security, and deployment decisions |
+| [Roadmap](docs/ROADMAP.md) | Release history, remaining v2 checks, and later phases |
+| [AWS deployment](deploy/aws/README.md) | Public-host deployment and operations |
+| [Installer packaging](packaging/README.md) | Native packages, icons, and release endpoint rules |
 
-```bash
-mvn -pl desktop-client exec:java -Dexec.args="" \
-    -Dguesswho.server.url=https://greninja-guesswho.duckdns.org
-```
+## Release Status and Limitations
 
-It is a demo on AWS's Free Plan and comes down by 2027-02-26.
+v2.0 code is complete, but the release still requires final acceptance work:
 
-Online games need the server running and both players signed in — an online
-game has to know who is on each side, to attribute the result and to stop a
-stranger acting as either player. Local play stays open to guests.
+- install and smoke-test the post-UI Windows candidate
+- play a two-client game from two networks with a server restart during play
+- restore a backup containing real game and question data
+- add accepted-build screenshots
+- tag `v2.0.0`
 
-Start the server, then a client on each machine. One player chooses **play
-online against a friend**, then **Start a game and get a code**; the other
-chooses **Join with a code** and types it in. The code can be typed in any case
-and with a space in the middle — it is read off one screen and typed into
-another, so the server tidies it.
+Neither installer is code-signed, so both operating systems warn on first use.
+The background music is generated rather than recorded and is intentionally a
+short, simple loop.
 
-Both clients must point at the same server. Anywhere other than the machine
-running it, set:
-
-```bash
-mvn -pl desktop-client exec:java -Dexec.args="" \
-    -Dguesswho.server.url=http://the-servers-address:8080
-```
-
-Rooms expire: ten minutes if nobody joins, thirty idle, and twenty-four hours
-regardless.
-
-## Run the Server
-
-Start the Spring Boot server during development with:
-
-```bash
-mvn -pl server spring-boot:run
-```
-
-Alternatively, run the executable JAR after building:
-
-```bash
-java -jar server/target/server-2.0.0.jar
-```
-
-Rate limits are on by default: signing in and registering are held per address,
-opening rooms and moving per account. Reading the game is deliberately not
-limited, because presence is measured by requests and throttling a poll would
-make a player look absent and eventually forfeit their game. Turn the limits off
-for local experimentation with:
-
-```bash
-java -jar server/target/server-2.0.0.jar --guesswho.rate-limits.enabled=false
-```
-
-The server listens on port `8080` by default. Verify it from another terminal:
-
-```bash
-curl http://localhost:8080/api/status
-```
-
-The response is `{"status":"online"}`, and it means the database answered as
-well as the process — a server whose database has gone reports `503` instead.
-Run this way the server is reachable only from the local machine; the deployed
-one is described in [deploy/aws/README.md](deploy/aws/README.md).
-
-The server stores submitted games in the file-backed H2 database
-`guess-who-data.mv.db`. Flyway applies the migrations under
-`src/main/resources/db/migration` at startup, and the data remains available
-after the server restarts. A database created before Flyway was adopted is
-baselined rather than rejected.
-
-### Submit a Game Result
-
-Submit a completed game to `POST /api/game-results`:
-
-```bash
-curl -X POST http://localhost:8080/api/game-results \
-  -H "Content-Type: application/json" \
-  -d '{
-    "participants": [
-      {
-        "name": "Player 1",
-        "selectedCharacter": "Olivia",
-        "questionAnswers": [
-          {"question": "Does your character wear glasses?", "answer": true}
-        ]
-      },
-      {
-        "name": "Player 2",
-        "selectedCharacter": "Nick",
-        "questionAnswers": []
-      }
-    ],
-    "winner": "Player 1",
-    "mode": "PVP_LOCAL",
-    "questionMode": "PRESET"
-  }'
-```
-
-A valid result returns HTTP `201 Created` and is stored transactionally in the
-H2 database. The winner must match a participant; names, selected characters,
-and questions cannot be blank; and both `mode` and `questionMode` are
-required. `mode` is `PVE`, `PVP_LOCAL`, or `PVP_ONLINE`, and `questionMode` is
-`PRESET` or `FREE_FORM`. Add `difficulty` (`EASY` or `HARD`) for games against
-the computer. Database connection settings can be
-overridden with standard `spring.datasource.*` Spring Boot properties.
-
-### View Game Result History
-
-Retrieve stored games from newest to oldest with `GET /api/game-results`. The
-response is paginated: `limit` defaults to 50 and caps at 200, and `offset`
-skips whole games.
-
-```bash
-curl http://localhost:8080/api/game-results
-```
-
-Each result includes its database ID, creation time, winner, participants, and
-question histories:
-
-```json
-[
-    {
-        "id": 1,
-        "createdAt": "2026-08-28T15:30:00",
-        "participants": [
-            {
-                "name": "Player 1",
-                "selectedCharacter": "Olivia",
-                "questionAnswers": [
-                    {
-                        "question": "Does your character wear glasses?",
-                        "answer": true
-                    }
-                ],
-                "commitment": {
-                    "hash": "9f2c…",
-                    "nonce": "4a1b…"
-                }
-            }
-        ],
-        "winner": "Player 1",
-        "mode": "PVP_LOCAL",
-        "difficulty": null,
-        "questionMode": "PRESET"
-    }
-]
-```
-
-A participant's `commitment` is the promise they made about their character
-before play began: `SHA-256` of the character name and a random nonce.
-Recomputing it from the revealed `selectedCharacter` and the `nonce` shows the
-character was not swapped once the questions started.
-
-It is absent for the computer opponent, which makes no promise, and for a player
-who chose to keep their character to themselves and name it at the end. In that
-case the stored answers are only known to be consistent with the character
-named, not fixed in advance.
-
-A modified client can still commit to one character and answer as though it held
-another — the answering client is the only thing that knows, so nothing on the
-wire can prevent it. What happens instead is that the lie shows up: at the end of
-an online game every answer is checked against the character committed to, and
-answers that character contradicts are listed for both players. A cheat can win
-the game; they cannot win it unnoticed. Only the questions actually asked can
-catch anything, so a lie nobody probed leaves no trace.
-
-When no results have been stored, the endpoint returns an empty JSON array.
-
-Request a specific page with `limit` and `offset`:
-
-```bash
-curl "http://localhost:8080/api/game-results?limit=10&offset=10"
-```
-
-### View the Leaderboard
-
-Retrieve standings calculated from saved games with `GET /api/leaderboard`:
-
-```bash
-curl http://localhost:8080/api/leaderboard
-```
-
-The response is ordered by wins from highest to lowest, then by participant
-name when wins are tied:
-
-```json
-[
-    {
-        "name": "Player 1",
-        "gamesPlayed": 3,
-        "wins": 2
-    },
-    {
-        "name": "AI",
-        "gamesPlayed": 3,
-        "wins": 1
-    }
-]
-```
-
-Standings include every participant name stored by the server, including the
-AI. When no results have been stored, the endpoint returns an empty JSON array.
-
-Restrict standings to one game mode with `mode`, and bound the response with
-`limit`, which defaults to 100 and caps at 500:
-
-```bash
-curl "http://localhost:8080/api/leaderboard?mode=PVE&limit=10"
-```
-
-Standings are never combined across modes in the desktop client, because beating
-the computer and beating another player are not comparable results.
-
-The desktop app's **Leaderboard** button opens the same standings in a separate
-window without blocking the game. The window shows loading, empty, and
-server-unavailable states, and its **Refresh** button retries the request.
-
-## Test
-
-Run the JUnit suite with:
-
-```bash
-mvn test
-```
-
-The tests cover packaged resources, board data, starting-turn rules, core
-computer-player behavior, HTTP result submission and history, leaderboard
-aggregation, normalized database storage, and transactional rollback.
-
-## Main Classes
-
-| Class                         | Responsibility                                                                         |
-| ----------------------------- | -------------------------------------------------------------------------------------- |
-| `GuessWhoServerApplication`   | Starts the Spring Boot HTTP server.                                                    |
-| `StatusController`            | Reports whether the server and its database answer, through `/api/status`.              |
-| `GameResultController`        | Accepts completed games and returns saved history through `/api/game-results`.         |
-| `LeaderboardController`       | Returns standings calculated from saved games through `/api/leaderboard`.              |
-| `HttpGameResultClient`        | Submits completed games to the configured server without blocking Swing.               |
-| `HttpLeaderboardClient`       | Retrieves leaderboard standings without blocking Swing.                                |
-| `GameResultSubmissionService` | Queues results while the server is unreachable and uploads them on the next success.   |
-| `LeaderboardPanel`            | Displays remote standings and handles loading, empty, error, and retry states.         |
-| `GUI`                         | Builds the Swing interface, handles user interaction, and starts the application.      |
-| `Game`                        | Coordinates game modes, turns, questions, guesses, and results.                        |
-| `GameResult`                  | Provides an immutable completed-game snapshot for external consumers.                  |
-| `Board`                       | Loads the character/question databases and builds the answer matrix.                   |
-| `GameResources`               | Loads packaged CSV files and images and treats background music as optional.           |
-| `Player`                      | Stores behavior and state shared by human and computer players.                        |
-| `ComputerPlayer`              | Selects questions and narrows possible characters for the AI.                          |
-| `User`                        | Stores a human player's username and birthday.                                         |
-| `Character`                   | Represents a character and their visual attributes.                                    |
-| `Question`                    | Represents a yes-or-no character question.                                             |
-| `JdbcGameResultRepository`    | Stores and reconstructs game results from relational tables.                           |
-| `JdbcLeaderboardRepository`   | Aggregates games played and wins from relational tables.                               |
-| `FilePendingGameResultStore`  | Queues results locally while the server is unreachable, so they can be uploaded later. |
-| `RoomService`                 | Opens and joins online rooms, and applies every move through the rules.                |
-| `RoomProjection`              | Turns a stored game into what one player is allowed to see of it.                      |
-| `RoomState`                   | That projection. It has no field that could hold the opponent's character.             |
-| `SessionService`              | Issues and resolves bearer tokens, storing only their hashes.                          |
-| `OnlineGameController`        | Holds the room, the poll and the last state an online game was in.                     |
-| `RoomPoller`                  | Asks the server what has happened, and delivers it on the Swing thread.                |
-
-## Current Limitations
-
-- Background music is generated by `tools/BackgroundTrack.java` rather than
-  recorded, so there is no track to license. It is a short loop, and
-  deliberately plain.
-- The published v1 installers connect to `localhost`. The validated v2
-  installers connect to the public AWS server, but are not published until the
-  remaining release-acceptance gates pass; see [Play Online](#play-online).
-- Online play has not been tried by two people on two machines. Every layer has
-  tests, `LiveOnlineGameTest` runs the whole chain against a real server, and
-  `rehearsals/two-client` restarts that server mid-game and watches both clients
-  recover — but nobody has yet sat at two computers and played a friend, so
-  nobody has seen the reconnecting banner appear or the turn timer decide
-  anything on a real clock. That session is what v2.0 is waiting on; see
-  [docs/ROADMAP.md](docs/ROADMAP.md).
-- Neither installer is code-signed, so both platforms warn the first time. See
-  [Install](#install) for the one extra step each needs.
-
-## What Is Next
-
-[docs/ROADMAP.md](docs/ROADMAP.md) is the plan of record: fourteen phases across
-three releases, with each one marked as it lands. The server is live, and its
-operational checks, bootstrap bundle and both target-native installers have
-passed their gates. v2.0 still needs the two-person, two-network game, a restore
-of the resulting non-empty backup, accepted-build screenshots, and the release
-tag.
+The [Roadmap](docs/ROADMAP.md) is the source of truth for release acceptance and
+post-v2 work.
 
 ## Data and Assets
 
 - `GuessWhoDB.csv` defines the 24 characters and their attributes.
 - `QuestionDB.csv` defines the preset yes-or-no questions.
-- `server/src/main/resources/db/migration` holds the Flyway migrations that
-  build the game-result tables.
-- Character artwork is stored under `game-core/src/main/resources/images`, named
-  by board position rather than by character, so the pictures can be swapped
-  without touching any code. `tools/` holds the prompts they were generated
-  from and the tool that adds the name bands; see
-  [tools/portraits/README.md](tools/portraits/README.md) to rebuild them.
-- Background music lives in `game-core/src/main/resources/audio` and is written
-  by `tools/BackgroundTrack.java`.
+- Character artwork is original to this project and stored under
+  `game-core/src/main/resources/images`.
+- Background music is generated by `tools/BackgroundTrack.java` and packaged
+  under `game-core/src/main/resources/audio`.
+- Database migrations live under `server/src/main/resources/db/migration`.
 
 ## License
 
-The source code in this repository is released under the MIT License. See
-[LICENSE](LICENSE) for the full text.
+The source code is released under the [MIT License](LICENSE).
 
-The character artwork is original to this project. It was generated from the
-prompts in [tools/character-prompts.md](tools/character-prompts.md), which are
-themselves written from `GuessWhoDB.csv`, and no part of it comes from the
-printed board game. Note that the legal status of machine-generated images is
-unsettled in several jurisdictions, and they may not attract copyright at all.
+The character artwork was generated from the original prompts in
+[tools/character-prompts.md](tools/character-prompts.md); it does not come from
+the printed board game. The legal status of machine-generated images remains
+unsettled in several jurisdictions and they may not attract copyright.
 
-"Guess Who?" is a trademark of Hasbro. This is an unaffiliated personal exercise,
-not endorsed by or associated with the trademark holder.
+“Guess Who?” is a trademark of Hasbro. This unaffiliated personal project is not
+endorsed by or associated with Hasbro.
