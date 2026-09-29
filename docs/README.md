@@ -7,7 +7,7 @@ for implementation, architecture, release, and operations details.
 | -------- | ---------- |
 | [Development Guide](DEVELOPMENT.md) | Building, testing, running, packaging, API examples, and code navigation |
 | [Architecture](ARCHITECTURE.md) | Module boundaries, online state, persistence, security, and deployment decisions |
-| [Roadmap](ROADMAP.md) | Completed phases, v2 acceptance gates, and planned releases |
+| [Roadmap](ROADMAP.md) | Completed releases, post-release validation, and the v2.1 plan |
 | [AWS deployment](../deploy/aws/README.md) | Deploying, operating, backing up, restoring, and removing the public host |
 | [Installer packaging](../packaging/README.md) | Native installer generation, endpoint rules, and icons |
 | [Portrait assets](../tools/portraits/README.md) | Rebuilding the generated character artwork |
@@ -17,5 +17,6 @@ for implementation, architecture, release, and operations details.
 - New player: [README — Install](../README.md#install)
 - New contributor: [Development Guide](DEVELOPMENT.md)
 - Architecture review: [Architecture](ARCHITECTURE.md)
-- Release work: [Roadmap — v2.0](ROADMAP.md#v20--online)
+- Current release: [Guess Who 2.0.0](https://github.com/greninjam26/Guess-Who-boardgame/releases/tag/v2.0.0)
+- Next release: [Roadmap — v2.1](ROADMAP.md#v21--polish-and-progress)
 - Production operations: [AWS deployment](../deploy/aws/README.md)

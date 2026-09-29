@@ -1,8 +1,8 @@
 # Guess Who — Roadmap
 
-Fourteen phases across three releases, from a working desktop board game to an
-online multiplayer app with accounts, verified answers, and leaderboards that
-mean something.
+Fourteen phases from a working desktop board game to an online multiplayer app
+with accounts, verified answers, useful history, and leaderboards that mean
+something.
 
 Sequencing reflects the repo at `f856ba8`, immediately after the server-backed
 leaderboard (PR #23) merged.
@@ -13,7 +13,8 @@ leaderboard (PR #23) merged.
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------- | ------ |
 | **v1.0**    | A polished, installable single-machine game — PvE and hotseat, verified answers, per-mode leaderboards against a local server | 00–07  |
 | **v2.0**    | The same game with accounts and room-code online multiplayer, deployed and reachable                                          | 08–10  |
-| **Post-v2** | History, replay, chat, spectating, and scaling if it's ever measured                                                          | 11–13  |
+| **v2.1**    | Focused Swing UI polish, game history, replay, and per-mode statistics                                                     | 11     |
+| **Later**   | Chat, invite-only spectating, and scaling only if it is measured                                                           | 12–13  |
 
 Shipping v1.0 before the backend work matters. It is a real milestone you can
 install and hand to someone, and it arrives well before the two XL phases.
@@ -34,9 +35,11 @@ install and hand to someone, and it arrives well before the two XL phases.
 v1.0    00 ✔  01 ✔  02 ✔  03 ✔  04 ✔  05 ✔  06 ✔  07 ✔   shipped
                                    06  needs 00 only — slot in anywhere
 
-v2.0    08 ✔  →  09 ✔  →  10 ▸  Ship — deployed, not yet accepted
+v2.0    08 ✔  →  09 ✔  →  10 ✔  shipped 2026-09-17
 
-post    11  Stats and replay  →  12  Chat and spectating
+v2.1    11  UI polish → history → replay → statistics
+
+later   12  Chat and spectating
         13  External session storage — only if measured
 ```
 
@@ -605,7 +608,7 @@ and API versioning.
 > Put that reasoning in the README. Explaining why you _didn't_ distribute reads
 > better than having distributed something that didn't need it.
 
-## Phase 10 — Ship v2.0 · M
+## Phase 10 — Ship v2.0 · M — released 2026-09-17
 
 **Needs:** everything above
 
@@ -616,9 +619,9 @@ Manager with no AWS key stored anywhere. How it was built, what it costs, how it
 comes down, and what happened along the way are in
 [deploy/aws/README.md](../deploy/aws/README.md).
 
-**Live is not the same as accepted.** Only gates backed by deployment-log
-evidence are ticked. The deployment itself remains open until two people have
-played a game on it.
+Version 2.0.0 was published on 2026-09-17 with native macOS and Windows
+installers. The release is complete; unchecked items below remain explicit
+post-release validation rather than disappearing merely because the tag exists.
 
 - [x] **PostgreSQL.** `V8`'s `CLOB` became `TEXT`, and CI runs every migration
       against PostgreSQL 15 — and fails if that test was skipped, rather than
@@ -631,9 +634,10 @@ played a game on it.
 - [x] **Error responses that name nothing inside.** No exception, message, stack
       trace or binding detail — checked by the smoke test on every deployment,
       and against a stopped database in `rehearsals/postgres`.
-- [ ] **Deploy the server.** Running, and passing the public smoke test:
-      certificate, status, API version, nothing leaked, and ports 22, 8080 and
-      5432 closed. Ticked after the acceptance session, not before.
+- [x] **Deploy the server.** Deployment run 34883880272 passed its public smoke
+      test: certificate, status, API version, nothing leaked, and ports 22,
+      8080 and 5432 closed. The separate two-client acceptance remains open
+      below.
 - [x] **Rehearse a rollback on the live host**, both ways the runbook describes:
       a corrupt artifact was refused before anything changed, and a candidate
       that installed but never became healthy was replaced by the exact
@@ -667,15 +671,18 @@ played a game on it.
       variable is set, both native jobs passed in installer workflow run
       34927610374, and the artifacts reached the public service on macOS 26.5.2
       arm64 and Windows 11 Pro 24H2 (OS build 26100.8457).
-- [ ] **Revalidate the final post-UI installers.** Workflow run 35153890972
-      built both native candidates from commit `9a4d55c`. The macOS candidate
-      launches after the expected unsigned-app quarantine clearance; the
-      Windows candidate still needs an install/launch check, and both need a
-      smoke test of Home, How To Play, and the Character Guide.
+- [ ] **Revalidate the final post-UI installers.** Release workflow run
+      35230568400 built both tagged installers. The macOS application launches
+      after the expected unsigned-app quarantine clearance and supplied the
+      recorded v2 demo; the tagged Windows installer still needs an
+      install/launch check and UI smoke test.
 - [x] Rewrite the README around what it became: architecture, the commitment
       scheme, why it's a monolith, and the validated installer state.
-- [ ] Add current screenshots once they show the accepted v2 build.
-- [ ] Tag `v2.0.0`.
+- [x] Add a current gameplay preview from the demonstrated post-UI build and
+      link it to the public v2 walkthrough.
+- [x] **Tag and publish `v2.0.0`.** Installer workflow run 35230568400 built
+      `Guess.Who-2.0.0.dmg` and `Guess.Who-2.0.0.msi` from commit `1089d70`,
+      and the release was published on 2026-09-17.
 
 **Tear down by 2027-02-26.** The Free Plan started on 2026-09-14 and ends on
 2027-03-14; stopping at day 165 leaves sixteen days to discover that an export
@@ -684,20 +691,61 @@ well; nothing in the repository will remind anybody.
 
 ---
 
-# Post-v2
+# v2.1 — Polish and progress
 
-## Phase 11 — Stats and replay · M
+## Phase 11 — UI polish, history, replay, and statistics · L
 
 **Needs:** 08
 
-Cheap — the question logs have been accumulating since the history endpoint
-shipped. Almost all of this is presentation.
+Version 2.1 improves the application players already have before adding another
+networked subsystem. It keeps Swing, the current navigation model, and the
+existing game rules. A framework replacement, public matchmaking, chat, and
+spectating are deliberately outside this release.
 
-- [ ] Game history browser over the question logs already in the database.
-- [ ] Post-game replay — step through a finished game question by question. This
-      is the cheap 80% of spectating, with none of its problems.
-- [ ] Per-mode statistics beyond wins and losses: win rate, average questions to
-      a correct guess, most-asked questions.
+Implement the work in this order so new screens inherit the polished visual
+language rather than introducing a second style:
+
+### 11A — UI polish
+
+- [ ] Define shared colors, typography, spacing, button hierarchy, and reusable
+      Swing styling helpers instead of tuning each screen independently.
+- [ ] Apply the shared presentation to the home, account, setup, game, ending,
+      leaderboard, Settings, How to Play, and Character Guide screens without
+      changing their behavior.
+- [ ] Make account, loading, connection, empty, error, and success states easy
+      to distinguish without relying on color alone.
+- [ ] Improve keyboard focus order, contrast, readable status messages, and
+      behavior on smaller displays and resized windows.
+- [ ] Capture representative before-and-after screenshots and retain UI tests
+      for navigation, dialogs, and state presentation.
+
+### 11B — Game history
+
+- [ ] Add a game-history browser over the question logs already stored by the
+      server, with pagination and clear mode, opponent, result, and date labels.
+- [ ] Keep local and online records understandable when an older result has no
+      account or question history.
+
+### 11C — Post-game replay
+
+- [ ] Step through a finished game question by question, showing what was asked,
+      how it was answered, and which characters each answer eliminates.
+- [ ] Treat incomplete historical records as unavailable for replay rather than
+      presenting a reconstruction that looks authoritative.
+
+### 11D — Per-mode statistics
+
+- [ ] Add win rate, average questions before a correct guess, and most-asked
+      questions, kept separate for computer, local, and online games.
+- [ ] Define empty and insufficient-data states so a new account does not show
+      misleading percentages.
+
+Each section ships through its own feature branch and reviewable commits. UI
+polish lands first; history, replay, and statistics follow as separate slices.
+
+---
+
+# Later releases
 
 ## Phase 12 — Chat and spectating · L
 
