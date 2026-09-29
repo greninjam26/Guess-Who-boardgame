@@ -128,8 +128,10 @@ public class GUI {
         //Account state stays visible on every screen. Changing it is enabled
         //only while setup is on screen, so an active game cannot lose its owner.
         JPanel controlPanel = new JPanel(new BorderLayout());
+        UiTheme.styleToolbar(controlPanel);
         accountControls = new AccountControls(this::showAccountChoice, this::signOut);
         JButton settingsButton = new JButton("Settings");
+        UiTheme.styleToolbarButton(settingsButton);
         controlPanel.add(accountControls, BorderLayout.WEST);
         controlPanel.add(settingsButton, BorderLayout.EAST);
         boardPanel1 = CharacterBoard.tracking(images, this::saveGame);
