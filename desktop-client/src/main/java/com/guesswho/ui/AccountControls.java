@@ -1,5 +1,7 @@
 package com.guesswho.ui;
 
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.util.Optional;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -16,6 +18,11 @@ class AccountControls extends JPanel {
     AccountControls(Runnable signIn, Runnable signOut) {
         this.signIn = signIn;
         this.signOut = signOut;
+        setLayout(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        setBackground(UiTheme.SURFACE);
+        status.setForeground(UiTheme.TEXT);
+        status.setFont(status.getFont().deriveFont(Font.BOLD));
+        UiTheme.styleToolbarButton(action);
         action.addActionListener(event -> {
             if (signedIn) {
                 signOut.run();

@@ -3,9 +3,9 @@ package com.guesswho.ui;
 import com.guesswho.game.ComputerDifficulty;
 import com.guesswho.game.QuestionMode;
 
-import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.util.function.Consumer;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -54,11 +54,11 @@ class SetupScreens {
     private final JTextField secondNameField = new JTextField(20);
     private final JTextField secondBirthdayField = new JTextField(20);
 
-    private final JButton firstPlayerStarts = new JButton();
-    private final JButton secondPlayerStarts = new JButton();
-    private final JButton computerStarts = new JButton("AI goes first");
-    private final JButton randomStarts = new JButton("Randomly choose who go first");
-    private final JButton youngerStarts = new JButton("Younger person go first");
+    private final JButton firstPlayerStarts = UiTheme.choiceButton("");
+    private final JButton secondPlayerStarts = UiTheme.choiceButton("");
+    private final JButton computerStarts = UiTheme.choiceButton("AI goes first");
+    private final JButton randomStarts = UiTheme.choiceButton("Pick randomly");
+    private final JButton youngerStarts = UiTheme.choiceButton("Younger player goes first");
     private final JPanel openingTurnPanel = new JPanel();
 
     /**
@@ -93,14 +93,18 @@ class SetupScreens {
         root.add(welcomeCard(), WELCOME);
         root.add(modeCard(), MODE);
         root.add(nameCard(
-                "Please enter your username (you have been warned don't make the username too long): ",
+                "Your name",
+                "Enter the name shown during this game.",
                 firstNameField, this::acceptFirstName), FIRST_NAME);
-        root.add(birthdayCard(firstBirthdayField, this::acceptFirstBirthday), FIRST_BIRTHDAY);
+        root.add(birthdayCard(
+                "Your birthday", firstBirthdayField, this::acceptFirstBirthday), FIRST_BIRTHDAY);
         root.add(nameCard(
-                "Second player, please enter your username"
-                        + " (please don't enter the same username as the first player): ",
+                "Second player's name",
+                "Choose a different name for player two.",
                 secondNameField, this::acceptSecondName), SECOND_NAME);
-        root.add(birthdayCard(secondBirthdayField, this::acceptSecondBirthday), SECOND_BIRTHDAY);
+        root.add(birthdayCard(
+                "Second player's birthday", secondBirthdayField, this::acceptSecondBirthday),
+                SECOND_BIRTHDAY);
         root.add(openingTurnCard(), OPENING_TURN);
     }
 
@@ -114,41 +118,52 @@ class SetupScreens {
     }
 
     private JPanel welcomeCard() {
-        JPanel panel = new JPanel();
-        JButton howToPlay = new JButton("How To Play");
-        JButton start = new JButton("Start The Game");
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
+        JButton howToPlay = UiTheme.secondaryButton("How to play");
+        JButton start = UiTheme.primaryButton("Start game");
         howToPlay.addActionListener(event -> HowToPlayDialog.show(root));
         start.addActionListener(event -> cards.show(root, MODE));
-        panel.add(new JLabel("Welcome to the Guess Who? Board Game!!"));
-        panel.add(howToPlay);
-        panel.add(start);
+        card.add(UiTheme.title("Guess Who?"));
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle("Ask clever questions. Find the mystery character."));
+        card.add(UiTheme.gap(28));
+        card.add(start);
+        card.add(UiTheme.gap(10));
+        card.add(howToPlay);
+        UiTheme.addCentered(panel, card);
         return panel;
     }
 
     private JPanel modeCard() {
-        JPanel panel = new JPanel();
-        panel.add(new JLabel("Please choose your game mode: "));
-        panel.add(modeButton("player vs computer easy mode",
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
+        card.add(UiTheme.title("Choose a game mode"));
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle("Pick how you want to play."));
+        card.add(UiTheme.gap(22));
+        addModeChoice(card, modeButton("Play vs computer — Easy",
                 () -> setup.againstComputer(ComputerDifficulty.EASY, QuestionMode.PRESET)));
-        panel.add(modeButton("player vs computer hard mode",
+        addModeChoice(card, modeButton("Play vs computer — Hard",
                 () -> setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.PRESET)));
-        panel.add(modeButton("player vs computer, ask your own questions",
+        addModeChoice(card, modeButton("Play vs computer — Custom questions",
                 () -> setup.againstComputer(ComputerDifficulty.HARD, QuestionMode.FREE_FORM)));
-        panel.add(modeButton("player vs player preset questions",
+        addModeChoice(card, modeButton("Two players — Preset questions",
                 () -> setup.againstPlayer(QuestionMode.PRESET)));
-        panel.add(modeButton("player vs player ask questions",
+        addModeChoice(card, modeButton("Two players — Custom questions",
                 () -> setup.againstPlayer(QuestionMode.FREE_FORM)));
 
         //Not a modeButton: online play does not ask for names, birthdays or who
         //starts, because the server settles all three.
-        JButton online = new JButton("play online against a friend");
+        JButton online = UiTheme.choiceButton("Play online with a friend");
         online.addActionListener(event -> onlineChosen.run());
-        panel.add(online);
+        card.add(online);
+        UiTheme.addCentered(panel, card);
         return panel;
     }
 
     private JButton modeButton(String text, Runnable choose) {
-        JButton button = new JButton(text);
+        JButton button = UiTheme.choiceButton(text);
         button.addActionListener(event -> {
             choose.run();
             prepareOpeningTurnChoices();
@@ -157,34 +172,50 @@ class SetupScreens {
         return button;
     }
 
-    private JPanel nameCard(String prompt, JTextField field, Runnable accept) {
-        JPanel panel = new JPanel();
-        JButton confirm = new JButton("Comfirm");
-        confirm.addActionListener(event -> accept.run());
-        panel.add(new JLabel(prompt));
-        panel.add(field);
-        panel.add(confirm);
-        return panel;
+    private void addModeChoice(JPanel card, JButton choice) {
+        card.add(choice);
+        card.add(UiTheme.gap(8));
     }
 
-    private JPanel birthdayCard(JTextField field, Runnable accept) {
-        JPanel panel = new JPanel();
-        JButton confirm = new JButton("Comfirm");
+    private JPanel nameCard(String title, String guidance, JTextField field, Runnable accept) {
+        return formCard(title, guidance, field, accept);
+    }
+
+    private JPanel birthdayCard(String title, JTextField field, Runnable accept) {
+        return formCard(title, "Use YYYYMMDD (for example, 20000131).", field, accept);
+    }
+
+    private JPanel formCard(String title, String guidance, JTextField field, Runnable accept) {
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
+        JButton confirm = UiTheme.primaryButton("Confirm");
         confirm.addActionListener(event -> accept.run());
-        panel.add(new JLabel("Please enter your birthday in the form of(YYYYMMDD): "));
-        panel.add(field);
-        panel.add(confirm);
+        UiTheme.styleInput(field);
+        card.add(UiTheme.title(title));
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle(guidance));
+        card.add(UiTheme.gap(22));
+        card.add(field);
+        card.add(UiTheme.gap(18));
+        card.add(confirm);
+        UiTheme.addCentered(panel, card);
         return panel;
     }
 
     private JPanel openingTurnCard() {
-        JPanel panel = new JPanel(new BorderLayout());
-        // A label stretches to the full width in a BorderLayout region and would
-        // otherwise sit against the left edge, unlike the flowed cards.
-        JLabel prompt = new JLabel("Please choice who do you want to do first or just random: ");
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
+        JLabel prompt = UiTheme.title("Who goes first?");
         prompt.setHorizontalAlignment(SwingConstants.CENTER);
-        panel.add(prompt, BorderLayout.NORTH);
-        panel.add(openingTurnPanel, BorderLayout.CENTER);
+        openingTurnPanel.setLayout(new BoxLayout(openingTurnPanel, BoxLayout.Y_AXIS));
+        openingTurnPanel.setOpaque(false);
+        UiTheme.alignCenter(openingTurnPanel);
+        card.add(prompt);
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle("Choose an option to begin the game."));
+        card.add(UiTheme.gap(22));
+        card.add(openingTurnPanel);
+        UiTheme.addCentered(panel, card);
         firstPlayerStarts.addActionListener(event -> completion.setupComplete(OpeningTurn.FIRST_PLAYER));
         secondPlayerStarts.addActionListener(event -> completion.setupComplete(OpeningTurn.SECOND_PLAYER));
         computerStarts.addActionListener(event -> completion.setupComplete(OpeningTurn.COMPUTER));
@@ -196,15 +227,20 @@ class SetupScreens {
     /** Only the choices that make sense for the chosen mode are offered. */
     private void prepareOpeningTurnChoices() {
         openingTurnPanel.removeAll();
-        openingTurnPanel.add(firstPlayerStarts);
+        addOpeningChoice(firstPlayerStarts);
         if (setup.isAgainstComputer()) {
-            openingTurnPanel.add(computerStarts);
+            addOpeningChoice(computerStarts);
         }
         else {
-            openingTurnPanel.add(secondPlayerStarts);
-            openingTurnPanel.add(youngerStarts);
+            addOpeningChoice(secondPlayerStarts);
+            addOpeningChoice(youngerStarts);
         }
         openingTurnPanel.add(randomStarts);
+    }
+
+    private void addOpeningChoice(JButton choice) {
+        openingTurnPanel.add(choice);
+        openingTurnPanel.add(UiTheme.gap(8));
     }
 
     private void acceptFirstName() {
