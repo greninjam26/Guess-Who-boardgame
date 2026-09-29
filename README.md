@@ -53,13 +53,9 @@ returning home without restarting the application.
 
 ## Install
 
-Download the installer for your system from the
-[releases page](https://github.com/greninjam26/Guess-Who-boardgame/releases).
+Download Guess Who 2.0.0 for your system from the
+[v2.0.0 release](https://github.com/greninjam26/Guess-Who-boardgame/releases/tag/v2.0.0).
 Java is included.
-
-The published v1 installers support local play and expect a server on the same
-computer. The v2 candidates connect to the public server and will replace them
-after the remaining release checks pass and `v2.0.0` is tagged.
 
 ### macOS — Apple silicon
 
@@ -181,26 +177,24 @@ need.
 | [Documentation index](docs/README.md) | Guide to all project documentation |
 | [Development Guide](docs/DEVELOPMENT.md) | Build, run, test, package, and API reference |
 | [Architecture](docs/ARCHITECTURE.md) | Boundaries, persistence, security, and deployment decisions |
-| [Roadmap](docs/ROADMAP.md) | Release history, remaining v2 checks, and later phases |
+| [Roadmap](docs/ROADMAP.md) | Release history, post-release validation, and the v2.1 plan |
 | [AWS deployment](deploy/aws/README.md) | Public-host deployment and operations |
 | [Installer packaging](packaging/README.md) | Native packages, icons, and release endpoint rules |
 
 ## Release Status and Limitations
 
-v2.0 code is complete, but the release still requires final acceptance work:
-
-- install and smoke-test the post-UI Windows candidate
-- play a two-client game from two networks with a server restart during play
-- restore a backup containing real game and question data
-- add accepted-build screenshots
-- tag `v2.0.0`
+[Guess Who 2.0.0](https://github.com/greninjam26/Guess-Who-boardgame/releases/tag/v2.0.0)
+was published on September 17, 2026 with macOS and Windows installers. The
+remaining installer, two-network, and backup-restore checks are tracked as
+post-release validation in the roadmap.
 
 Neither installer is code-signed, so both operating systems warn on first use.
 The background music is generated rather than recorded and is intentionally a
 short, simple loop.
 
-The [Roadmap](docs/ROADMAP.md) is the source of truth for release acceptance and
-post-v2 work.
+The [Roadmap](docs/ROADMAP.md) is the source of truth for post-release validation
+and v2.1 work. The next release focuses on UI polish, game history, replay, and
+per-mode statistics.
 
 ## Data and Assets
 
