@@ -23,6 +23,7 @@ final class UiTheme {
     static final Color TEXT = new Color(29, 42, 48);
     static final Color MUTED_TEXT = new Color(75, 91, 99);
     static final Color PRIMARY = new Color(20, 90, 102);
+    static final Color ERROR = new Color(143, 38, 38);
     static final Color BORDER = new Color(210, 220, 219);
 
     private UiTheme() {
@@ -112,10 +113,14 @@ final class UiTheme {
 
     static JButton choiceButton(String text) {
         JButton button = secondaryButton(text);
+        styleChoiceButton(button);
+        return button;
+    }
+
+    static void styleChoiceButton(JButton button) {
         Dimension size = new Dimension(360, 44);
         button.setPreferredSize(size);
         button.setMaximumSize(size);
-        return button;
     }
 
     static void styleInput(JTextField field) {
