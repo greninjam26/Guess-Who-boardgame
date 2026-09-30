@@ -1,11 +1,9 @@
 package com.guesswho.ui;
 
 import com.guesswho.client.AccountClient;
-import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Color;
-import java.awt.GridLayout;
-import javax.swing.BorderFactory;
+import java.awt.Component;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -59,10 +57,12 @@ class SignInScreen {
         this.completion = completion;
 
         root.add(choiceCard(), CHOICE);
-        root.add(credentialsCard("Sign in", signInUsername, signInPassword,
-                signInMessage, this::signIn), SIGN_IN);
-        root.add(credentialsCard("Create an account", registerUsername, registerPassword,
-                registerMessage, this::register), REGISTER);
+        root.add(credentialsCard("Sign in",
+                "Use your account to keep your leaderboard progress.",
+                signInUsername, signInPassword, signInMessage, this::signIn), SIGN_IN);
+        root.add(credentialsCard("Create an account",
+                "Choose an account for saving your leaderboard progress.",
+                registerUsername, registerPassword, registerMessage, this::register), REGISTER);
     }
 
     /**
@@ -73,66 +73,94 @@ class SignInScreen {
     }
 
     private JPanel choiceCard() {
-        JPanel panel = new JPanel(new GridLayout(0, 1, 0, 8));
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
-        panel.add(new JLabel("Guess Who?"));
-        panel.add(new JLabel("Sign in to keep your place on the leaderboard."));
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
 
-        JButton signIn = new JButton("Sign in");
-        JButton register = new JButton("Create an account");
-        JButton guest = new JButton("Play as a guest");
+        card.add(UiTheme.title("Welcome to Guess Who?"));
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle(
+                "Sign in to save your leaderboard progress, or continue as a guest."));
+        card.add(UiTheme.gap(24));
+
+        JButton signIn = UiTheme.primaryButton("Sign in");
+        JButton register = UiTheme.choiceButton("Create an account");
+        JButton guest = UiTheme.choiceButton("Play as a guest");
         signIn.addActionListener(event -> show(SIGN_IN));
         register.addActionListener(event -> show(REGISTER));
         //No confirmation and no warning. It is a supported way to play.
         guest.addActionListener(event -> completion.signInComplete());
 
-        panel.add(signIn);
-        panel.add(register);
-        panel.add(guest);
+        UiTheme.styleChoiceButton(signIn);
+        card.add(signIn);
+        card.add(UiTheme.gap(10));
+        card.add(register);
+        card.add(UiTheme.gap(10));
+        card.add(guest);
+        UiTheme.addCentered(panel, card);
         return panel;
     }
 
-    private JPanel credentialsCard(String title, JTextField username, JPasswordField password,
-            JLabel message, Runnable submit) {
-        JPanel fields = new JPanel(new GridLayout(0, 2, 6, 6));
-        fields.add(new JLabel("Username"));
-        fields.add(username);
-        fields.add(new JLabel("Password"));
-        fields.add(password);
+    private JPanel credentialsCard(String title, String subtitle, JTextField username,
+            JPasswordField password, JLabel message, Runnable submit) {
+        JPanel panel = UiTheme.screen();
+        JPanel card = UiTheme.card();
+        card.add(UiTheme.title(title));
+        card.add(UiTheme.gap(8));
+        card.add(UiTheme.subtitle(subtitle));
+        card.add(UiTheme.gap(24));
 
-        JButton go = new JButton(title);
-        JButton back = new JButton("Back");
+        UiTheme.styleInput(username);
+        UiTheme.styleInput(password);
+        card.add(fieldGroup("Username", username));
+        card.add(UiTheme.gap(14));
+        card.add(fieldGroup("Password", password));
+        card.add(UiTheme.gap(14));
+
+        JButton go = UiTheme.primaryButton(title);
+        JButton back = UiTheme.choiceButton("Back");
+        UiTheme.styleChoiceButton(go);
         go.addActionListener(event -> submit.run());
         back.addActionListener(event -> show(CHOICE));
         //Enter submits, because a password field is the one place people expect
         //it to and reaching for the mouse there feels broken.
         password.addActionListener(event -> submit.run());
 
-        JPanel buttons = new JPanel();
-        buttons.add(back);
-        buttons.add(go);
-
-        message.setForeground(Color.RED.darker());
-
-        JPanel panel = new JPanel(new BorderLayout(0, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
-        panel.add(new JLabel(title), BorderLayout.NORTH);
-        panel.add(fields, BorderLayout.CENTER);
-        JPanel foot = new JPanel(new BorderLayout());
-        foot.add(message, BorderLayout.NORTH);
-        foot.add(buttons, BorderLayout.SOUTH);
-        panel.add(foot, BorderLayout.SOUTH);
+        message.setForeground(UiTheme.ERROR);
+        UiTheme.alignCenter(message);
+        card.add(message);
+        card.add(UiTheme.gap(14));
+        card.add(go);
+        card.add(UiTheme.gap(10));
+        card.add(back);
+        UiTheme.addCentered(panel, card);
         return panel;
+    }
+
+    private JPanel fieldGroup(String text, JTextField field) {
+        JPanel group = new JPanel();
+        group.setLayout(new BoxLayout(group, BoxLayout.Y_AXIS));
+        group.setBackground(UiTheme.SURFACE);
+        group.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel label = new JLabel(text);
+        label.setForeground(UiTheme.TEXT);
+        label.setLabelFor(field);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        field.setAlignmentX(Component.LEFT_ALIGNMENT);
+        group.add(label);
+        group.add(UiTheme.gap(6));
+        group.add(field);
+        return group;
     }
 
     private void signIn() {
         String username = signInUsername.getText().trim();
         String password = new String(signInPassword.getPassword());
         if (username.isEmpty() || password.isEmpty()) {
-            signInMessage.setText("Enter a username and password");
+            showError(signInMessage, "Enter a username and password");
             return;
         }
-        signInMessage.setText("Signing in...");
+        showProgress(signInMessage, "Signing in...");
         accounts.logIn(username, password).thenAccept(outcome ->
                 SwingUtilities.invokeLater(() -> completeSignIn(outcome, signInMessage)));
     }
@@ -141,29 +169,29 @@ class SignInScreen {
         String username = registerUsername.getText().trim();
         String password = new String(registerPassword.getPassword());
         if (username.isEmpty() || password.isEmpty()) {
-            registerMessage.setText("Choose a username and password");
+            showError(registerMessage, "Choose a username and password");
             return;
         }
-        registerMessage.setText("Creating your account...");
+        showProgress(registerMessage, "Creating your account...");
         accounts.register(username, password).thenAccept(outcome ->
                 SwingUtilities.invokeLater(() -> completeRegistration(outcome, password)));
     }
 
     private void completeRegistration(AccountClient.Outcome outcome, String password) {
         if (outcome.kind() != AccountClient.Outcome.Kind.REGISTERED) {
-            registerMessage.setText(outcome.message());
+            showError(registerMessage, outcome.message());
             return;
         }
         //Registering and then being asked to type the same thing again is a
         //pointless step, so the account that was just created is signed into.
-        registerMessage.setText("Signing you in...");
+        showProgress(registerMessage, "Signing you in...");
         accounts.logIn(outcome.account().username(), password).thenAccept(signIn ->
                 SwingUtilities.invokeLater(() -> completeSignIn(signIn, registerMessage)));
     }
 
     private void completeSignIn(AccountClient.Outcome outcome, JLabel message) {
         if (!outcome.isLoggedIn()) {
-            message.setText(outcome.message());
+            showError(message, outcome.message());
             return;
         }
         identity.signedIn(outcome);
@@ -181,5 +209,15 @@ class SignInScreen {
         signInMessage.setText(" ");
         registerMessage.setText(" ");
         cards.show(root, card);
+    }
+
+    private void showProgress(JLabel message, String text) {
+        message.setForeground(UiTheme.MUTED_TEXT);
+        message.setText(text);
+    }
+
+    private void showError(JLabel message, String text) {
+        message.setForeground(UiTheme.ERROR);
+        message.setText(text);
     }
 }
